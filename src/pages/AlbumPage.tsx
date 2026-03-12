@@ -44,40 +44,30 @@ const AlbumPage = () => {
     fetchData();
   }, [id]);
 
-  // Fetch user's rating
+  // Fetch existing album score
   useEffect(() => {
     const fetchRating = async () => {
       if (!user || !id) return;
-
       const { data } = await supabase
         .from('album_ratings')
         .select('rating')
         .eq('user_id', user.id)
         .eq('album_mbid', id)
         .maybeSingle();
-
-      if (data) {
-        setUserRating(data.rating);
-      }
+      if (data) setUserRating(data.rating);
     };
-
     fetchRating();
   }, [user, id]);
 
-  const handleRate = async (rating: number) => {
-    if (!user) {
-      toast({
-        title: 'Sign in required',
-        description: 'Please sign in to rate albums.',
-        variant: 'destructive',
-      });
+  // Save album score when track ratings change
+  const handleAlbumScoreChange = useCallback(async (score: number | null) => {
+    if (!user || !id || !release || score === null) {
+      if (score === null) setUserRating(0);
       return;
     }
 
-    if (!id || !release) return;
-
-    setIsSavingRating(true);
-    setUserRating(rating);
+    const roundedScore = Math.round(score * 10) / 10;
+    setUserRating(roundedScore);
 
     try {
       const artistName = release['artist-credit']?.[0]?.artist.name;
@@ -91,29 +81,17 @@ const AlbumPage = () => {
           album_title: release.title,
           artist_name: artistName,
           cover_url: coverUrl,
-          rating,
+          rating: Math.round(roundedScore),
           rated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,album_mbid',
         });
 
       if (error) throw error;
-
-      toast({
-        title: 'Rating saved!',
-        description: `You rated "${release.title}" ${rating}/10`,
-      });
     } catch (error) {
-      console.error('Error saving rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save rating. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSavingRating(false);
+      console.error('Error saving album score:', error);
     }
-  };
+  }, [user, id, release, toast]);
 
   if (isLoading) {
     return (
