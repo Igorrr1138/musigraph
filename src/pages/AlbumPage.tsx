@@ -18,7 +18,7 @@ const AlbumPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
-  const [isSavingRating, setIsSavingRating] = useState(false);
+  
 
   useEffect(() => {
     const fetchData = async () => {
