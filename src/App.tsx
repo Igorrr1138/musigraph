@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/album/:id" element={<AlbumPage />} />
             <Route path="/ratings" element={<RatingsPage />} />
             <Route path="/graph" element={<GraphPage />} />
+            <Route path="/discography-map" element={<DiscographyMapPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
