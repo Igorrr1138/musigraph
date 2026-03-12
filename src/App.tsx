@@ -10,6 +10,7 @@ import ArtistPage from "./pages/ArtistPage";
 import AlbumPage from "./pages/AlbumPage";
 import RatingsPage from "./pages/RatingsPage";
 import GraphPage from "./pages/GraphPage";
+import DiscographyMapPage from "./pages/DiscographyMapPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
