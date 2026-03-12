@@ -132,11 +132,18 @@ const RatingsPage = () => {
               </p>
             </div>
             {ratings.length > 0 && (
-              <Link to="/graph">
-                <Button className="gradient-bg text-primary-foreground border-0">
-                  View Rating Graph
-                </Button>
-              </Link>
+              <div className="flex gap-3">
+                <Link to="/graph">
+                  <Button variant="outline">
+                    Rating Timeline
+                  </Button>
+                </Link>
+                <Link to="/discography-map">
+                  <Button className="gradient-bg text-primary-foreground border-0">
+                    Discography Map
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
 

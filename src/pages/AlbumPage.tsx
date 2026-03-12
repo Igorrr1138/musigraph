@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Disc3, ExternalLink, Music, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
-import { RatingStars } from '@/components/music/RatingStars';
 import { TrackList } from '@/components/music/TrackList';
 import { getReleaseGroupReleases, getRelease, getCoverArtUrl, type MusicBrainzRelease } from '@/lib/musicbrainz';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +18,7 @@ const AlbumPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
-  const [isSavingRating, setIsSavingRating] = useState(false);
+  
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,40 +44,30 @@ const AlbumPage = () => {
     fetchData();
   }, [id]);
 
-  // Fetch user's rating
+  // Fetch existing album score
   useEffect(() => {
     const fetchRating = async () => {
       if (!user || !id) return;
-
       const { data } = await supabase
         .from('album_ratings')
         .select('rating')
         .eq('user_id', user.id)
         .eq('album_mbid', id)
         .maybeSingle();
-
-      if (data) {
-        setUserRating(data.rating);
-      }
+      if (data) setUserRating(data.rating);
     };
-
     fetchRating();
   }, [user, id]);
 
-  const handleRate = async (rating: number) => {
-    if (!user) {
-      toast({
-        title: 'Sign in required',
-        description: 'Please sign in to rate albums.',
-        variant: 'destructive',
-      });
+  // Save album score when track ratings change
+  const handleAlbumScoreChange = useCallback(async (score: number | null) => {
+    if (!user || !id || !release || score === null) {
+      if (score === null) setUserRating(0);
       return;
     }
 
-    if (!id || !release) return;
-
-    setIsSavingRating(true);
-    setUserRating(rating);
+    const roundedScore = Math.round(score * 10) / 10;
+    setUserRating(roundedScore);
 
     try {
       const artistName = release['artist-credit']?.[0]?.artist.name;
@@ -93,29 +81,17 @@ const AlbumPage = () => {
           album_title: release.title,
           artist_name: artistName,
           cover_url: coverUrl,
-          rating,
+          rating: Math.round(roundedScore),
           rated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,album_mbid',
         });
 
       if (error) throw error;
-
-      toast({
-        title: 'Rating saved!',
-        description: `You rated "${release.title}" ${rating}/10`,
-      });
     } catch (error) {
-      console.error('Error saving rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save rating. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSavingRating(false);
+      console.error('Error saving album score:', error);
     }
-  };
+  }, [user, id, release, toast]);
 
   if (isLoading) {
     return (
@@ -238,21 +214,24 @@ const AlbumPage = () => {
                 )}
               </div>
 
-              {/* Rating */}
+              {/* Album Score (computed from track ratings) */}
               <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-3">Your Rating</h3>
-                <RatingStars
-                  rating={userRating}
-                  onRate={handleRate}
-                  readonly={isSavingRating}
-                  size="lg"
-                />
-                {!user && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <Link to="/auth" className="text-primary hover:underline">
-                      Sign in
-                    </Link>{' '}
-                    to save your ratings
+                <h3 className="text-lg font-semibold mb-2">Album Score</h3>
+                {userRating > 0 ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-bold gradient-text">{userRating}/10</span>
+                    <span className="text-sm text-muted-foreground">avg of your track ratings</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {user ? (
+                      'Rate individual tracks below to generate your album score'
+                    ) : (
+                      <>
+                        <Link to="/auth" className="text-primary hover:underline">Sign in</Link>{' '}
+                        to rate tracks and build your discography map
+                      </>
+                    )}
                   </p>
                 )}
               </div>
@@ -277,7 +256,7 @@ const AlbumPage = () => {
           <div className="container mx-auto max-w-6xl">
             <h2 className="text-2xl font-bold mb-6">Tracks</h2>
             <div className="bg-card/50 rounded-2xl border border-border/50 p-4">
-              <TrackList tracks={tracks} />
+              <TrackList tracks={tracks} albumMbid={id!} onAlbumScoreChange={handleAlbumScoreChange} />
             </div>
           </div>
         </section>
