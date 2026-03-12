@@ -39,6 +39,7 @@ export interface MusicBrainzArtist {
   };
   type?: string;
   score?: number;
+  tags?: Array<{ count: number; name: string }>;
 }
 
 export interface MusicBrainzRelease {
