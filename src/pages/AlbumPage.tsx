@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Disc3, ExternalLink, Music, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
-import { RatingStars } from '@/components/music/RatingStars';
 import { TrackList } from '@/components/music/TrackList';
 import { getReleaseGroupReleases, getRelease, getCoverArtUrl, type MusicBrainzRelease } from '@/lib/musicbrainz';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
