@@ -157,6 +157,39 @@ export type Database = {
         }
         Relationships: []
       }
+      track_ratings: {
+        Row: {
+          album_mbid: string
+          id: string
+          rated_at: string
+          rating: number
+          track_mbid: string | null
+          track_position: number
+          track_title: string
+          user_id: string
+        }
+        Insert: {
+          album_mbid: string
+          id?: string
+          rated_at?: string
+          rating: number
+          track_mbid?: string | null
+          track_position: number
+          track_title: string
+          user_id: string
+        }
+        Update: {
+          album_mbid?: string
+          id?: string
+          rated_at?: string
+          rating?: number
+          track_mbid?: string | null
+          track_position?: number
+          track_title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tracks_cache: {
         Row: {
           album_mbid: string | null
