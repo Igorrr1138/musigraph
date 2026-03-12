@@ -238,21 +238,24 @@ const AlbumPage = () => {
                 )}
               </div>
 
-              {/* Rating */}
+              {/* Album Score (computed from track ratings) */}
               <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-3">Your Rating</h3>
-                <RatingStars
-                  rating={userRating}
-                  onRate={handleRate}
-                  readonly={isSavingRating}
-                  size="lg"
-                />
-                {!user && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <Link to="/auth" className="text-primary hover:underline">
-                      Sign in
-                    </Link>{' '}
-                    to save your ratings
+                <h3 className="text-lg font-semibold mb-2">Album Score</h3>
+                {userRating > 0 ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-bold gradient-text">{userRating}/10</span>
+                    <span className="text-sm text-muted-foreground">avg of your track ratings</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {user ? (
+                      'Rate individual tracks below to generate your album score'
+                    ) : (
+                      <>
+                        <Link to="/auth" className="text-primary hover:underline">Sign in</Link>{' '}
+                        to rate tracks and build your discography map
+                      </>
+                    )}
                   </p>
                 )}
               </div>
