@@ -133,12 +133,6 @@ const Index = () => {
       {hasSearched && (
         <section className="py-12 px-4">
           <div className="container mx-auto max-w-6xl">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold">
-                {searchType === 'artists' ? 'Artists' : 'Albums'} ({artists.length || albums.length})
-              </h2>
-            </div>
-
             {isSearching ? (
               <div className="flex items-center justify-center py-20">
                 <motion.div
@@ -150,33 +144,81 @@ const Index = () => {
               </div>
             ) : (
               <>
-                {/* Artists Grid */}
-                {searchType === 'artists' && artists.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {artists.map((artist, index) => (
-                      <ArtistCard key={artist.id} artist={artist} index={index} />
-                    ))}
-                  </div>
-                )}
+                {/* Artists results */}
+                {searchType === 'artists' && artists.length > 0 && (() => {
+                  const [best, ...others] = artists;
+                  return (
+                    <>
+                      {/* Best match */}
+                      <div className="mb-12">
+                        <h2 className="text-2xl font-bold mb-6">Best Match</h2>
+                        <div className="max-w-sm">
+                          <ArtistCard key={best.id} artist={best} index={0} />
+                        </div>
+                      </div>
 
-                {/* Albums Grid */}
-                {searchType === 'albums' && albums.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                    {albums.map((release, index) => (
-                      <AlbumCard
-                        key={release.id}
-                        album={{
-                          id: release['release-group']?.id || release.id,
-                          title: release.title,
-                          artistName: release['artist-credit']?.[0]?.artist.name,
-                          releaseDate: release.date,
-                          type: release['release-group']?.['primary-type'],
-                        }}
-                        index={index}
-                      />
-                    ))}
-                  </div>
-                )}
+                      {/* Other results */}
+                      {others.length > 0 && (
+                        <div>
+                          <h2 className="text-xl font-bold mb-6 text-muted-foreground">Other Related Results</h2>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            {others.map((artist, index) => (
+                              <ArtistCard key={artist.id} artist={artist} index={index} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                {/* Albums results */}
+                {searchType === 'albums' && albums.length > 0 && (() => {
+                  const [best, ...others] = albums;
+                  return (
+                    <>
+                      {/* Best match */}
+                      <div className="mb-12">
+                        <h2 className="text-2xl font-bold mb-6">Best Match</h2>
+                        <div className="max-w-[200px]">
+                          <AlbumCard
+                            key={best.id}
+                            album={{
+                              id: best['release-group']?.id || best.id,
+                              title: best.title,
+                              artistName: best['artist-credit']?.[0]?.artist.name,
+                              releaseDate: best.date,
+                              type: best['release-group']?.['primary-type'],
+                            }}
+                            index={0}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Other results */}
+                      {others.length > 0 && (
+                        <div>
+                          <h2 className="text-xl font-bold mb-6 text-muted-foreground">Other Related Results</h2>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                            {others.map((release, index) => (
+                              <AlbumCard
+                                key={release.id}
+                                album={{
+                                  id: release['release-group']?.id || release.id,
+                                  title: release.title,
+                                  artistName: release['artist-credit']?.[0]?.artist.name,
+                                  releaseDate: release.date,
+                                  type: release['release-group']?.['primary-type'],
+                                }}
+                                index={index}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* No Results */}
                 {((searchType === 'artists' && artists.length === 0) ||
