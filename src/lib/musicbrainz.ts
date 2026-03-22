@@ -114,7 +114,7 @@ export async function getArtist(mbid: string): Promise<MusicBrainzArtist | null>
 }
 
 export async function getArtistReleaseGroups(mbid: string, limit = 50): Promise<MusicBrainzReleaseGroup[]> {
-  const url = `${MUSICBRAINZ_BASE_URL}/release-group?artist=${mbid}&fmt=json&limit=${limit}&type=album`;
+  const url = `${MUSICBRAINZ_BASE_URL}/release-group?artist=${mbid}&fmt=json&limit=${limit}`;
   
   try {
     const response = await rateLimitedFetch(url);
