@@ -25,7 +25,14 @@ const ArtistPage = () => {
         ]);
 
         setArtist(artistData);
-        setAlbums(albumsData);
+        // Sort: Albums first, then EPs, then everything else
+        const typeOrder = (t?: string) => {
+          if (t === 'Album') return 0;
+          if (t === 'EP') return 1;
+          return 2;
+        };
+        const sorted = [...albumsData].sort((a, b) => typeOrder(a['primary-type']) - typeOrder(b['primary-type']));
+        setAlbums(sorted);
       } catch (error) {
         console.error('Error fetching artist:', error);
       } finally {
