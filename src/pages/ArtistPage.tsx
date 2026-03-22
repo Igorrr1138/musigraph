@@ -25,14 +25,7 @@ const ArtistPage = () => {
         ]);
 
         setArtist(artistData);
-        // Sort: Albums first, then EPs, then everything else
-        const typeOrder = (t?: string) => {
-          if (t === 'Album') return 0;
-          if (t === 'EP') return 1;
-          return 2;
-        };
-        const sorted = [...albumsData].sort((a, b) => typeOrder(a['primary-type']) - typeOrder(b['primary-type']));
-        setAlbums(sorted);
+        setAlbums(albumsData);
       } catch (error) {
         console.error('Error fetching artist:', error);
       } finally {
@@ -176,25 +169,47 @@ const ArtistPage = () => {
           <h2 className="text-2xl font-bold mb-8">Discography</h2>
 
           {albums.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {albums.map((album, index) => (
-                <AlbumCard
-                  key={album.id}
-                  album={{
-                    id: album.id,
-                    title: album.title,
-                    artistName: artist.name,
-                    releaseDate: album['first-release-date'],
-                    type: album['primary-type'],
-                  }}
-                  index={index}
-                />
-              ))}
-            </div>
+            <>
+              {(() => {
+                const officialAlbums = albums.filter(a => a['primary-type'] === 'Album');
+                const eps = albums.filter(a => a['primary-type'] === 'EP');
+                const others = albums.filter(a => a['primary-type'] !== 'Album' && a['primary-type'] !== 'EP');
+
+                const renderSection = (title: string, items: typeof albums, startIndex: number) =>
+                  items.length > 0 && (
+                    <div className="mb-12">
+                      <h3 className="text-xl font-semibold mb-5 text-muted-foreground">{title} ({items.length})</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        {items.map((album, index) => (
+                          <AlbumCard
+                            key={album.id}
+                            album={{
+                              id: album.id,
+                              title: album.title,
+                              artistName: artist.name,
+                              releaseDate: album['first-release-date'],
+                              type: album['primary-type'],
+                            }}
+                            index={startIndex + index}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+
+                return (
+                  <>
+                    {renderSection('Albums', officialAlbums, 0)}
+                    {renderSection('EPs', eps, officialAlbums.length)}
+                    {renderSection('Other Releases', others, officialAlbums.length + eps.length)}
+                  </>
+                );
+              })()}
+            </>
           ) : (
             <div className="text-center py-12">
               <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No albums found</p>
+              <p className="text-muted-foreground">No releases found</p>
             </div>
           )}
         </div>
