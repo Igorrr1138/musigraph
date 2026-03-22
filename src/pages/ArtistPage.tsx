@@ -172,9 +172,25 @@ const ArtistPage = () => {
           {albums.length > 0 ? (
             <>
               {(() => {
-                const officialAlbums = albums.filter(a => a['primary-type'] === 'Album');
-                const eps = albums.filter(a => a['primary-type'] === 'EP');
-                const others = albums.filter(a => a['primary-type'] !== 'Album' && a['primary-type'] !== 'EP');
+                const sortByYear = (items: typeof albums) =>
+                  [...items].sort((a, b) => {
+                    const yearA = a['first-release-date']?.split('-')[0] || '9999';
+                    const yearB = b['first-release-date']?.split('-')[0] || '9999';
+                    return yearA.localeCompare(yearB);
+                  });
+
+                // Official albums: primary type Album with no secondary types (excludes live, compilations, etc.)
+                const officialAlbums = sortByYear(
+                  albums.filter(a => a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0))
+                );
+                const eps = sortByYear(albums.filter(a => a['primary-type'] === 'EP'));
+                const others = sortByYear(
+                  albums.filter(a => {
+                    if (a['primary-type'] === 'EP') return false;
+                    if (a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0)) return false;
+                    return true;
+                  })
+                );
 
                 // Extract unique types from "others"
                 const otherTypes = [...new Set(others.map(a => a['primary-type'] || 'Unknown'))];
