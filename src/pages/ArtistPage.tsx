@@ -176,6 +176,22 @@ const ArtistPage = () => {
                 const eps = albums.filter(a => a['primary-type'] === 'EP');
                 const others = albums.filter(a => a['primary-type'] !== 'Album' && a['primary-type'] !== 'EP');
 
+                // Extract unique types from "others"
+                const otherTypes = [...new Set(others.map(a => a['primary-type'] || 'Unknown'))];
+
+                const filteredOthers = activeOtherFilters.size === 0
+                  ? others
+                  : others.filter(a => activeOtherFilters.has(a['primary-type'] || 'Unknown'));
+
+                const toggleFilter = (type: string) => {
+                  setActiveOtherFilters(prev => {
+                    const next = new Set(prev);
+                    if (next.has(type)) next.delete(type);
+                    else next.add(type);
+                    return next;
+                  });
+                };
+
                 const renderSection = (title: string, items: typeof albums, startIndex: number) =>
                   items.length > 0 && (
                     <div className="mb-12">
@@ -202,7 +218,56 @@ const ArtistPage = () => {
                   <>
                     {renderSection('Albums', officialAlbums, 0)}
                     {renderSection('EPs', eps, officialAlbums.length)}
-                    {renderSection('Other Releases', others, officialAlbums.length + eps.length)}
+
+                    {others.length > 0 && (
+                      <div className="mb-12">
+                        <h3 className="text-xl font-semibold mb-4 text-muted-foreground">
+                          Other Releases ({filteredOthers.length})
+                        </h3>
+
+                        <div className="flex flex-wrap gap-2 mb-6">
+                          <button
+                            onClick={() => setActiveOtherFilters(new Set())}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                              activeOtherFilters.size === 0
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            All
+                          </button>
+                          {otherTypes.map(type => (
+                            <button
+                              key={type}
+                              onClick={() => toggleFilter(type)}
+                              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                                activeOtherFilters.has(type)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-secondary text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                          {filteredOthers.map((album, index) => (
+                            <AlbumCard
+                              key={album.id}
+                              album={{
+                                id: album.id,
+                                title: album.title,
+                                artistName: artist.name,
+                                releaseDate: album['first-release-date'],
+                                type: album['primary-type'],
+                              }}
+                              index={officialAlbums.length + eps.length + index}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
