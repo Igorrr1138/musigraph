@@ -69,6 +69,7 @@ export interface MusicBrainzReleaseGroup {
   id: string;
   title: string;
   'primary-type'?: string;
+  'secondary-types'?: string[];
   'first-release-date'?: string;
   'artist-credit'?: Array<{
     artist: MusicBrainzArtist;
