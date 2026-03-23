@@ -118,32 +118,28 @@ export function YouTubePlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      // Use YouTube's search via an invidious API or a simple approach
-      // We'll use the YouTube oEmbed/search trick via a public endpoint
-      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-      const resp = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(searchUrl)}`);
-      const html = await resp.text();
-      
-      // Extract first video ID from search results
-      const match = html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-      if (match) {
-        initPlayer(match[1]);
-      }
-    } catch (error) {
-      console.error('YouTube search failed:', error);
-      // Fallback: try a simpler approach
+    const pipedInstances = [
+      'https://pipedapi.kavin.rocks',
+      'https://pipedapi.adminforge.de',
+      'https://api.piped.projectsegfau.lt',
+    ];
+
+    for (const instance of pipedInstances) {
       try {
-        const resp = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(query)}&filter=videos`);
+        const resp = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`);
+        if (!resp.ok) continue;
         const data = await resp.json();
-        if (data.items?.[0]?.url) {
-          const videoId = data.items[0].url.replace('/watch?v=', '');
+        const item = data.items?.[0];
+        if (item?.url) {
+          const videoId = item.url.replace('/watch?v=', '');
           initPlayer(videoId);
+          return;
         }
       } catch {
-        console.error('Fallback YouTube search also failed');
+        continue;
       }
     }
+    console.error('All YouTube search instances failed');
   }, [initPlayer]);
 
   const playTrack = useCallback((track: Track, albumMbid: string, artist?: string, album?: string, allTracks?: Track[]) => {

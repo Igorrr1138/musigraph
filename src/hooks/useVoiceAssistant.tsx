@@ -115,14 +115,21 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
       }
     };
 
+    let permanentError = false;
+
     recognition.onerror = (event: any) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return;
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        permanentError = true;
+        console.warn('Microphone permission denied. Voice assistant disabled.');
+        setEnabled(false);
+        return;
+      }
       console.error('Speech recognition error:', event.error);
     };
 
     recognition.onend = () => {
-      // Restart if still enabled
-      if (enabledRef.current) {
+      if (enabledRef.current && !permanentError) {
         try { recognition.start(); } catch {}
       }
     };
