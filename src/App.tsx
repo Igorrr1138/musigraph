@@ -8,6 +8,7 @@ import { YouTubePlayerProvider } from "@/hooks/useYouTubePlayer";
 import { PlaybackBar } from "@/components/player/PlaybackBar";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
 import AlbumPage from "./pages/AlbumPage";
 import RatingsPage from "./pages/RatingsPage";
@@ -28,6 +29,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/artist/:id" element={<ArtistPage />} />
               <Route path="/album/:id" element={<AlbumPage />} />
               <Route path="/ratings" element={<RatingsPage />} />

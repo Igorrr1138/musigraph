@@ -11,8 +11,9 @@ import { useAuth } from '@/hooks/useAuth';
 const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -31,7 +32,22 @@ const AuthPage = () => {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await resetPassword(formData.email);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Reset link sent!',
+            description: 'Check your email for a password reset link.',
+          });
+          setIsForgotPassword(false);
+        }
+      } else if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
           toast({
@@ -105,16 +121,18 @@ const AuthPage = () => {
           </div>
 
           <h1 className="text-3xl font-bold mb-2">
-            {isLogin ? 'Welcome back' : 'Create account'}
+            {isForgotPassword ? 'Reset password' : isLogin ? 'Welcome back' : 'Create account'}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {isLogin
+            {isForgotPassword
+              ? "Enter your email and we'll send you a reset link."
+              : isLogin
               ? 'Sign in to access your ratings and discover new music.'
               : 'Join SoundVault to rate albums and track your musical journey.'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!isLogin && (
+            {!isLogin && !isForgotPassword && (
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <div className="relative">
@@ -147,22 +165,35 @@ const AuthPage = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="••••••••"
-                  className="pl-11 bg-secondary border-border"
-                  required
-                  minLength={6}
-                />
+            {!isForgotPassword && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-xs text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="pl-11 bg-secondary border-border"
+                    required
+                    minLength={6}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -175,6 +206,8 @@ const AuthPage = () => {
                   transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                   className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full"
                 />
+              ) : isForgotPassword ? (
+                'Send Reset Link'
               ) : isLogin ? (
                 'Sign In'
               ) : (
@@ -183,17 +216,27 @@ const AuthPage = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <span className="text-primary font-medium">
-                {isLogin ? 'Sign up' : 'Sign in'}
-              </span>
-            </button>
+          <div className="mt-6 text-center space-y-2">
+            {isForgotPassword ? (
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(false)}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                Back to <span className="text-primary font-medium">Sign in</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                <span className="text-primary font-medium">
+                  {isLogin ? 'Sign up' : 'Sign in'}
+                </span>
+              </button>
+            )}
           </div>
         </motion.div>
       </div>
