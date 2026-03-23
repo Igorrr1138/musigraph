@@ -121,10 +121,12 @@ const AuthPage = () => {
           </div>
 
           <h1 className="text-3xl font-bold mb-2">
-            {isLogin ? 'Welcome back' : 'Create account'}
+            {isForgotPassword ? 'Reset password' : isLogin ? 'Welcome back' : 'Create account'}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {isLogin
+            {isForgotPassword
+              ? "Enter your email and we'll send you a reset link."
+              : isLogin
               ? 'Sign in to access your ratings and discover new music.'
               : 'Join SoundVault to rate albums and track your musical journey.'}
           </p>
