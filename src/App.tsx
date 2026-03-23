@@ -8,6 +8,7 @@ import { YouTubePlayerProvider } from "@/hooks/useYouTubePlayer";
 import { PlaybackBar } from "@/components/player/PlaybackBar";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
 import AlbumPage from "./pages/AlbumPage";
 import RatingsPage from "./pages/RatingsPage";
