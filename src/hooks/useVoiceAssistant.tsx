@@ -49,7 +49,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
   const [enabled, setEnabled] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>('off');
   const recognitionRef = useRef<any>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const deactivate = useCallback(() => {
     setVoiceState('passive');
