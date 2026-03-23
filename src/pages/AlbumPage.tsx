@@ -256,7 +256,7 @@ const AlbumPage = () => {
           <div className="container mx-auto max-w-6xl">
             <h2 className="text-2xl font-bold mb-6">Tracks</h2>
             <div className="bg-card/50 rounded-2xl border border-border/50 p-4">
-              <TrackList tracks={tracks} albumMbid={id!} onAlbumScoreChange={handleAlbumScoreChange} />
+              <TrackList tracks={tracks} albumMbid={id!} artistName={artistName} albumTitle={release.title} onAlbumScoreChange={handleAlbumScoreChange} />
             </div>
           </div>
         </section>
