@@ -24,10 +24,16 @@ interface YouTubePlayerState {
 
 const YouTubePlayerContext = createContext<YouTubePlayerState | null>(null);
 
+const defaultState: YouTubePlayerState = {
+  isPlaying: false, currentTrack: null, currentAlbumMbid: null,
+  artistName: null, albumTitle: null, volume: 80, tracks: [],
+  playTrack: () => {}, togglePlay: () => {}, nextTrack: () => {},
+  setVolume: () => {}, setVolumeDucked: () => {},
+};
+
 export function useYouTubePlayer() {
   const ctx = useContext(YouTubePlayerContext);
-  if (!ctx) throw new Error('useYouTubePlayer must be used within YouTubePlayerProvider');
-  return ctx;
+  return ctx ?? defaultState;
 }
 
 declare global {
