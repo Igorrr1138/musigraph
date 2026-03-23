@@ -32,7 +32,22 @@ const AuthPage = () => {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await resetPassword(formData.email);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Reset link sent!',
+            description: 'Check your email for a password reset link.',
+          });
+          setIsForgotPassword(false);
+        }
+      } else if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
           toast({
