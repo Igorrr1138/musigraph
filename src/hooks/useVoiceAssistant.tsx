@@ -81,9 +81,9 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
   const deactivate = useCallback(() => {
     setVoiceState('passive');
-    onDuckVolume(false);
+    onDuckVolumeRef.current(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  }, [onDuckVolume]);
+  }, []);
 
   const activate = useCallback(() => {
     if (!hasActiveTrackRef.current) {
