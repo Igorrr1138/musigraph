@@ -146,7 +146,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
           const num = WORD_TO_NUM[word];
           if (num) {
             console.log('[Voice] Rating detected:', num);
-            onRatingDetected(num);
+            onRatingDetectedRef.current(num);
             playConfirmation();
             deactivate();
             return;
