@@ -24,6 +24,8 @@ interface YouTubePlayerState {
 
 const YouTubePlayerContext = createContext<YouTubePlayerState | null>(null);
 
+const YOUTUBE_API_KEY = 'AIzaSyA_rjOkH6E2T-cebeeuXzxiti0B7T91J-k';
+
 const defaultState: YouTubePlayerState = {
   isPlaying: false, currentTrack: null, currentAlbumMbid: null,
   artistName: null, albumTitle: null, volume: 80, tracks: [],
@@ -124,28 +126,28 @@ export function YouTubePlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const pipedInstances = [
-      'https://pipedapi.kavin.rocks',
-      'https://pipedapi.adminforge.de',
-      'https://api.piped.projectsegfau.lt',
-    ];
+    console.log('[YouTube] Searching for:', query);
 
-    for (const instance of pipedInstances) {
-      try {
-        const resp = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`);
-        if (!resp.ok) continue;
-        const data = await resp.json();
-        const item = data.items?.[0];
-        if (item?.url) {
-          const videoId = item.url.replace('/watch?v=', '');
-          initPlayer(videoId);
-          return;
-        }
-      } catch {
-        continue;
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5&key=${YOUTUBE_API_KEY}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        console.error('[YouTube] API error:', resp.status, await resp.text());
+        return;
       }
+      const data = await resp.json();
+      console.log('[YouTube] Search results:', data.items?.map((i: any) => ({ title: i.snippet?.title, id: i.id?.videoId })));
+
+      const videoId = data.items?.[0]?.id?.videoId;
+      if (videoId) {
+        console.log('[YouTube] Playing videoId:', videoId);
+        initPlayer(videoId);
+      } else {
+        console.error('[YouTube] No results found');
+      }
+    } catch (err) {
+      console.error('[YouTube] Search failed:', err);
     }
-    console.error('All YouTube search instances failed');
   }, [initPlayer]);
 
   const playTrack = useCallback((track: Track, albumMbid: string, artist?: string, album?: string, allTracks?: Track[]) => {
