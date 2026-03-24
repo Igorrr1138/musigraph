@@ -73,11 +73,17 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
   const hasActiveTrackRef = useRef(hasActiveTrack);
   hasActiveTrackRef.current = hasActiveTrack;
 
+  const onRatingDetectedRef = useRef(onRatingDetected);
+  onRatingDetectedRef.current = onRatingDetected;
+
+  const onDuckVolumeRef = useRef(onDuckVolume);
+  onDuckVolumeRef.current = onDuckVolume;
+
   const deactivate = useCallback(() => {
     setVoiceState('passive');
-    onDuckVolume(false);
+    onDuckVolumeRef.current(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  }, [onDuckVolume]);
+  }, []);
 
   const activate = useCallback(() => {
     if (!hasActiveTrackRef.current) {
@@ -88,7 +94,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
     console.log('[Voice] Activated — listening for rating');
     setVoiceState('active');
     playBeep();
-    onDuckVolume(true);
+    onDuckVolumeRef.current(true);
     // Auto-deactivate after 7 seconds
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
@@ -140,7 +146,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
           const num = WORD_TO_NUM[word];
           if (num) {
             console.log('[Voice] Rating detected:', num);
-            onRatingDetected(num);
+            onRatingDetectedRef.current(num);
             playConfirmation();
             deactivate();
             return;
