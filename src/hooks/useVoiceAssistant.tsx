@@ -5,6 +5,8 @@ type VoiceState = 'off' | 'passive' | 'active';
 const WORD_TO_NUM: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5,
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  // Common misrecognitions for "ten"
+  then: 10, tin: 10, tan: 10, hen: 10,
   '1': 1, '2': 2, '3': 3, '4': 4, '5': 5,
   '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
 };
@@ -40,16 +42,36 @@ function playConfirmation() {
   } catch {}
 }
 
+function playNegativeBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 220;
+    osc.type = 'sawtooth';
+    gain.gain.value = 0.12;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {}
+}
+
 interface UseVoiceAssistantOptions {
   onRatingDetected: (rating: number) => void;
   onDuckVolume: (ducked: boolean) => void;
+  hasActiveTrack: boolean;
 }
 
-export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAssistantOptions) {
+export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTrack }: UseVoiceAssistantOptions) {
   const [enabled, setEnabled] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>('off');
   const recognitionRef = useRef<any>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasActiveTrackRef = useRef(hasActiveTrack);
+  hasActiveTrackRef.current = hasActiveTrack;
 
   const deactivate = useCallback(() => {
     setVoiceState('passive');
@@ -58,14 +80,23 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
   }, [onDuckVolume]);
 
   const activate = useCallback(() => {
+    if (!hasActiveTrackRef.current) {
+      console.log('[Voice] No track active, cannot activate');
+      playNegativeBeep();
+      return false;
+    }
+    console.log('[Voice] Activated — listening for rating');
     setVoiceState('active');
     playBeep();
     onDuckVolume(true);
-    // Auto-deactivate after 5 seconds
+    // Auto-deactivate after 7 seconds
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
+      console.log('[Voice] Timeout — returning to passive');
+      playNegativeBeep();
       deactivate();
-    }, 5000);
+    }, 7000);
+    return true;
   }, [onDuckVolume, deactivate]);
 
   useEffect(() => {
@@ -80,7 +111,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      console.warn('Web Speech API not supported');
+      console.warn('[Voice] Web Speech API not supported');
       return;
     }
 
@@ -95,17 +126,20 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
     recognition.onresult = (event: any) => {
       const last = event.results[event.results.length - 1];
       const transcript = last[0].transcript.toLowerCase().trim();
+      console.log('[Voice] Transcript:', transcript, '| State:', voiceStateRef.current);
 
       if (voiceStateRef.current === 'passive') {
         if (transcript.includes('wake up')) {
           activate();
         }
       } else if (voiceStateRef.current === 'active') {
-        // Check for number
+        // Only process final results for rating
+        if (!last.isFinal) return;
         const words = transcript.split(/\s+/);
         for (const word of words) {
           const num = WORD_TO_NUM[word];
           if (num) {
+            console.log('[Voice] Rating detected:', num);
             onRatingDetected(num);
             playConfirmation();
             deactivate();
@@ -121,11 +155,11 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
       if (event.error === 'no-speech' || event.error === 'aborted') return;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         permanentError = true;
-        console.warn('Microphone permission denied. Voice assistant disabled.');
+        console.warn('[Voice] Microphone permission denied');
         setEnabled(false);
         return;
       }
-      console.error('Speech recognition error:', event.error);
+      console.error('[Voice] Error:', event.error);
     };
 
     recognition.onend = () => {
@@ -143,7 +177,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
     };
   }, [enabled]);
 
-  // Use refs to access latest state in callbacks
+  // Refs for latest state in callbacks
   const voiceStateRef = useRef(voiceState);
   voiceStateRef.current = voiceState;
   const enabledRef = useRef(enabled);
@@ -151,5 +185,11 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume }: UseVoiceAs
 
   const toggle = useCallback(() => setEnabled(prev => !prev), []);
 
-  return { enabled, voiceState, toggle };
+  // Programmatic activate for hotkey
+  const manualActivate = useCallback(() => {
+    if (!enabledRef.current) return false;
+    return activate();
+  }, [activate]);
+
+  return { enabled, voiceState, toggle, manualActivate };
 }

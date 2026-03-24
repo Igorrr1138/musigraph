@@ -1,19 +1,61 @@
+import { useEffect } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
+import { useToast } from '@/hooks/use-toast';
 
 interface VoiceAssistantProps {
   onRatingDetected: (rating: number) => void;
 }
 
 export function VoiceAssistant({ onRatingDetected }: VoiceAssistantProps) {
-  const { setVolumeDucked } = useYouTubePlayer();
-  const { enabled, voiceState, toggle } = useVoiceAssistant({
+  const { setVolumeDucked, currentTrack } = useYouTubePlayer();
+  const { toast } = useToast();
+  const hasActiveTrack = !!currentTrack;
+
+  const { enabled, voiceState, toggle, manualActivate } = useVoiceAssistant({
     onRatingDetected,
     onDuckVolume: setVolumeDucked,
+    hasActiveTrack,
   });
+
+  // Space+W hotkey for manual activation
+  useEffect(() => {
+    const keys = new Set<string>();
+
+    const onDown = (e: KeyboardEvent) => {
+      // Don't trigger in input fields
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+
+      keys.add(e.key.toLowerCase());
+
+      if (keys.has(' ') && keys.has('w')) {
+        e.preventDefault();
+        const activated = manualActivate();
+        if (!activated && enabled) {
+          toast({
+            title: 'Select a track first',
+            description: 'Play a track before using voice rating.',
+            variant: 'destructive',
+          });
+        }
+      }
+    };
+
+    const onUp = (e: KeyboardEvent) => {
+      keys.delete(e.key.toLowerCase());
+    };
+
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, [manualActivate, enabled, toast]);
 
   return (
     <div className="flex items-center gap-2">
@@ -36,14 +78,13 @@ export function VoiceAssistant({ onRatingDetected }: VoiceAssistantProps) {
         </span>
       </Button>
       
-      {/* Status indicator */}
       {enabled && (
         <span className={cn(
           'text-xs px-2 py-0.5 rounded-full',
           voiceState === 'passive' && 'bg-secondary text-muted-foreground',
           voiceState === 'active' && 'bg-destructive/20 text-destructive',
         )}>
-          {voiceState === 'passive' ? 'Waiting for "Wake up"' : 'Listening for rating'}
+          {voiceState === 'passive' ? 'Waiting for "Wake up" (Space+W)' : 'Listening for rating'}
         </span>
       )}
     </div>
