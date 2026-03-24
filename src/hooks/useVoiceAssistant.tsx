@@ -94,7 +94,7 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
     console.log('[Voice] Activated — listening for rating');
     setVoiceState('active');
     playBeep();
-    onDuckVolume(true);
+    onDuckVolumeRef.current(true);
     // Auto-deactivate after 7 seconds
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
