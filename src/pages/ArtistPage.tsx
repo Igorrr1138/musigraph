@@ -91,13 +91,19 @@ const ArtistPage = () => {
         </div>
 
         <div className="container mx-auto max-w-6xl relative">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to search
-          </Link>
+          <Breadcrumb className="mb-8">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{artist.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Avatar */}
@@ -107,7 +113,16 @@ const ArtistPage = () => {
               transition={{ duration: 0.5 }}
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
             >
-              <User className="w-20 h-20 text-muted-foreground" />
+              {!imageError ? (
+                <img
+                  src={`https://www.theaudiodb.com/images/media/artist/thumb/${artist.name.toLowerCase().replace(/\s+/g, '')}.jpg`}
+                  alt={artist.name}
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <User className="w-20 h-20 text-muted-foreground" />
+              )}
             </motion.div>
 
             {/* Info */}
