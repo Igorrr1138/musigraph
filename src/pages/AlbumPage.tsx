@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
+import { Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { TrackList } from '@/components/music/TrackList';
 import { getReleaseGroupReleases, getRelease, getCoverArtUrl, type MusicBrainzRelease } from '@/lib/musicbrainz';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 
 const AlbumPage = () => {
   const { id } = useParams<{ id: string }>();
