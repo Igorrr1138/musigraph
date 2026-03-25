@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Calendar, Disc3, ExternalLink, User } from 'lucide-react';
+import { MapPin, Calendar, Disc3, ExternalLink, User } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { getArtist, getArtistReleaseGroups, type MusicBrainzArtist, type MusicBrainzReleaseGroup } from '@/lib/musicbrainz';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ const ArtistPage = () => {
   const [albums, setAlbums] = useState<MusicBrainzReleaseGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
