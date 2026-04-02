@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
+import { cleanSearchQuery } from '@/lib/cleanMetadata';
 
 interface Track {
   id: string;
