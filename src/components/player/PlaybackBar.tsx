@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { cn } from '@/lib/utils';
+import { cleanTrackTitle } from '@/lib/cleanMetadata';
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
