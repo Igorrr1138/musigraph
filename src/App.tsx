@@ -14,6 +14,7 @@ import AlbumPage from "./pages/AlbumPage";
 import RatingsPage from "./pages/RatingsPage";
 import GraphPage from "./pages/GraphPage";
 import DiscographyMapPage from "./pages/DiscographyMapPage";
+import ArtistRatingsPage from "./pages/ArtistRatingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
