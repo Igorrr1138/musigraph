@@ -233,7 +233,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_community_album_averages: {
+        Args: never
+        Returns: {
+          album_mbid: string
+          avg_rating: number
+          rater_count: number
+        }[]
+      }
+      get_community_track_averages: {
+        Args: { p_album_mbid: string }
+        Returns: {
+          avg_rating: number
+          rater_count: number
+          track_position: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

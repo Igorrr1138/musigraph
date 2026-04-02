@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { cn } from '@/lib/utils';
+import { cleanTrackTitle } from '@/lib/cleanMetadata';
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
@@ -55,7 +56,7 @@ export function PlaybackBar() {
         {/* Track info - left */}
         <div className="flex-1 min-w-0 flex items-center gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{currentTrack.title}</p>
+            <p className="text-sm font-medium truncate">{cleanTrackTitle(currentTrack.title)}</p>
             {artistName && (
               <p className="text-xs text-muted-foreground truncate">{artistName}</p>
             )}
