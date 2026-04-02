@@ -236,7 +236,8 @@ export function YouTubePlayerProvider({ children }: { children: ReactNode }) {
     if (allTracks) setTracks(allTracks);
     setCurrentTime(0);
     setDuration(0);
-    const query = `${artist || ''} ${track.title} official audio`.trim();
+    const cleanedTitle = cleanSearchQuery(track.title);
+    const query = `${artist || ''} ${cleanedTitle} official audio`.trim();
     searchAndPlay(query);
   }, [searchAndPlay]);
 

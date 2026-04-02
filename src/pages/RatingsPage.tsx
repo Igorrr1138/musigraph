@@ -1,24 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Trash2, Disc3, ArrowLeft } from 'lucide-react';
+import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getCoverArtUrl } from '@/lib/musicbrainz';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
 interface Rating {
   id: string;
@@ -30,6 +18,14 @@ interface Rating {
   rated_at: string;
 }
 
+interface ArtistSummary {
+  name: string;
+  albumCount: number;
+  avgRating: number;
+  ratings: number[];
+  latestCover: string | null;
+}
+
 const RatingsPage = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -38,64 +34,58 @@ const RatingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
+    if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const fetchRatings = async () => {
       if (!user) return;
-
       try {
         const { data, error } = await supabase
           .from('album_ratings')
           .select('*')
           .eq('user_id', user.id)
           .order('rated_at', { ascending: false });
-
         if (error) throw error;
         setRatings(data || []);
       } catch (error) {
         console.error('Error fetching ratings:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load ratings.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'Failed to load ratings.', variant: 'destructive' });
       } finally {
         setIsLoading(false);
       }
     };
-
-    if (user) {
-      fetchRatings();
-    }
+    if (user) fetchRatings();
   }, [user, toast]);
 
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('album_ratings')
-        .delete()
-        .eq('id', id);
+  // Group by artist
+  const artists = useMemo<ArtistSummary[]>(() => {
+    const map = new Map<string, ArtistSummary>();
+    ratings.forEach(r => {
+      const name = r.artist_name || 'Unknown Artist';
+      const existing = map.get(name);
+      if (existing) {
+        existing.albumCount++;
+        existing.ratings.push(r.rating);
+        existing.avgRating = existing.ratings.reduce((a, b) => a + b, 0) / existing.ratings.length;
+        if (!existing.latestCover && r.cover_url) existing.latestCover = r.cover_url;
+      } else {
+        map.set(name, {
+          name,
+          albumCount: 1,
+          avgRating: r.rating,
+          ratings: [r.rating],
+          latestCover: r.cover_url,
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.albumCount - a.albumCount);
+  }, [ratings]);
 
-      if (error) throw error;
-
-      setRatings(ratings.filter((r) => r.id !== id));
-      toast({
-        title: 'Rating deleted',
-        description: 'Your rating has been removed.',
-      });
-    } catch (error) {
-      console.error('Error deleting rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete rating.',
-        variant: 'destructive',
-      });
-    }
-  };
+  const totalAlbums = ratings.length;
+  const overallAvg = totalAlbums > 0
+    ? (ratings.reduce((s, r) => s + r.rating, 0) / totalAlbums).toFixed(1)
+    : '0';
 
   if (authLoading || !user) {
     return (
@@ -105,62 +95,47 @@ const RatingsPage = () => {
     );
   }
 
-  const averageRating = ratings.length > 0
-    ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1)
-    : 0;
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
-
       <div className="pt-24 px-4">
         <div className="container mx-auto max-w-6xl">
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to search
+            ← Back to search
           </Link>
 
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold mb-2">My Ratings</h1>
+              <h1 className="text-3xl font-bold mb-2">Ratings Center</h1>
               <p className="text-muted-foreground">
-                {ratings.length} albums rated • Average: {averageRating}/10
+                {artists.length} artists • {totalAlbums} albums rated • Average: {overallAvg}/10
               </p>
             </div>
             {ratings.length > 0 && (
               <div className="flex gap-3">
                 <Link to="/graph">
-                  <Button variant="outline">
-                    Rating Timeline
-                  </Button>
+                  <Button variant="outline">Rating Timeline</Button>
                 </Link>
                 <Link to="/discography-map">
-                  <Button className="gradient-bg text-primary-foreground border-0">
-                    Discography Map
-                  </Button>
+                  <Button className="gradient-bg text-primary-foreground border-0">Discography Map</Button>
                 </Link>
               </div>
             )}
           </div>
 
-          {/* Ratings Grid */}
+          {/* Artist Cards */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Disc3 className="w-12 h-12 text-primary animate-spin" />
             </div>
-          ) : ratings.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {ratings.map((rating, index) => (
-                <RatingCard
-                  key={rating.id}
-                  rating={rating}
-                  index={index}
-                  onDelete={() => handleDelete(rating.id)}
-                />
+          ) : artists.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {artists.map((artist, index) => (
+                <ArtistCard key={artist.name} artist={artist} index={index} />
               ))}
             </div>
           ) : (
@@ -171,9 +146,7 @@ const RatingsPage = () => {
                 Start exploring and rating your favorite albums
               </p>
               <Link to="/">
-                <Button className="gradient-bg text-primary-foreground border-0">
-                  Discover Music
-                </Button>
+                <Button className="gradient-bg text-primary-foreground border-0">Discover Music</Button>
               </Link>
             </div>
           )}
@@ -183,90 +156,81 @@ const RatingsPage = () => {
   );
 };
 
-function RatingCard({
-  rating,
-  index,
-  onDelete,
-}: {
-  rating: Rating;
-  index: number;
-  onDelete: () => void;
-}) {
+function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number }) {
   const [imageError, setImageError] = useState(false);
+  const imageUrl = `https://www.theaudiodb.com/images/media/artist/thumb/${artist.name.toLowerCase().replace(/\s+/g, '')}.jpg`;
+
+  // Mini sparkline data
+  const sparkline = artist.ratings;
+  const sparkMax = 10;
+  const sparkWidth = 100;
+  const sparkHeight = 32;
+  const points = sparkline.map((v, i) => {
+    const x = sparkline.length === 1 ? sparkWidth / 2 : (i / (sparkline.length - 1)) * sparkWidth;
+    const y = sparkHeight - (v / sparkMax) * sparkHeight;
+    return `${x},${y}`;
+  }).join(' ');
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05 }}
-      className="group relative bg-card rounded-2xl border border-border/50 overflow-hidden hover:border-primary/50 transition-all"
     >
-      <Link to={`/album/${rating.album_mbid}`}>
-        <div className="aspect-square relative">
-          {!imageError && rating.cover_url ? (
-            <img
-              src={rating.cover_url}
-              alt={rating.album_title}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full bg-secondary flex items-center justify-center">
-              <Disc3 className="w-16 h-16 text-muted-foreground" />
-            </div>
-          )}
-
-          {/* Rating badge */}
-          <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 rounded-full gradient-bg text-primary-foreground font-bold">
-            <Star className="w-4 h-4 fill-current" />
-            {rating.rating}
+      <Link
+        to={`/ratings/artist/${encodeURIComponent(artist.name)}`}
+        className="group block bg-card rounded-2xl border border-border/50 p-5 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/5"
+      >
+        <div className="flex items-start gap-4">
+          {/* Artist Image */}
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
+            {!imageError ? (
+              <img
+                src={imageUrl}
+                alt={artist.name}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <User className="w-8 h-8 text-muted-foreground" />
+            )}
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
-        </div>
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+              {artist.name}
+            </h3>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+              <span className="flex items-center gap-1">
+                <Music className="w-3.5 h-3.5" />
+                {artist.albumCount} album{artist.albumCount > 1 ? 's' : ''}
+              </span>
+              <span className="flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-primary text-primary" />
+                {artist.avgRating.toFixed(1)}
+              </span>
+            </div>
 
-        <div className="p-4">
-          <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
-            {rating.album_title}
-          </h3>
-          {rating.artist_name && (
-            <p className="text-sm text-muted-foreground line-clamp-1">
-              {rating.artist_name}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            Rated {new Date(rating.rated_at).toLocaleDateString()}
-          </p>
+            {/* Mini sparkline */}
+            {sparkline.length > 1 && (
+              <div className="mt-3 flex items-center gap-2">
+                <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
+                <svg width={sparkWidth} height={sparkHeight} className="overflow-visible">
+                  <polyline
+                    fill="none"
+                    stroke="hsl(174, 72%, 56%)"
+                    strokeWidth="2"
+                    points={points}
+                  />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
         </div>
       </Link>
-
-      {/* Delete button */}
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent className="glass">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Rating</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete your rating for "{rating.album_title}"?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </motion.div>
   );
 }
