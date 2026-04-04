@@ -158,8 +158,7 @@ const RatingsPage = () => {
 };
 
 function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number }) {
-  const [imageError, setImageError] = useState(false);
-  const imageUrl = `https://www.theaudiodb.com/images/media/artist/thumb/${artist.name.toLowerCase().replace(/\s+/g, '')}.jpg`;
+  const { imageUrl } = useArtistImage(artist.name);
 
   // Mini sparkline data
   const sparkline = artist.ratings;
