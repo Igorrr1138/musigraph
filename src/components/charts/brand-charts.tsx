@@ -139,8 +139,8 @@ interface RatingSparklineProps {
 export function RatingSparkline({
   values,
   className,
-  width = 144,
-  height = 44,
+  width = 240,
+  height = 48,
 }: RatingSparklineProps) {
   const id = useId().replace(/:/g, '');
 
@@ -169,8 +169,9 @@ export function RatingSparkline({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className={cn('h-11 w-36 overflow-visible', className)}
+      className={cn('h-11 w-full overflow-visible', className)}
       aria-hidden="true"
+      preserveAspectRatio="none"
     >
       <defs>
         <linearGradient id={`${id}-stroke`} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -179,8 +180,8 @@ export function RatingSparkline({
           <stop offset="100%" stopColor={chartPalette.gradientEnd} />
         </linearGradient>
         <linearGradient id={`${id}-fill`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={chartPalette.primary} stopOpacity="0.24" />
-          <stop offset="70%" stopColor={chartPalette.primary} stopOpacity="0.06" />
+          <stop offset="0%" stopColor={chartPalette.primary} stopOpacity="0.2" />
+          <stop offset="70%" stopColor={chartPalette.primary} stopOpacity="0.05" />
           <stop offset="100%" stopColor={chartPalette.primary} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -190,20 +191,28 @@ export function RatingSparkline({
         fill="none"
         stroke={chartPalette.surfaceLine}
         strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
       />
 
       {areaPath ? <path d={areaPath} fill={`url(#${id}-fill)`} /> : null}
 
       {values.length === 1 ? (
-        <circle cx={points[0].x} cy={points[0].y} r="4" fill={chartPalette.primary} />
+        <circle
+          cx={points[0].x}
+          cy={points[0].y}
+          r="3.5"
+          fill={chartPalette.primary}
+          vectorEffect="non-scaling-stroke"
+        />
       ) : (
         <path
           d={linePath}
           fill="none"
           stroke={`url(#${id}-stroke)`}
-          strokeWidth="2"
+          strokeWidth="1.65"
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
         />
       )}
 
@@ -212,10 +221,11 @@ export function RatingSparkline({
           key={`${point.x}-${point.y}`}
           cx={point.x}
           cy={point.y}
-          r={index === points.length - 1 ? 3.5 : 2.25}
+          r={index === points.length - 1 ? 3 : 1.75}
           fill={index === points.length - 1 ? chartPalette.gradientEnd : chartPalette.primary}
           stroke="hsl(var(--background))"
-          strokeWidth="1.25"
+          strokeWidth="1.1"
+          vectorEffect="non-scaling-stroke"
         />
       ))}
     </svg>

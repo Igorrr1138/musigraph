@@ -197,17 +197,17 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
             </div>
 
             {sparkline.length > 1 && (
-              <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 px-3 py-3">
-                <div className="flex items-center justify-between gap-3">
+              <div className="mt-4 w-full rounded-2xl border border-border/40 bg-background/40 px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
                       <TrendingUp className="w-3 h-3" />
                       Rating Flow
                     </div>
-                    <p className={`mt-1 text-xs font-medium ${trendTone}`}>{trendLabel}</p>
                   </div>
-                  <RatingSparkline values={sparkline} className="h-11 w-[148px] shrink-0" />
+                  <p className={`text-xs font-medium ${trendTone}`}>{trendLabel}</p>
                 </div>
+                <RatingSparkline values={sparkline} width={288} className="mt-3 h-12 w-full" />
               </div>
             )}
           </div>
