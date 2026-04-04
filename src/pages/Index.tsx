@@ -44,10 +44,9 @@ const Index = () => {
       
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Background elements */}
+        {/* Background glow elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute top-1/3 -right-32 w-80 h-80 rounded-full bg-accent/10 blur-3xl" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         </div>
 
@@ -57,20 +56,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="text-center mb-14"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border/50 text-sm text-muted-foreground mb-6">
-              <Disc3 className="w-4 h-4 text-primary animate-spin" style={{ animationDuration: '3s' }} />
-              <span>Powered by MusicBrainz</span>
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl font-bold mb-6">
-              <span className="gradient-text">Discover</span>
+            <h1 className="text-6xl md:text-8xl font-boldonse mb-6 tracking-wide">
+              <span className="gradient-text">DISCOVER</span>
               <br />
-              <span className="text-foreground">& Rate Music</span>
+              <span className="text-foreground">&amp; RATE</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
               Explore millions of artists and albums. Rate your favorites and visualize your musical journey.
             </p>
           </motion.div>
@@ -83,11 +77,11 @@ const Index = () => {
           >
             <Tabs value={searchType} onValueChange={(v) => setSearchType(v as 'artists' | 'albums')} className="w-full max-w-2xl mx-auto mb-8">
               <TabsList className="grid w-full grid-cols-2 bg-secondary/50">
-                <TabsTrigger value="artists" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground">
+                <TabsTrigger value="artists" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground uppercase tracking-widest text-xs">
                   <Users className="w-4 h-4 mr-2" />
                   Artists
                 </TabsTrigger>
-                <TabsTrigger value="albums" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground">
+                <TabsTrigger value="albums" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground uppercase tracking-widest text-xs">
                   <Disc3 className="w-4 h-4 mr-2" />
                   Albums
                 </TabsTrigger>
@@ -112,16 +106,16 @@ const Index = () => {
               {[
                 { icon: Users, label: 'Artists', value: '2M+' },
                 { icon: Disc3, label: 'Albums', value: '3M+' },
-                { icon: Star, label: 'Ratings', value: user ? 'Track yours' : 'Sign in to rate' },
+                { icon: Star, label: 'Ratings', value: user ? 'Track yours' : 'Sign in' },
                 { icon: TrendingUp, label: 'Insights', value: 'Visualize' },
-              ].map((stat, i) => (
+              ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="p-6 rounded-2xl bg-card/50 border border-border/50 text-center hover:border-primary/50 transition-colors"
+                  className="p-6 rounded-2xl bg-card/50 border border-border/30 text-center hover:border-primary/30 transition-all duration-300 group"
                 >
-                  <stat.icon className="w-6 h-6 mx-auto mb-3 text-primary" />
-                  <div className="text-2xl font-bold gradient-text">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                  <stat.icon className="w-5 h-5 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
+                  <div className="text-xl font-boldonse gradient-text">{stat.value}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">{stat.label}</div>
                 </div>
               ))}
             </motion.div>
@@ -144,23 +138,20 @@ const Index = () => {
               </div>
             ) : (
               <>
-                {/* Artists results */}
                 {searchType === 'artists' && artists.length > 0 && (() => {
                   const [best, ...others] = artists;
                   return (
                     <>
-                      {/* Best match */}
                       <div className="mb-12">
-                        <h2 className="text-2xl font-bold mb-6">Best Match</h2>
+                        <h2 className="text-2xl font-boldonse mb-6 uppercase tracking-wider">Best Match</h2>
                         <div className="max-w-sm">
                           <ArtistCard key={best.id} artist={best} index={0} />
                         </div>
                       </div>
 
-                      {/* Other results */}
                       {others.length > 0 && (
                         <div>
-                          <h2 className="text-xl font-bold mb-6 text-muted-foreground">Other Related Results</h2>
+                          <h2 className="text-lg font-boldonse mb-6 text-muted-foreground uppercase tracking-wider">Other Results</h2>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                             {others.map((artist, index) => (
                               <ArtistCard key={artist.id} artist={artist} index={index} />
@@ -172,14 +163,12 @@ const Index = () => {
                   );
                 })()}
 
-                {/* Albums results */}
                 {searchType === 'albums' && albums.length > 0 && (() => {
                   const [best, ...others] = albums;
                   return (
                     <>
-                      {/* Best match */}
                       <div className="mb-12">
-                        <h2 className="text-2xl font-bold mb-6">Best Match</h2>
+                        <h2 className="text-2xl font-boldonse mb-6 uppercase tracking-wider">Best Match</h2>
                         <div className="max-w-[200px]">
                           <AlbumCard
                             key={best.id}
@@ -195,10 +184,9 @@ const Index = () => {
                         </div>
                       </div>
 
-                      {/* Other results */}
                       {others.length > 0 && (
                         <div>
-                          <h2 className="text-xl font-bold mb-6 text-muted-foreground">Other Related Results</h2>
+                          <h2 className="text-lg font-boldonse mb-6 text-muted-foreground uppercase tracking-wider">Other Results</h2>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
                             {others.map((release, index) => (
                               <AlbumCard
@@ -220,12 +208,11 @@ const Index = () => {
                   );
                 })()}
 
-                {/* No Results */}
                 {((searchType === 'artists' && artists.length === 0) ||
                   (searchType === 'albums' && albums.length === 0)) && (
                   <div className="text-center py-20">
                     <Disc3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No results found</h3>
+                    <h3 className="text-xl font-boldonse mb-2 uppercase">No results found</h3>
                     <p className="text-muted-foreground">
                       Try adjusting your search query
                     </p>

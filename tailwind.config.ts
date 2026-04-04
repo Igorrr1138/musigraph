@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        outfit: ["Outfit", "sans-serif"],
+        boldonse: ["Boldonse", "cursive"],
+        grotesk: ["Space Grotesk", "sans-serif"],
         mono: ["Space Mono", "monospace"],
       },
       colors: {
