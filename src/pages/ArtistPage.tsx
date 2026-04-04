@@ -113,7 +113,7 @@ const ArtistPage = () => {
               transition={{ duration: 0.5 }}
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
             >
-              <ArtistAvatar name={artist.name} />
+              <ArtistPageAvatar name={artist.name} />
             </motion.div>
 
             {/* Info */}
