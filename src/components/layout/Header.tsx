@@ -17,21 +17,18 @@ export function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
-      <div className="container mx-auto px-4">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
+      <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center glow-primary transition-all duration-300 group-hover:scale-110">
-              <Music2 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold gradient-text hidden sm:block">
-              SoundVault
+          <Link to="/" className="flex items-center gap-3 group">
+            <span className="text-xl font-boldonse tracking-wider text-primary">
+              SOUNDVAULT
             </span>
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-6">
             <Link
               to="/"
               className={`nav-link ${isActive('/') ? 'active' : ''}`}
@@ -93,7 +90,7 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <Link to="/auth">
-                <Button variant="default" className="gradient-bg text-primary-foreground border-0 hover:opacity-90">
+                <Button className="gradient-bg text-primary-foreground border-0 hover:opacity-90 uppercase tracking-wider text-xs font-medium px-6">
                   Sign In
                 </Button>
               </Link>
