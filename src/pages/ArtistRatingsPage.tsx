@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Disc3, User, Users } from 'lucide-react';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -178,7 +179,7 @@ const ArtistRatingsPage = () => {
     });
   }, [trackRatings, communityTrackAvgs]);
 
-  const artistImageUrl = `https://www.theaudiodb.com/images/media/artist/thumb/${decodedName.toLowerCase().replace(/\s+/g, '')}.jpg`;
+  const { imageUrl: artistImageUrl } = useArtistImage(decodedName);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;

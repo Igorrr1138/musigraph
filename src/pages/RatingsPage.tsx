@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -157,8 +158,7 @@ const RatingsPage = () => {
 };
 
 function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number }) {
-  const [imageError, setImageError] = useState(false);
-  const imageUrl = `https://www.theaudiodb.com/images/media/artist/thumb/${artist.name.toLowerCase().replace(/\s+/g, '')}.jpg`;
+  const { imageUrl } = useArtistImage(artist.name);
 
   // Mini sparkline data
   const sparkline = artist.ratings;
@@ -184,13 +184,8 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
         <div className="flex items-start gap-4">
           {/* Artist Image */}
           <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
-            {!imageError ? (
-              <img
-                src={imageUrl}
-                alt={artist.name}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
+            {imageUrl ? (
+              <img src={imageUrl} alt={artist.name} className="w-full h-full object-cover" />
             ) : (
               <User className="w-8 h-8 text-muted-foreground" />
             )}
