@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Disc3, ExternalLink, User } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { getArtist, getArtistReleaseGroups, type MusicBrainzArtist, type MusicBrainzReleaseGroup } from '@/lib/musicbrainz';
 import { Skeleton } from '@/components/ui/skeleton';
