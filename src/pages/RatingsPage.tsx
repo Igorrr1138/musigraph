@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
-import { useArtistImage } from '@/hooks/useArtistImage';
+
+import { RatingSparkline } from '@/components/charts/brand-charts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,24 +61,23 @@ const RatingsPage = () => {
     if (user) fetchRatings();
   }, [user, toast]);
 
-  // Group by artist
   const artists = useMemo<ArtistSummary[]>(() => {
     const map = new Map<string, ArtistSummary>();
-    ratings.forEach(r => {
-      const name = r.artist_name || 'Unknown Artist';
+    ratings.forEach((rating) => {
+      const name = rating.artist_name || 'Unknown Artist';
       const existing = map.get(name);
       if (existing) {
-        existing.albumCount++;
-        existing.ratings.push(r.rating);
-        existing.avgRating = existing.ratings.reduce((a, b) => a + b, 0) / existing.ratings.length;
-        if (!existing.latestCover && r.cover_url) existing.latestCover = r.cover_url;
+        existing.albumCount += 1;
+        existing.ratings.push(rating.rating);
+        existing.avgRating = existing.ratings.reduce((sum, value) => sum + value, 0) / existing.ratings.length;
+        if (!existing.latestCover && rating.cover_url) existing.latestCover = rating.cover_url;
       } else {
         map.set(name, {
           name,
           albumCount: 1,
-          avgRating: r.rating,
-          ratings: [r.rating],
-          latestCover: r.cover_url,
+          avgRating: rating.rating,
+          ratings: [rating.rating],
+          latestCover: rating.cover_url,
         });
       }
     });
@@ -84,9 +85,8 @@ const RatingsPage = () => {
   }, [ratings]);
 
   const totalAlbums = ratings.length;
-  const overallAvg = totalAlbums > 0
-    ? (ratings.reduce((s, r) => s + r.rating, 0) / totalAlbums).toFixed(1)
-    : '0';
+  const overallAvg =
+    totalAlbums > 0 ? (ratings.reduce((sum, rating) => sum + rating.rating, 0) / totalAlbums).toFixed(1) : '0';
 
   if (authLoading || !user) {
     return (
@@ -108,7 +108,6 @@ const RatingsPage = () => {
             ← Back to search
           </Link>
 
-          {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold mb-2">Ratings Center</h1>
@@ -128,7 +127,6 @@ const RatingsPage = () => {
             )}
           </div>
 
-          {/* Artist Cards */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Disc3 className="w-12 h-12 text-primary animate-spin" />
@@ -143,9 +141,7 @@ const RatingsPage = () => {
             <div className="text-center py-20">
               <Disc3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No ratings yet</h3>
-              <p className="text-muted-foreground mb-6">
-                Start exploring and rating your favorite albums
-              </p>
+              <p className="text-muted-foreground mb-6">Start exploring and rating your favorite albums</p>
               <Link to="/">
                 <Button className="gradient-bg text-primary-foreground border-0">Discover Music</Button>
               </Link>
@@ -159,17 +155,12 @@ const RatingsPage = () => {
 
 function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number }) {
   const { imageUrl } = useArtistImage(artist.name);
-
-  // Mini sparkline data
   const sparkline = artist.ratings;
-  const sparkMax = 10;
-  const sparkWidth = 100;
-  const sparkHeight = 32;
-  const points = sparkline.map((v, i) => {
-    const x = sparkline.length === 1 ? sparkWidth / 2 : (i / (sparkline.length - 1)) * sparkWidth;
-    const y = sparkHeight - (v / sparkMax) * sparkHeight;
-    return `${x},${y}`;
-  }).join(' ');
+  const trendDelta =
+    sparkline.length > 1 ? sparkline[sparkline.length - 1] - sparkline[0] : 0;
+  const trendLabel =
+    trendDelta === 0 ? 'flat' : `${trendDelta > 0 ? '+' : ''}${trendDelta.toFixed(1)}`;
+  const trendTone = trendDelta >= 0 ? 'text-primary' : 'text-accent';
 
   return (
     <motion.div
@@ -182,7 +173,6 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
         className="group block bg-card rounded-2xl border border-border/50 p-5 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/5"
       >
         <div className="flex items-start gap-4">
-          {/* Artist Image */}
           <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
             {imageUrl ? (
               <img src={imageUrl} alt={artist.name} className="w-full h-full object-cover" />
@@ -191,7 +181,6 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
             )}
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
               {artist.name}
@@ -207,18 +196,18 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
               </span>
             </div>
 
-            {/* Mini sparkline */}
             {sparkline.length > 1 && (
-              <div className="mt-3 flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
-                <svg width={sparkWidth} height={sparkHeight} className="overflow-visible">
-                  <polyline
-                    fill="none"
-                    stroke="hsl(174, 72%, 56%)"
-                    strokeWidth="2"
-                    points={points}
-                  />
-                </svg>
+              <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
+                      <TrendingUp className="w-3 h-3" />
+                      Rating Flow
+                    </div>
+                    <p className={`mt-1 text-xs font-medium ${trendTone}`}>{trendLabel}</p>
+                  </div>
+                  <RatingSparkline values={sparkline} className="h-11 w-[148px] shrink-0" />
+                </div>
               </div>
             )}
           </div>

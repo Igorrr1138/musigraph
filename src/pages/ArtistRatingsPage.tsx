@@ -1,20 +1,38 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Disc3, User, Users } from 'lucide-react';
-import { useArtistImage } from '@/hooks/useArtistImage';
+import { Disc3, User, Users } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+
+import {
+  ChartPanel,
+  LegendPills,
+  TooltipShell,
+  chartPalette,
+} from '@/components/charts/brand-charts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getCoverArtUrl } from '@/lib/musicbrainz';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
-import {
-  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage,
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
 
 interface AlbumRating {
@@ -57,17 +75,19 @@ const ArtistRatingsPage = () => {
   const [communityTrackAvgs, setCommunityTrackAvgs] = useState<CommunityTrackAvg[]>([]);
   const [showCommunity, setShowCommunity] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
+
+  const discographyGradientId = useId().replace(/:/g, '');
+  const trackGradientId = useId().replace(/:/g, '');
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
 
-  // Fetch user's album ratings for this artist
   useEffect(() => {
-    const fetch = async () => {
+    const fetchRatings = async () => {
       if (!user || !decodedName) return;
       setIsLoading(true);
+
       try {
         const { data, error } = await supabase
           .from('album_ratings')
@@ -75,40 +95,47 @@ const ArtistRatingsPage = () => {
           .eq('user_id', user.id)
           .eq('artist_name', decodedName)
           .order('rated_at', { ascending: true });
+
         if (error) throw error;
         setAlbumRatings(data || []);
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
         toast({ title: 'Error', description: 'Failed to load ratings.', variant: 'destructive' });
       } finally {
         setIsLoading(false);
       }
     };
-    if (user) fetch();
+
+    if (user) fetchRatings();
   }, [user, decodedName, toast]);
 
-  // Fetch community album averages
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
         const { data, error } = await supabase.rpc('get_community_album_averages');
         if (error) throw error;
-        setCommunityAlbumAvgs((data || []).map((d: any) => ({
-          album_mbid: d.album_mbid,
-          avg_rating: Number(d.avg_rating),
-          rater_count: Number(d.rater_count),
-        })));
-      } catch (e) {
-        console.error('Community averages error:', e);
+        setCommunityAlbumAvgs(
+          (data || []).map((entry: any) => ({
+            album_mbid: entry.album_mbid,
+            avg_rating: Number(entry.avg_rating),
+            rater_count: Number(entry.rater_count),
+          })),
+        );
+      } catch (error) {
+        console.error('Community averages error:', error);
       }
     };
+
     fetchCommunity();
   }, []);
 
-  // Fetch track ratings for selected album
   useEffect(() => {
     const fetchTracks = async () => {
-      if (!user || !selectedAlbum) { setTrackRatings([]); return; }
+      if (!user || !selectedAlbum) {
+        setTrackRatings([]);
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from('track_ratings')
@@ -116,63 +143,69 @@ const ArtistRatingsPage = () => {
           .eq('user_id', user.id)
           .eq('album_mbid', selectedAlbum.album_mbid)
           .order('track_position', { ascending: true });
+
         if (error) throw error;
         setTrackRatings(data || []);
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       }
     };
+
     fetchTracks();
   }, [user, selectedAlbum]);
 
-  // Fetch community track averages for selected album
   useEffect(() => {
     const fetchCommunityTracks = async () => {
-      if (!selectedAlbum) { setCommunityTrackAvgs([]); return; }
+      if (!selectedAlbum) {
+        setCommunityTrackAvgs([]);
+        return;
+      }
+
       try {
         const { data, error } = await supabase.rpc('get_community_track_averages', {
           p_album_mbid: selectedAlbum.album_mbid,
         });
         if (error) throw error;
-        setCommunityTrackAvgs((data || []).map((d: any) => ({
-          track_position: d.track_position,
-          avg_rating: Number(d.avg_rating),
-          rater_count: Number(d.rater_count),
-        })));
-      } catch (e) {
-        console.error('Community track averages error:', e);
+        setCommunityTrackAvgs(
+          (data || []).map((entry: any) => ({
+            track_position: entry.track_position,
+            avg_rating: Number(entry.avg_rating),
+            rater_count: Number(entry.rater_count),
+          })),
+        );
+      } catch (error) {
+        console.error('Community track averages error:', error);
       }
     };
+
     fetchCommunityTracks();
   }, [selectedAlbum]);
 
-  // Discography chart data
   const discographyData = useMemo(() => {
-    const communityMap = new Map(communityAlbumAvgs.map(c => [c.album_mbid, c]));
-    return albumRatings.map((r, i) => {
-      const community = communityMap.get(r.album_mbid);
+    const communityMap = new Map(communityAlbumAvgs.map((entry) => [entry.album_mbid, entry]));
+    return albumRatings.map((rating) => {
+      const community = communityMap.get(rating.album_mbid);
       return {
-        name: r.album_title.length > 20 ? r.album_title.slice(0, 18) + '…' : r.album_title,
-        fullTitle: r.album_title,
-        yourRating: r.rating,
+        name: rating.album_title.length > 20 ? `${rating.album_title.slice(0, 18)}…` : rating.album_title,
+        fullTitle: rating.album_title,
+        yourRating: rating.rating,
         communityRating: community?.avg_rating ?? null,
         communityCount: community?.rater_count ?? 0,
-        cover: r.cover_url,
-        mbid: r.album_mbid,
+        cover: rating.cover_url,
+        mbid: rating.album_mbid,
       };
     });
   }, [albumRatings, communityAlbumAvgs]);
 
-  // Track chart data
   const trackChartData = useMemo(() => {
-    const communityMap = new Map(communityTrackAvgs.map(c => [c.track_position, c]));
-    return trackRatings.map(t => {
-      const community = communityMap.get(t.track_position);
+    const communityMap = new Map(communityTrackAvgs.map((entry) => [entry.track_position, entry]));
+    return trackRatings.map((track) => {
+      const community = communityMap.get(track.track_position);
       return {
-        name: t.track_title.length > 15 ? t.track_title.slice(0, 13) + '…' : t.track_title,
-        fullTitle: t.track_title,
-        position: t.track_position,
-        yourRating: t.rating,
+        name: track.track_title.length > 15 ? `${track.track_title.slice(0, 13)}…` : track.track_title,
+        fullTitle: track.track_title,
+        position: track.track_position,
+        yourRating: track.rating,
         communityRating: community?.avg_rating ?? null,
         communityCount: community?.rater_count ?? 0,
       };
@@ -181,19 +214,60 @@ const ArtistRatingsPage = () => {
 
   const { imageUrl: artistImageUrl } = useArtistImage(decodedName);
 
+  const ratingLegendItems = showCommunity
+    ? [
+        { label: 'Your Rating', color: chartPalette.primary, helper: 'Personal arc' },
+        { label: 'Community Avg', color: chartPalette.accent, helper: 'All listeners', dashed: true },
+      ]
+    : [{ label: 'Your Rating', color: chartPalette.primary, helper: 'Personal arc' }];
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
+
     const data = payload[0]?.payload;
+
     return (
-      <div className="glass rounded-xl p-3 max-w-xs">
-        <p className="font-semibold text-sm">{data?.fullTitle || label}</p>
-        {payload.map((p: any, i: number) => (
-          <p key={i} className="text-xs" style={{ color: p.color }}>
-            {p.name}: {p.value}/10
-            {p.dataKey === 'communityRating' && data?.communityCount && ` (${data.communityCount} users)`}
-          </p>
-        ))}
-      </div>
+      <TooltipShell className="max-w-xs">
+        <div className="flex items-start gap-3">
+          {data?.cover ? (
+            <img
+              src={data.cover}
+              alt={data.fullTitle || label}
+              className="h-14 w-14 rounded-xl object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">{data?.fullTitle || label}</p>
+            {typeof data?.position === 'number' ? (
+              <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                Track {data.position}
+              </p>
+            ) : null}
+            <div className="mt-3 space-y-2">
+              {payload.map((entry: any, index: number) => (
+                <div key={`${entry.name}-${index}`} className="flex items-center justify-between gap-4 text-xs">
+                  <span className="inline-flex items-center gap-2 text-muted-foreground">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    {entry.name}
+                  </span>
+                  <span className="font-mono text-foreground">
+                    {entry.value}/10
+                    {entry.dataKey === 'communityRating' && data?.communityCount
+                      ? ` · ${data.communityCount} users`
+                      : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </TooltipShell>
     );
   };
 
@@ -213,11 +287,15 @@ const ArtistRatingsPage = () => {
           <Breadcrumb className="mb-8">
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbLink asChild><Link to="/ratings">My Ratings</Link></BreadcrumbLink>
+                <BreadcrumbLink asChild>
+                  <Link to="/ratings">My Ratings</Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -226,22 +304,15 @@ const ArtistRatingsPage = () => {
             </BreadcrumbList>
           </Breadcrumb>
 
-          {/* Band Header */}
           <div className="flex flex-col md:flex-row gap-6 mb-10">
-            {/* Artist Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="w-full md:w-80 bg-card rounded-2xl border border-border/50 p-6 flex-shrink-0"
             >
               <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden bg-secondary flex items-center justify-center">
-                {!imageError ? (
-                  <img
-                    src={artistImageUrl}
-                    alt={decodedName}
-                    className="w-full h-full object-cover"
-                    onError={() => setImageError(true)}
-                  />
+                {artistImageUrl ? (
+                  <img src={artistImageUrl} alt={decodedName} className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-12 h-12 text-muted-foreground" />
                 )}
@@ -249,171 +320,232 @@ const ArtistRatingsPage = () => {
               <h2 className="text-xl font-bold text-center mb-2">{decodedName}</h2>
               <div className="text-center space-y-1 text-sm text-muted-foreground">
                 <p>{albumRatings.length} albums rated</p>
-                {albumRatings.length > 0 && (
+                {albumRatings.length > 0 ? (
                   <p className="text-lg font-bold gradient-text">
-                    Avg: {(albumRatings.reduce((s, r) => s + r.rating, 0) / albumRatings.length).toFixed(1)}/10
+                    Avg: {(albumRatings.reduce((sum, rating) => sum + rating.rating, 0) / albumRatings.length).toFixed(1)}/10
                   </p>
-                )}
+                ) : null}
               </div>
             </motion.div>
 
-            {/* Discography Evolution Graph */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex-1 bg-card/50 rounded-2xl border border-border/50 p-6"
+              className="flex-1 min-w-0"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Discography Evolution</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />
-                  <span>Community</span>
-                  <Switch checked={showCommunity} onCheckedChange={setShowCommunity} />
+              <ChartPanel className="h-full">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Discography Evolution</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Your artist arc with an optional community overlay.
+                    </p>
+                  </div>
+                  <div className="inline-flex items-center gap-3 rounded-full border border-border/50 bg-background/50 px-4 py-2 text-sm text-muted-foreground">
+                    <Users className="w-4 h-4" />
+                    <span>Community</span>
+                    <Switch checked={showCommunity} onCheckedChange={setShowCommunity} />
+                  </div>
                 </div>
-              </div>
 
-              {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                  <Disc3 className="w-8 h-8 text-primary animate-spin" />
-                </div>
-              ) : discographyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={discographyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 18%)" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: 'hsl(215, 16%, 56%)', fontSize: 11 }}
-                      angle={-30}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis domain={[0, 10]} ticks={[2, 4, 6, 8, 10]} tick={{ fill: 'hsl(215, 16%, 56%)' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="yourRating"
-                      name="Your Rating"
-                      stroke="hsl(174, 72%, 56%)"
-                      strokeWidth={2.5}
-                      dot={{ r: 5, fill: 'hsl(174, 72%, 56%)', cursor: 'pointer' }}
-                      activeDot={{ r: 7 }}
-                      connectNulls
-                    />
-                    {showCommunity && (
-                      <Line
-                        type="monotone"
-                        dataKey="communityRating"
-                        name="Community Avg"
-                        stroke="hsl(326, 78%, 60%)"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={{ r: 4, fill: 'hsl(326, 78%, 60%)' }}
-                        connectNulls
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-64 text-muted-foreground">
-                  No rated albums for this artist yet
-                </div>
-              )}
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Disc3 className="w-8 h-8 text-primary animate-spin" />
+                  </div>
+                ) : discographyData.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={discographyData} margin={{ top: 12, right: 12, bottom: 12, left: -12 }}>
+                        <defs>
+                          <linearGradient id={discographyGradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={chartPalette.primary} stopOpacity="0.36" />
+                            <stop offset="65%" stopColor={chartPalette.primary} stopOpacity="0.12" />
+                            <stop offset="100%" stopColor={chartPalette.primary} stopOpacity="0.02" />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke={chartPalette.grid} strokeDasharray="3 10" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={14}
+                          minTickGap={20}
+                          interval={0}
+                          angle={-22}
+                          textAnchor="end"
+                          height={72}
+                        />
+                        <YAxis
+                          domain={[0, 10]}
+                          ticks={[0, 2, 4, 6, 8, 10]}
+                          tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={34}
+                        />
+                        <ReferenceLine y={5} stroke={chartPalette.axisSoft} strokeDasharray="4 10" />
+                        <Tooltip
+                          cursor={{ stroke: chartPalette.primarySoft, strokeWidth: 1 }}
+                          content={<CustomTooltip />}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="yourRating"
+                          name="Your Rating"
+                          stroke={chartPalette.primary}
+                          fill={`url(#${discographyGradientId})`}
+                          strokeWidth={3}
+                          dot={false}
+                          activeDot={{ r: 6, fill: chartPalette.primary, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                        />
+                        {showCommunity ? (
+                          <Area
+                            type="monotone"
+                            dataKey="communityRating"
+                            name="Community Avg"
+                            stroke={chartPalette.accent}
+                            fill="none"
+                            fillOpacity={0}
+                            strokeWidth={2.2}
+                            strokeDasharray="8 8"
+                            dot={false}
+                            activeDot={{ r: 5, fill: chartPalette.accent, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                            connectNulls
+                          />
+                        ) : null}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <LegendPills items={ratingLegendItems} />
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    No rated albums for this artist yet
+                  </div>
+                )}
+              </ChartPanel>
             </motion.div>
           </div>
 
-          {/* Album Selection */}
-          {albumRatings.length > 0 && (
+          {albumRatings.length > 0 ? (
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-4">Select album to view track rhythm</h3>
               <div className="flex flex-wrap gap-3">
-                {albumRatings.map(r => (
+                {albumRatings.map((rating) => (
                   <button
-                    key={r.album_mbid}
-                    onClick={() => setSelectedAlbum(selectedAlbum?.album_mbid === r.album_mbid ? null : r)}
+                    key={rating.album_mbid}
+                    onClick={() => setSelectedAlbum(selectedAlbum?.album_mbid === rating.album_mbid ? null : rating)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                      selectedAlbum?.album_mbid === r.album_mbid
+                      selectedAlbum?.album_mbid === rating.album_mbid
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-card border-border/50 text-foreground hover:border-primary/50'
                     }`}
                   >
-                    {r.album_title}
-                    <span className="opacity-70">{r.rating}/10</span>
+                    {rating.album_title}
+                    <span className="opacity-70">{rating.rating}/10</span>
                   </button>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Track Rhythm Graph */}
-          {selectedAlbum && trackRatings.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-card/50 rounded-2xl border border-border/50 p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    Track Rhythm — {selectedAlbum.album_title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Track-by-track rating flow
-                  </p>
+          {selectedAlbum && trackRatings.length > 0 ? (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <ChartPanel>
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Track Rhythm — {selectedAlbum.album_title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Track-by-track motion of your album score.
+                    </p>
+                  </div>
+                  <Link to={`/album/${selectedAlbum.album_mbid}`}>
+                    <Button variant="outline" size="sm">
+                      View Album
+                    </Button>
+                  </Link>
                 </div>
-                <Link to={`/album/${selectedAlbum.album_mbid}`}>
-                  <Button variant="outline" size="sm">View Album</Button>
-                </Link>
-              </div>
 
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trackChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 18%)" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fill: 'hsl(215, 16%, 56%)', fontSize: 10 }}
-                    angle={-30}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis domain={[0, 10]} ticks={[2, 4, 6, 8, 10]} tick={{ fill: 'hsl(215, 16%, 56%)' }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="yourRating"
-                    name="Your Rating"
-                    stroke="hsl(174, 72%, 56%)"
-                    strokeWidth={2.5}
-                    dot={{ r: 5, fill: 'hsl(174, 72%, 56%)' }}
-                    connectNulls
-                  />
-                  {showCommunity && (
-                    <Line
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={trackChartData} margin={{ top: 12, right: 12, bottom: 12, left: -12 }}>
+                    <defs>
+                      <linearGradient id={trackGradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartPalette.gradientStart} stopOpacity="0.34" />
+                        <stop offset="65%" stopColor={chartPalette.gradientEnd} stopOpacity="0.12" />
+                        <stop offset="100%" stopColor={chartPalette.gradientEnd} stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke={chartPalette.grid} strokeDasharray="3 10" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={14}
+                      minTickGap={16}
+                      interval={0}
+                      angle={-22}
+                      textAnchor="end"
+                      height={72}
+                    />
+                    <YAxis
+                      domain={[0, 10]}
+                      ticks={[0, 2, 4, 6, 8, 10]}
+                      tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={34}
+                    />
+                    <ReferenceLine y={5} stroke={chartPalette.axisSoft} strokeDasharray="4 10" />
+                    <Tooltip
+                      cursor={{ stroke: chartPalette.primarySoft, strokeWidth: 1 }}
+                      content={<CustomTooltip />}
+                    />
+                    <Area
                       type="monotone"
-                      dataKey="communityRating"
-                      name="Community Avg"
-                      stroke="hsl(326, 78%, 60%)"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ r: 4, fill: 'hsl(326, 78%, 60%)' }}
+                      dataKey="yourRating"
+                      name="Your Rating"
+                      stroke={chartPalette.gradientEnd}
+                      fill={`url(#${trackGradientId})`}
+                      strokeWidth={3}
+                      dot={false}
+                      activeDot={{ r: 6, fill: chartPalette.gradientEnd, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
                       connectNulls
                     />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </motion.div>
-          )}
+                    {showCommunity ? (
+                      <Area
+                        type="monotone"
+                        dataKey="communityRating"
+                        name="Community Avg"
+                        stroke={chartPalette.accent}
+                        fill="none"
+                        fillOpacity={0}
+                        strokeWidth={2.2}
+                        strokeDasharray="8 8"
+                        dot={false}
+                        activeDot={{ r: 5, fill: chartPalette.accent, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                        connectNulls
+                      />
+                    ) : null}
+                  </AreaChart>
+                </ResponsiveContainer>
 
-          {selectedAlbum && trackRatings.length === 0 && (
+                <LegendPills items={ratingLegendItems} />
+              </ChartPanel>
+            </motion.div>
+          ) : null}
+
+          {selectedAlbum && trackRatings.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No individual track ratings for this album yet.</p>
               <Link to={`/album/${selectedAlbum.album_mbid}`}>
-                <Button variant="outline" className="mt-4">Rate Tracks</Button>
+                <Button variant="outline" className="mt-4">
+                  Rate Tracks
+                </Button>
               </Link>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

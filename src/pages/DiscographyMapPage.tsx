@@ -1,23 +1,30 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Disc3, Download } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+
+import {
+  ChartPanel,
+  LegendPills,
+  TooltipShell,
+  chartPalette,
+  getBrandRatingColor,
+} from '@/components/charts/brand-charts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  ReferenceLine,
-} from 'recharts';
 
 interface TrackRating {
   album_mbid: string;
@@ -50,6 +57,7 @@ const DiscographyMapPage = () => {
   const [albumRatings, setAlbumRatings] = useState<AlbumRating[]>([]);
   const [trackRatings, setTrackRatings] = useState<TrackRating[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const mapGradientId = useId().replace(/:/g, '');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -94,31 +102,30 @@ const DiscographyMapPage = () => {
   }, [user, toast]);
 
   const chartData: ChartPoint[] = useMemo(() => {
-    // Group track ratings by album
     const albumScores: Record<string, { total: number; count: number }> = {};
-    trackRatings.forEach((tr) => {
-      if (!albumScores[tr.album_mbid]) {
-        albumScores[tr.album_mbid] = { total: 0, count: 0 };
+
+    trackRatings.forEach((trackRating) => {
+      if (!albumScores[trackRating.album_mbid]) {
+        albumScores[trackRating.album_mbid] = { total: 0, count: 0 };
       }
-      albumScores[tr.album_mbid].total += tr.rating;
-      albumScores[tr.album_mbid].count += 1;
+      albumScores[trackRating.album_mbid].total += trackRating.rating;
+      albumScores[trackRating.album_mbid].count += 1;
     });
 
-    // Match with album info and extract year from rated_at (we use rated_at year as proxy; ideally release year)
     return albumRatings
-      .filter((ar) => albumScores[ar.album_mbid])
-      .map((ar) => {
-        const score = albumScores[ar.album_mbid];
+      .filter((albumRating) => albumScores[albumRating.album_mbid])
+      .map((albumRating) => {
+        const score = albumScores[albumRating.album_mbid];
         const avg = score.total / score.count;
-        const year = new Date(ar.rated_at).getFullYear();
+        const year = new Date(albumRating.rated_at).getFullYear();
 
         return {
           x: year,
-          y: parseFloat(avg.toFixed(1)),
-          album: ar.album_title,
-          artist: ar.artist_name || 'Unknown',
-          cover: ar.cover_url,
-          mbid: ar.album_mbid,
+          y: Number(avg.toFixed(1)),
+          album: albumRating.album_title,
+          artist: albumRating.artist_name || 'Unknown',
+          cover: albumRating.cover_url,
+          mbid: albumRating.album_mbid,
           tracksRated: score.count,
         };
       })
@@ -126,13 +133,18 @@ const DiscographyMapPage = () => {
   }, [albumRatings, trackRatings]);
 
   const avgScore = useMemo(() => {
-    if (chartData.length === 0) return 0;
-    return chartData.reduce((s, d) => s + d.y, 0) / chartData.length;
+    if (!chartData.length) return 0;
+    return chartData.reduce((sum, point) => sum + point.y, 0) / chartData.length;
   }, [chartData]);
+
+  const years = chartData.map((entry) => entry.x);
+  const minYear = years.length > 0 ? Math.min(...years) - 1 : 2020;
+  const maxYear = years.length > 0 ? Math.max(...years) + 1 : 2026;
 
   const downloadGraph = () => {
     const svg = document.querySelector('.recharts-wrapper svg');
     if (!svg) return;
+
     const serializer = new XMLSerializer();
     const svgString = serializer.serializeToString(svg);
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
@@ -145,6 +157,56 @@ const DiscographyMapPage = () => {
     toast({ title: 'Downloaded!', description: 'Your discography map has been saved.' });
   };
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+
+    const data = payload[0].payload;
+
+    return (
+      <TooltipShell>
+        <div className="flex items-start gap-3">
+          {data.cover ? (
+            <img
+              src={data.cover}
+              alt={data.album}
+              className="w-16 h-16 rounded-xl object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground line-clamp-2">{data.album}</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{data.artist}</p>
+            <div className="mt-3 flex items-center justify-between gap-4 text-xs">
+              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                Album score
+              </span>
+              <span className="font-mono text-foreground">{data.y}/10</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-4 text-xs text-muted-foreground">
+              <span>{data.x}</span>
+              <span>{data.tracksRated} tracks rated</span>
+            </div>
+          </div>
+        </div>
+      </TooltipShell>
+    );
+  };
+
+  const renderDot = ({ cx, cy, payload }: any) => {
+    if (cx == null || cy == null || !payload) return null;
+    const tone = getBrandRatingColor(payload.y);
+
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={7} fill={tone} fillOpacity={0.18} />
+        <circle cx={cx} cy={cy} r={4.25} fill={tone} stroke="hsl(var(--background))" strokeWidth={1.75} />
+      </g>
+    );
+  };
+
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -152,46 +214,6 @@ const DiscographyMapPage = () => {
       </div>
     );
   }
-
-  const getColorByRating = (rating: number) => {
-    if (rating >= 8) return 'hsl(174, 72%, 56%)';
-    if (rating >= 6) return 'hsl(45, 93%, 47%)';
-    if (rating >= 4) return 'hsl(326, 78%, 60%)';
-    return 'hsl(0, 72%, 51%)';
-  };
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="glass rounded-xl p-4 max-w-xs">
-          <div className="flex items-start gap-3">
-            {data.cover && (
-              <img
-                src={data.cover}
-                alt={data.album}
-                className="w-16 h-16 rounded-lg object-cover"
-                onError={(e) => (e.currentTarget.style.display = 'none')}
-              />
-            )}
-            <div>
-              <h4 className="font-semibold line-clamp-2">{data.album}</h4>
-              <p className="text-sm text-muted-foreground">{data.artist}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-lg font-bold text-primary">{data.y}/10</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{data.tracksRated} tracks rated</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const years = chartData.map(d => d.x);
-  const minYear = years.length > 0 ? Math.min(...years) - 1 : 2020;
-  const maxYear = years.length > 0 ? Math.max(...years) + 1 : 2026;
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,16 +232,14 @@ const DiscographyMapPage = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold mb-2">Discography Map</h1>
-              <p className="text-muted-foreground">
-                Album scores (avg of track ratings) plotted over time
-              </p>
+              <p className="text-muted-foreground">Album score trajectory built from your track ratings.</p>
             </div>
-            {chartData.length > 0 && (
+            {chartData.length > 0 ? (
               <Button onClick={downloadGraph} variant="outline">
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </Button>
-            )}
+            ) : null}
           </div>
 
           {isLoading ? (
@@ -227,81 +247,80 @@ const DiscographyMapPage = () => {
               <Disc3 className="w-12 h-12 text-primary animate-spin" />
             </div>
           ) : chartData.length > 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-card/50 rounded-2xl border border-border/50 p-6"
-            >
-              <ResponsiveContainer width="100%" height={500}>
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 18%)" />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="Year"
-                    domain={[minYear, maxYear]}
-                    tickFormatter={(v) => v.toString()}
-                    tick={{ fill: 'hsl(215, 16%, 56%)' }}
-                    label={{
-                      value: 'Year Rated',
-                      position: 'insideBottom',
-                      offset: -10,
-                      fill: 'hsl(215, 16%, 56%)',
-                    }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Album Score"
-                    domain={[0, 10]}
-                    ticks={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                    tick={{ fill: 'hsl(215, 16%, 56%)' }}
-                    label={{
-                      value: 'Album Score (1-10)',
-                      angle: -90,
-                      position: 'insideLeft',
-                      fill: 'hsl(215, 16%, 56%)',
-                    }}
-                  />
-                  <ReferenceLine
-                    y={avgScore}
-                    stroke="hsl(174, 72%, 56%)"
-                    strokeDasharray="6 4"
-                    strokeOpacity={0.5}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Scatter name="Albums" data={chartData}>
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={getColorByRating(entry.y)}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => navigate(`/album/${entry.mbid}`)}
-                      />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 mt-6 pt-6 border-t border-border">
-                {[
-                  { label: 'Excellent (8-10)', color: 'hsl(174, 72%, 56%)' },
-                  { label: 'Good (6-7)', color: 'hsl(45, 93%, 47%)' },
-                  { label: 'Average (4-5)', color: 'hsl(326, 78%, 60%)' },
-                  { label: 'Poor (1-3)', color: 'hsl(0, 72%, 51%)' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm text-muted-foreground">{item.label}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-0.5 border-t-2 border-dashed border-primary/50" />
-                  <span className="text-sm text-muted-foreground">Avg ({avgScore.toFixed(1)})</span>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <ChartPanel>
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold">Album score drift</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Every point is an album, connected by the order in which you rated it.
+                  </p>
                 </div>
-              </div>
+
+                <ResponsiveContainer width="100%" height={420}>
+                  <AreaChart data={chartData} margin={{ top: 12, right: 12, bottom: 18, left: -6 }}>
+                    <defs>
+                      <linearGradient id={mapGradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartPalette.gradientEnd} stopOpacity="0.34" />
+                        <stop offset="58%" stopColor={chartPalette.primary} stopOpacity="0.12" />
+                        <stop offset="100%" stopColor={chartPalette.primary} stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke={chartPalette.grid} strokeDasharray="3 10" />
+                    <XAxis
+                      type="number"
+                      dataKey="x"
+                      domain={[minYear, maxYear]}
+                      allowDecimals={false}
+                      tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={12}
+                      label={{
+                        value: 'Year rated',
+                        position: 'insideBottom',
+                        offset: -10,
+                        fill: chartPalette.axis,
+                      }}
+                    />
+                    <YAxis
+                      domain={[0, 10]}
+                      ticks={[0, 2, 4, 6, 8, 10]}
+                      tick={{ fill: chartPalette.axis, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                      label={{
+                        value: 'Album score',
+                        angle: -90,
+                        position: 'insideLeft',
+                        fill: chartPalette.axis,
+                      }}
+                    />
+                    <ReferenceLine y={avgScore} stroke={chartPalette.gradientEnd} strokeDasharray="8 8" />
+                    <Tooltip
+                      cursor={{ stroke: chartPalette.primarySoft, strokeWidth: 1 }}
+                      content={<CustomTooltip />}
+                    />
+                    <Area
+                      type="linear"
+                      dataKey="y"
+                      name="Album Score"
+                      stroke={chartPalette.primary}
+                      fill={`url(#${mapGradientId})`}
+                      strokeWidth={3}
+                      dot={renderDot}
+                      activeDot={{ r: 6, fill: chartPalette.primary, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+
+                <LegendPills
+                  items={[
+                    { label: 'Album Score', color: chartPalette.primary, helper: 'Per rated album' },
+                    { label: 'Average', color: chartPalette.gradientEnd, helper: `${avgScore.toFixed(1)}/10`, dashed: true },
+                  ]}
+                />
+              </ChartPanel>
             </motion.div>
           ) : (
             <div className="text-center py-20">
@@ -311,32 +330,26 @@ const DiscographyMapPage = () => {
                 Rate individual tracks on album pages to build your discography map
               </p>
               <Link to="/">
-                <Button className="gradient-bg text-primary-foreground border-0">
-                  Discover Music
-                </Button>
+                <Button className="gradient-bg text-primary-foreground border-0">Discover Music</Button>
               </Link>
             </div>
           )}
 
-          {/* Stats */}
-          {chartData.length > 0 && (
+          {chartData.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
               {[
                 { label: 'Albums Scored', value: chartData.length },
                 { label: 'Avg Album Score', value: avgScore.toFixed(1) },
-                { label: 'Best Score', value: Math.max(...chartData.map(d => d.y)).toFixed(1) },
+                { label: 'Best Score', value: Math.max(...chartData.map((entry) => entry.y)).toFixed(1) },
                 { label: 'Total Tracks Rated', value: trackRatings.length },
               ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="p-4 rounded-xl bg-card/50 border border-border/50 text-center"
-                >
+                <div key={stat.label} className="p-4 rounded-xl bg-card/50 border border-border/50 text-center">
                   <div className="text-2xl font-bold gradient-text">{stat.value}</div>
                   <div className="text-sm text-muted-foreground">{stat.label}</div>
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
