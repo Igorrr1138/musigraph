@@ -113,16 +113,7 @@ const ArtistPage = () => {
               transition={{ duration: 0.5 }}
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
             >
-              {!imageError ? (
-                <img
-                  src={`https://www.theaudiodb.com/images/media/artist/thumb/${artist.name.toLowerCase().replace(/\s+/g, '')}.jpg`}
-                  alt={artist.name}
-                  className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <User className="w-20 h-20 text-muted-foreground" />
-              )}
+              <ArtistAvatar name={artist.name} />
             </motion.div>
 
             {/* Info */}

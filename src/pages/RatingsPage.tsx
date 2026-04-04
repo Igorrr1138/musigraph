@@ -184,13 +184,8 @@ function ArtistCard({ artist, index }: { artist: ArtistSummary; index: number })
         <div className="flex items-start gap-4">
           {/* Artist Image */}
           <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
-            {!imageError ? (
-              <img
-                src={imageUrl}
-                alt={artist.name}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
+            {imageUrl ? (
+              <img src={imageUrl} alt={artist.name} className="w-full h-full object-cover" />
             ) : (
               <User className="w-8 h-8 text-muted-foreground" />
             )}

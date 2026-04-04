@@ -178,7 +178,7 @@ const ArtistRatingsPage = () => {
     });
   }, [trackRatings, communityTrackAvgs]);
 
-  const artistImageUrl = `https://www.theaudiodb.com/images/media/artist/thumb/${decodedName.toLowerCase().replace(/\s+/g, '')}.jpg`;
+  const { imageUrl: artistImageUrl } = useArtistImage(decodedName);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
