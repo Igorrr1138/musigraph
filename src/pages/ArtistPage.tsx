@@ -15,7 +15,6 @@ const ArtistPage = () => {
   const [albums, setAlbums] = useState<MusicBrainzReleaseGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
-  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
