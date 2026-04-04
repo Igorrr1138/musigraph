@@ -179,8 +179,8 @@ export function RatingSparkline({
           <stop offset="100%" stopColor={chartPalette.gradientEnd} />
         </linearGradient>
         <linearGradient id={`${id}-fill`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={chartPalette.primary} stopOpacity="0.34" />
-          <stop offset="70%" stopColor={chartPalette.primary} stopOpacity="0.08" />
+          <stop offset="0%" stopColor={chartPalette.primary} stopOpacity="0.24" />
+          <stop offset="70%" stopColor={chartPalette.primary} stopOpacity="0.06" />
           <stop offset="100%" stopColor={chartPalette.primary} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -195,13 +195,13 @@ export function RatingSparkline({
       {areaPath ? <path d={areaPath} fill={`url(#${id}-fill)`} /> : null}
 
       {values.length === 1 ? (
-        <circle cx={points[0].x} cy={points[0].y} r="5" fill={chartPalette.primary} />
+        <circle cx={points[0].x} cy={points[0].y} r="4" fill={chartPalette.primary} />
       ) : (
         <path
           d={linePath}
           fill="none"
           stroke={`url(#${id}-stroke)`}
-          strokeWidth="3"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -212,10 +212,10 @@ export function RatingSparkline({
           key={`${point.x}-${point.y}`}
           cx={point.x}
           cy={point.y}
-          r={index === points.length - 1 ? 4.5 : 3}
+          r={index === points.length - 1 ? 3.5 : 2.25}
           fill={index === points.length - 1 ? chartPalette.gradientEnd : chartPalette.primary}
           stroke="hsl(var(--background))"
-          strokeWidth="1.5"
+          strokeWidth="1.25"
         />
       ))}
     </svg>
