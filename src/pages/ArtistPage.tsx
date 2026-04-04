@@ -8,6 +8,14 @@ import { AlbumCard } from '@/components/music/AlbumCard';
 import { getArtist, getArtistReleaseGroups, type MusicBrainzArtist, type MusicBrainzReleaseGroup } from '@/lib/musicbrainz';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
+import { useArtistImage } from '@/hooks/useArtistImage';
+
+function ArtistPageAvatar({ name }: { name: string }) {
+  const { imageUrl, isLoading } = useArtistImage(name);
+  if (imageUrl) return <img src={imageUrl} alt={name} className="w-full h-full object-cover" />;
+  if (isLoading) return <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />;
+  return <User className="w-20 h-20 text-muted-foreground" />;
+}
 
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
