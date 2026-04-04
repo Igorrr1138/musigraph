@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
+import { useArtistImage } from '@/hooks/useArtistImage';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
