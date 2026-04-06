@@ -1,19 +1,47 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { MapPin, Calendar, Disc3, ExternalLink, User } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
-import { AlbumCard } from '@/components/music/AlbumCard';
-import { getArtist, getArtistReleaseGroups, type MusicBrainzArtist, type MusicBrainzReleaseGroup } from '@/lib/musicbrainz';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
-import { useArtistImage } from '@/hooks/useArtistImage';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Calendar, Disc3, ExternalLink, MapPin, User } from "lucide-react";
 
-function ArtistPageAvatar({ name }: { name: string }) {
-  const { imageUrl, isLoading } = useArtistImage(name);
-  if (imageUrl) return <img src={imageUrl} alt={name} className="w-full h-full object-cover" />;
-  if (isLoading) return <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />;
-  return <User className="w-20 h-20 text-muted-foreground" />;
+import { Header } from "@/components/layout/Header";
+import { AlbumCard } from "@/components/music/AlbumCard";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useArtistImage } from "@/hooks/useArtistImage";
+import {
+  getArtist,
+  getArtistReleaseGroups,
+  type MusicBrainzArtist,
+  type MusicBrainzReleaseGroup,
+} from "@/lib/musicbrainz";
+
+function ArtistPageAvatar({
+  artist,
+}: {
+  artist: MusicBrainzArtist;
+}) {
+  const topGenre = [...(artist.tags ?? [])].sort((left, right) => right.count - left.count)[0]?.name;
+  const { imageUrl, isLoading } = useArtistImage(artist.name, {
+    musicBrainzId: artist.id,
+    genreHint: [artist.disambiguation, topGenre].filter(Boolean),
+  });
+
+  if (imageUrl) {
+    return <img src={imageUrl} alt={artist.name} className="h-full w-full object-cover" />;
+  }
+
+  if (isLoading) {
+    return <div className="h-12 w-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />;
+  }
+
+  return <User className="h-20 w-20 text-muted-foreground" />;
 }
 
 const ArtistPage = () => {
@@ -37,24 +65,31 @@ const ArtistPage = () => {
         setArtist(artistData);
         setAlbums(albumsData);
       } catch (error) {
-        console.error('Error fetching artist:', error);
+        console.error("Error fetching artist:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    void fetchData();
   }, [id]);
+
+  const yearsActive = useMemo(() => {
+    const lifeSpan = artist?.["life-span"];
+    return lifeSpan?.begin
+      ? `${lifeSpan.begin.split("-")[0]} - ${lifeSpan.ended ? lifeSpan.end?.split("-")[0] : "Present"}`
+      : null;
+  }, [artist]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="pt-24 px-4">
+        <div className="px-4 pt-24">
           <div className="container mx-auto max-w-6xl">
-            <Skeleton className="h-8 w-32 mb-8" />
-            <div className="flex flex-col md:flex-row gap-8">
-              <Skeleton className="w-48 h-48 rounded-full" />
+            <Skeleton className="mb-8 h-8 w-32" />
+            <div className="flex flex-col gap-8 md:flex-row">
+              <Skeleton className="h-48 w-48 rounded-full" />
               <div className="flex-1 space-y-4">
                 <Skeleton className="h-12 w-64" />
                 <Skeleton className="h-6 w-48" />
@@ -71,8 +106,8 @@ const ArtistPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="pt-24 px-4 text-center">
-          <h1 className="text-2xl font-bold mb-4">Artist not found</h1>
+        <div className="px-4 pt-24 text-center">
+          <h1 className="mb-4 text-2xl font-bold">Artist not found</h1>
           <Link to="/" className="text-primary hover:underline">
             Back to search
           </Link>
@@ -81,23 +116,17 @@ const ArtistPage = () => {
     );
   }
 
-  const lifeSpan = artist['life-span'];
-  const yearsActive = lifeSpan?.begin
-    ? `${lifeSpan.begin.split('-')[0]} - ${lifeSpan.ended ? lifeSpan.end?.split('-')[0] : 'Present'}`
-    : null;
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero */}
-      <section className="pt-24 pb-12 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute top-1/2 right-1/4 w-80 h-80 rounded-full bg-accent/10 blur-3xl" />
+      <section className="relative overflow-hidden px-4 pb-12 pt-24">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute right-1/4 top-1/2 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
         </div>
 
-        <div className="container mx-auto max-w-6xl relative">
+        <div className="container relative mx-auto max-w-6xl">
           <Breadcrumb className="mb-8">
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -112,122 +141,132 @@ const ArtistPage = () => {
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Avatar */}
+          <div className="flex flex-col items-start gap-8 md:flex-row">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
-              className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
+              className="gradient-border flex h-48 w-48 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary"
             >
-              <ArtistPageAvatar name={artist.name} />
+              <ArtistPageAvatar artist={artist} />
             </motion.div>
 
-            {/* Info */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
               className="flex-1"
             >
-              {artist.type && (
-                <span className="inline-block px-3 py-1 rounded-full bg-secondary text-sm text-muted-foreground mb-4">
+              {artist.type ? (
+                <span className="mb-4 inline-block rounded-full bg-secondary px-3 py-1 text-sm text-muted-foreground">
                   {artist.type}
                 </span>
-              )}
+              ) : null}
 
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
+              <h1 className="mb-4 text-4xl font-bold md:text-5xl">{artist.name}</h1>
 
-              {artist.disambiguation && (
-                <p className="text-lg text-muted-foreground mb-4">
-                  {artist.disambiguation}
-                </p>
-              )}
+              {artist.disambiguation ? (
+                <p className="mb-4 text-lg text-muted-foreground">{artist.disambiguation}</p>
+              ) : null}
 
               <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-                {artist.country && (
+                {artist.country ? (
                   <span className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="h-4 w-4" />
                     {artist.country}
                   </span>
-                )}
-                {yearsActive && (
+                ) : null}
+                {yearsActive ? (
                   <span className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="h-4 w-4" />
                     {yearsActive}
                   </span>
-                )}
-                {albums.length > 0 && (
+                ) : null}
+                {albums.length > 0 ? (
                   <span className="flex items-center gap-2">
-                    <Disc3 className="w-4 h-4" />
+                    <Disc3 className="h-4 w-4" />
                     {albums.length} albums
                   </span>
-                )}
+                ) : null}
               </div>
 
               <a
                 href={`https://musicbrainz.org/artist/${id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-6 text-primary hover:underline"
+                className="mt-6 inline-flex items-center gap-2 text-primary hover:underline"
               >
                 View on MusicBrainz
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="h-4 w-4" />
               </a>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Discography */}
-      <section className="py-12 px-4">
+      <section className="px-4 py-12">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="text-2xl font-bold mb-8">Discography</h2>
+          <h2 className="mb-8 text-2xl font-bold">Discography</h2>
 
           {albums.length > 0 ? (
             <>
               {(() => {
                 const sortByYear = (items: typeof albums) =>
-                  [...items].sort((a, b) => {
-                    const yearA = a['first-release-date']?.split('-')[0] || '9999';
-                    const yearB = b['first-release-date']?.split('-')[0] || '9999';
-                    return yearA.localeCompare(yearB);
+                  [...items].sort((left, right) => {
+                    const yearLeft = left["first-release-date"]?.split("-")[0] || "9999";
+                    const yearRight = right["first-release-date"]?.split("-")[0] || "9999";
+                    return yearLeft.localeCompare(yearRight);
                   });
 
-                // Official albums: primary type Album with no secondary types (excludes live, compilations, etc.)
                 const officialAlbums = sortByYear(
-                  albums.filter(a => a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0))
+                  albums.filter(
+                    (entry) =>
+                      entry["primary-type"] === "Album" &&
+                      (!entry["secondary-types"] || entry["secondary-types"].length === 0),
+                  ),
                 );
-                const eps = sortByYear(albums.filter(a => a['primary-type'] === 'EP'));
+                const eps = sortByYear(albums.filter((entry) => entry["primary-type"] === "EP"));
                 const others = sortByYear(
-                  albums.filter(a => {
-                    if (a['primary-type'] === 'EP') return false;
-                    if (a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0)) return false;
+                  albums.filter((entry) => {
+                    if (entry["primary-type"] === "EP") return false;
+                    if (
+                      entry["primary-type"] === "Album" &&
+                      (!entry["secondary-types"] || entry["secondary-types"].length === 0)
+                    ) {
+                      return false;
+                    }
                     return true;
-                  })
+                  }),
                 );
 
-                // Extract unique types from "others"
-                const otherTypes = [...new Set(others.map(a => a['primary-type'] || 'Unknown'))];
-
-                const filteredOthers = activeOtherFilters.size === 0
-                  ? others
-                  : others.filter(a => activeOtherFilters.has(a['primary-type'] || 'Unknown'));
+                const otherTypes = [...new Set(others.map((entry) => entry["primary-type"] || "Unknown"))];
+                const filteredOthers =
+                  activeOtherFilters.size === 0
+                    ? others
+                    : others.filter((entry) =>
+                        activeOtherFilters.has(entry["primary-type"] || "Unknown"),
+                      );
 
                 const toggleFilter = (type: string) => {
-                  setActiveOtherFilters(prev => {
-                    const next = new Set(prev);
+                  setActiveOtherFilters((current) => {
+                    const next = new Set(current);
                     if (next.has(type)) next.delete(type);
                     else next.add(type);
                     return next;
                   });
                 };
 
-                const renderSection = (title: string, items: typeof albums, startIndex: number) =>
-                  items.length > 0 && (
+                const renderSection = (
+                  title: string,
+                  items: typeof albums,
+                  startIndex: number,
+                ) =>
+                  items.length > 0 ? (
                     <div className="mb-12">
-                      <h3 className="text-xl font-semibold mb-5 text-muted-foreground">{title} ({items.length})</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                      <h3 className="mb-5 text-xl font-semibold text-muted-foreground">
+                        {title} ({items.length})
+                      </h3>
+                      <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {items.map((album, index) => (
                           <AlbumCard
                             key={album.id}
@@ -235,46 +274,48 @@ const ArtistPage = () => {
                               id: album.id,
                               title: album.title,
                               artistName: artist.name,
-                              releaseDate: album['first-release-date'],
-                              type: album['primary-type'],
+                              releaseDate: album["first-release-date"],
+                              type: album["primary-type"],
                             }}
                             index={startIndex + index}
                           />
                         ))}
                       </div>
                     </div>
-                  );
+                  ) : null;
 
                 return (
                   <>
-                    {renderSection('Albums', officialAlbums, 0)}
-                    {renderSection('EPs', eps, officialAlbums.length)}
+                    {renderSection("Albums", officialAlbums, 0)}
+                    {renderSection("EPs", eps, officialAlbums.length)}
 
-                    {others.length > 0 && (
+                    {others.length > 0 ? (
                       <div className="mb-12">
-                        <h3 className="text-xl font-semibold mb-4 text-muted-foreground">
+                        <h3 className="mb-4 text-xl font-semibold text-muted-foreground">
                           Other Releases ({filteredOthers.length})
                         </h3>
 
-                        <div className="flex flex-wrap gap-2 mb-6">
+                        <div className="mb-6 flex flex-wrap gap-2">
                           <button
+                            type="button"
                             onClick={() => setActiveOtherFilters(new Set())}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                               activeOtherFilters.size === 0
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             All
                           </button>
-                          {otherTypes.map(type => (
+                          {otherTypes.map((type) => (
                             <button
                               key={type}
+                              type="button"
                               onClick={() => toggleFilter(type)}
-                              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                                 activeOtherFilters.has(type)
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-secondary text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {type}
@@ -282,7 +323,7 @@ const ArtistPage = () => {
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                           {filteredOthers.map((album, index) => (
                             <AlbumCard
                               key={album.id}
@@ -290,22 +331,22 @@ const ArtistPage = () => {
                                 id: album.id,
                                 title: album.title,
                                 artistName: artist.name,
-                                releaseDate: album['first-release-date'],
-                                type: album['primary-type'],
+                                releaseDate: album["first-release-date"],
+                                type: album["primary-type"],
                               }}
                               index={officialAlbums.length + eps.length + index}
                             />
                           ))}
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 );
               })()}
             </>
           ) : (
-            <div className="text-center py-12">
-              <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <div className="py-12 text-center">
+              <Disc3 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <p className="text-muted-foreground">No releases found</p>
             </div>
           )}
