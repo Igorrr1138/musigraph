@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { User, MapPin } from 'lucide-react';
-import type { MusicBrainzArtist } from '@/lib/musicbrainz';
-import { useArtistImage } from '@/hooks/useArtistImage';
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { MapPin, User } from "lucide-react";
+
+import { useArtistImage } from "@/hooks/useArtistImage";
+import type { MusicBrainzArtist } from "@/lib/musicbrainz";
 
 interface ArtistCardProps {
   artist: MusicBrainzArtist;
@@ -10,11 +11,11 @@ interface ArtistCardProps {
 }
 
 export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
-  const { imageUrl, isLoading } = useArtistImage(artist.name);
-
-  const topGenre = artist.tags
-    ?.sort((a, b) => b.count - a.count)
-    .find(t => t.name)?.name;
+  const topGenre = [...(artist.tags ?? [])].sort((left, right) => right.count - left.count)[0]?.name;
+  const { imageUrl, isLoading } = useArtistImage(artist.name, {
+    musicBrainzId: artist.id,
+    genreHint: [artist.disambiguation, topGenre].filter(Boolean),
+  });
 
   return (
     <motion.div
@@ -22,53 +23,53 @@ export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <Link to={`/artist/${artist.id}`} className="block group">
-        <div className="relative overflow-hidden rounded-2xl bg-card border border-border/50 transition-all duration-300 hover:border-primary/50 hover:glow-primary">
-          <div className="aspect-square relative overflow-hidden bg-secondary">
+      <Link to={`/artist/${artist.id}`} className="group block">
+        <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card transition-all duration-300 hover:border-primary/50 hover:glow-primary">
+          <div className="relative aspect-square overflow-hidden bg-secondary">
             {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={artist.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 loading="lazy"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="flex h-full w-full items-center justify-center">
                 {isLoading ? (
-                  <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                  <div className="h-12 w-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                 ) : (
-                  <User className="w-16 h-16 text-muted-foreground" />
+                  <User className="h-16 w-16 text-muted-foreground" />
                 )}
               </div>
             )}
 
-            {artist.type && (
-              <div className="absolute top-3 left-3">
-                <span className="px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs font-medium text-foreground">
+            {artist.type ? (
+              <div className="absolute left-3 top-3">
+                <span className="rounded-full bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
                   {artist.type}
                 </span>
               </div>
-            )}
+            ) : null}
 
-            {artist.country && (
-              <div className="absolute top-3 right-3">
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs font-medium text-foreground">
-                  <MapPin className="w-3 h-3" />
+            {artist.country ? (
+              <div className="absolute right-3 top-3">
+                <span className="flex items-center gap-1 rounded-full bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
+                  <MapPin className="h-3 w-3" />
                   {artist.country}
                 </span>
               </div>
-            )}
+            ) : null}
           </div>
 
-          <div className="p-4 space-y-1.5">
-            <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
+          <div className="space-y-1.5 p-4">
+            <h3 className="line-clamp-1 font-semibold transition-colors group-hover:text-primary">
               {artist.name}
             </h3>
-            {topGenre && (
-              <span className="inline-block px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground capitalize">
+            {topGenre ? (
+              <span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs capitalize text-muted-foreground">
                 {topGenre}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       </Link>
