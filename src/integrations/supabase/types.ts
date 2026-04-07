@@ -130,11 +130,43 @@ export type Database = {
         }
         Relationships: []
       }
+      isrc_mapping: {
+        Row: {
+          apple_music_id: string | null
+          created_at: string
+          isrc: string
+          musicbrainz_id: string | null
+          spotify_id: string | null
+          updated_at: string
+          youtube_video_id: string | null
+        }
+        Insert: {
+          apple_music_id?: string | null
+          created_at?: string
+          isrc: string
+          musicbrainz_id?: string | null
+          spotify_id?: string | null
+          updated_at?: string
+          youtube_video_id?: string | null
+        }
+        Update: {
+          apple_music_id?: string | null
+          created_at?: string
+          isrc?: string
+          musicbrainz_id?: string | null
+          spotify_id?: string | null
+          updated_at?: string
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           id: string
+          is_pro: boolean | null
+          primary_provider: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -143,6 +175,8 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          is_pro?: boolean | null
+          primary_provider?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -151,9 +185,47 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          is_pro?: boolean | null
+          primary_provider?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      provider_accounts: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          provider_name: string
+          provider_user_id: string | null
+          refresh_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider_name: string
+          provider_user_id?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider_name?: string
+          provider_user_id?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

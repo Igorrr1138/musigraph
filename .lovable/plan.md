@@ -1,30 +1,26 @@
+## Hybrid Architecture Implementation
 
+### Phase 1: Database Schema
+Create new tables via migration:
+- **`provider_accounts`** — links users to multiple providers (Spotify, Google, Apple) with tokens
+- **`isrc_mapping`** — cross-platform track mapping using ISRC codes
+- Add `primary_provider` and `is_pro` columns to `profiles`
 
-## Plan: Artist Cover Image + Navigation Breadcrumbs
+### Phase 2: Google OAuth Login
+- Use Lovable Cloud's managed Google OAuth (configure_social_auth tool)
+- Update AuthPage.tsx with "Sign in with Google" button
+- Store Google provider account in `provider_accounts` on login
 
-### 1. Artist Cover Image on ArtistPage
+### Phase 3: Provider Abstraction Layer
+- Create `src/lib/playbackProvider.ts` — unified playback interface with priority logic:
+  1. Spotify SDK (if Premium) → 2. YouTube IFrame (current fallback)
+- Create `src/lib/metadataProvider.ts` — search abstraction:
+  1. Spotify API (when key available) → 2. MusicBrainz (current)
+- Keep all existing MusicBrainz + YouTube code working as-is
 
-Currently the artist page shows a generic `<User />` icon. We'll fetch a real image using theaudiodb.com (same pattern as `ArtistCard.tsx`) with a fallback to the icon.
+### Phase 4: Data Migration Prep
+- Create a migration-ready function that can map existing MusicBrainz IDs to ISRC codes (will execute when Spotify API is connected later)
 
-**File: `src/pages/ArtistPage.tsx`**
-- Add `imageError` state and construct image URL from artist name
-- Replace the static `<User />` icon with an `<img>` tag that falls back to the icon on error
-- Style: keep the circular 48x48 avatar but show the actual artist photo
-
-### 2. Breadcrumb Navigation
-
-Replace the simple "Back to search" arrow links with proper breadcrumbs using the existing `src/components/ui/breadcrumb.tsx` component.
-
-**File: `src/pages/ArtistPage.tsx`**
-- Replace the `<ArrowLeft> Back to search` link with breadcrumbs: `Home > {Artist Name}`
-
-**File: `src/pages/AlbumPage.tsx`**
-- Replace the `<ArrowLeft> Back to search` link with breadcrumbs: `Home > {Artist Name} > {Album Title}`
-- The artist name links to `/artist/{artistId}`, enabling direct navigation back to the artist
-
-### Technical Details
-
-- Import `Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage` from `@/components/ui/breadcrumb`
-- Use React Router's `<Link>` inside `BreadcrumbLink` via `asChild` prop
-- Artist image URL pattern: `https://www.theaudiodb.com/images/media/artist/thumb/{name}.jpg` (lowercased, spaces removed) -- matching existing `ArtistCard.tsx` logic
-
+### What stays unchanged
+- Current search (MusicBrainz), playback (YouTube), ratings, voice assistant all remain functional
+- New architecture layers on top without breaking existing features
