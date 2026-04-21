@@ -20,33 +20,38 @@ const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<MusicBrainzArtist | null>(null);
   const [albums, setAlbums] = useState<MusicBrainzReleaseGroup[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingArtist, setIsLoadingArtist] = useState(true);
+  const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
 
+  // Load artist (usually from cache → instant) and albums independently
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      setIsLoading(true);
+    if (!id) return;
+    let cancelled = false;
 
-      try {
-        const [artistData, albumsData] = await Promise.all([
-          getArtist(id),
-          getArtistReleaseGroups(id, 50),
-        ]);
+    setIsLoadingArtist(true);
+    setIsLoadingAlbums(true);
+    setArtist(null);
+    setAlbums([]);
 
-        setArtist(artistData);
-        setAlbums(albumsData);
-      } catch (error) {
-        console.error('Error fetching artist:', error);
-      } finally {
-        setIsLoading(false);
+    getArtist(id).then(data => {
+      if (!cancelled) {
+        setArtist(data);
+        setIsLoadingArtist(false);
       }
-    };
+    });
 
-    fetchData();
+    getArtistReleaseGroups(id, 50).then(data => {
+      if (!cancelled) {
+        setAlbums(data);
+        setIsLoadingAlbums(false);
+      }
+    });
+
+    return () => { cancelled = true; };
   }, [id]);
 
-  if (isLoading) {
+  if (isLoadingArtist) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
