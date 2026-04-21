@@ -7,24 +7,52 @@ const USER_AGENT = 'MusicCatalogApp/1.0.0 (contact@example.com)';
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 1100; // 1.1 seconds to be safe
 
-async function rateLimitedFetch(url: string): Promise<Response> {
+async function rateLimitedFetch(url: string, retries = 3): Promise<Response> {
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
-  
+
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    await new Promise(resolve => 
+    await new Promise(resolve =>
       setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest)
     );
   }
-  
+
   lastRequestTime = Date.now();
-  
-  return fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      'Accept': 'application/json',
-    },
-  });
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'application/json',
+        },
+      });
+
+      // Retry on rate-limit / transient server errors
+      if ((response.status === 503 || response.status === 429 || response.status >= 500) && attempt < retries) {
+        const backoff = 1500 * Math.pow(2, attempt); // 1.5s, 3s, 6s
+        console.warn(`MusicBrainz ${response.status} for ${url} — retrying in ${backoff}ms (attempt ${attempt + 1}/${retries})`);
+        await new Promise(r => setTimeout(r, backoff));
+        lastRequestTime = Date.now();
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        const backoff = 1500 * Math.pow(2, attempt);
+        console.warn(`MusicBrainz network error for ${url} — retrying in ${backoff}ms`, err);
+        await new Promise(r => setTimeout(r, backoff));
+        lastRequestTime = Date.now();
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError ?? new Error('Request failed');
 }
 
 export interface MusicBrainzArtist {
@@ -102,11 +130,14 @@ export async function searchArtists(query: string, limit = 10): Promise<MusicBra
 
 export async function getArtist(mbid: string): Promise<MusicBrainzArtist | null> {
   const url = `${MUSICBRAINZ_BASE_URL}/artist/${mbid}?fmt=json&inc=release-groups`;
-  
+
   try {
     const response = await rateLimitedFetch(url);
-    if (!response.ok) return null;
-    
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      console.error(`Artist fetch failed with status ${response.status} for mbid ${mbid}`);
+      return null;
+    }
     return response.json();
   } catch (error) {
     console.error('Error fetching artist:', error);
