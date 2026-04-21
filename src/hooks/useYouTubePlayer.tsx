@@ -288,7 +288,9 @@ export function YouTubePlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
     const cleanedTitle = cleanSearchQuery(track.title);
     const query = `${artist || ''} ${cleanedTitle} official audio`.trim();
-    searchAndPlay(query);
+    // track.length is in milliseconds (MusicBrainz convention)
+    const expectedSec = track.length && track.length > 1000 ? Math.round(track.length / 1000) : track.length || undefined;
+    searchAndPlay(query, expectedSec);
   }, [searchAndPlay]);
 
   const playTrack = useCallback((track: Track, albumMbid: string, artist?: string, album?: string, allTracks?: Track[]) => {
