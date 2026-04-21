@@ -130,11 +130,14 @@ export async function searchArtists(query: string, limit = 10): Promise<MusicBra
 
 export async function getArtist(mbid: string): Promise<MusicBrainzArtist | null> {
   const url = `${MUSICBRAINZ_BASE_URL}/artist/${mbid}?fmt=json&inc=release-groups`;
-  
+
   try {
     const response = await rateLimitedFetch(url);
-    if (!response.ok) return null;
-    
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      console.error(`Artist fetch failed with status ${response.status} for mbid ${mbid}`);
+      return null;
+    }
     return response.json();
   } catch (error) {
     console.error('Error fetching artist:', error);
