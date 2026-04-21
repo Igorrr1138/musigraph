@@ -1,7 +1,12 @@
 // MusicBrainz API utilities
+import { supabase } from '@/integrations/supabase/client';
+
 const MUSICBRAINZ_BASE_URL = 'https://musicbrainz.org/ws/2';
 const COVER_ART_BASE_URL = 'https://coverartarchive.org';
 const USER_AGENT = 'MusicCatalogApp/1.0.0 (contact@example.com)';
+
+// Cache TTL: 7 days
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Rate limiting - MusicBrainz allows 1 request per second
 let lastRequestTime = 0;

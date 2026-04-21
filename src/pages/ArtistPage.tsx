@@ -20,33 +20,38 @@ const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<MusicBrainzArtist | null>(null);
   const [albums, setAlbums] = useState<MusicBrainzReleaseGroup[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingArtist, setIsLoadingArtist] = useState(true);
+  const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
 
+  // Load artist (usually from cache → instant) and albums independently
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      setIsLoading(true);
+    if (!id) return;
+    let cancelled = false;
 
-      try {
-        const [artistData, albumsData] = await Promise.all([
-          getArtist(id),
-          getArtistReleaseGroups(id, 50),
-        ]);
+    setIsLoadingArtist(true);
+    setIsLoadingAlbums(true);
+    setArtist(null);
+    setAlbums([]);
 
-        setArtist(artistData);
-        setAlbums(albumsData);
-      } catch (error) {
-        console.error('Error fetching artist:', error);
-      } finally {
-        setIsLoading(false);
+    getArtist(id).then(data => {
+      if (!cancelled) {
+        setArtist(data);
+        setIsLoadingArtist(false);
       }
-    };
+    });
 
-    fetchData();
+    getArtistReleaseGroups(id, 50).then(data => {
+      if (!cancelled) {
+        setAlbums(data);
+        setIsLoadingAlbums(false);
+      }
+    });
+
+    return () => { cancelled = true; };
   }, [id]);
 
-  if (isLoading) {
+  if (isLoadingArtist) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -157,7 +162,7 @@ const ArtistPage = () => {
                     {yearsActive}
                   </span>
                 )}
-                {albums.length > 0 && (
+                {!isLoadingAlbums && albums.length > 0 && (
                   <span className="flex items-center gap-2">
                     <Disc3 className="w-4 h-4" />
                     {albums.length} albums
@@ -184,7 +189,17 @@ const ArtistPage = () => {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold mb-8">Discography</h2>
 
-          {albums.length > 0 ? (
+          {isLoadingAlbums ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-square rounded-2xl" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : albums.length > 0 ? (
             <>
               {(() => {
                 const sortByYear = (items: typeof albums) =>
