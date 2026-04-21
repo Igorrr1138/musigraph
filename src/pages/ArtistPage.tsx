@@ -162,7 +162,7 @@ const ArtistPage = () => {
                     {yearsActive}
                   </span>
                 )}
-                {albums.length > 0 && (
+                {!isLoadingAlbums && albums.length > 0 && (
                   <span className="flex items-center gap-2">
                     <Disc3 className="w-4 h-4" />
                     {albums.length} albums
@@ -189,7 +189,17 @@ const ArtistPage = () => {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold mb-8">Discography</h2>
 
-          {albums.length > 0 ? (
+          {isLoadingAlbums ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-square rounded-2xl" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : albums.length > 0 ? (
             <>
               {(() => {
                 const sortByYear = (items: typeof albums) =>
