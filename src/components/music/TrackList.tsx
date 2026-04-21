@@ -66,7 +66,7 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
     }
   }, [trackRatings, tracks.length, onAlbumScoreChange]);
 
-  const handleRateTrack = useCallback(async (track: Track, rating: number) => {
+  const handleRateTrack = useCallback((track: Track, rating: number) => {
     if (!user) {
       toast({
         title: 'Sign in required',
@@ -76,38 +76,42 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
       return;
     }
 
-    setSavingTrack(track.position);
-    const prevRatings = { ...trackRatings };
+    // Optimistic UI — update immediately, no awaiting
     setTrackRatings(prev => ({ ...prev, [track.position]: rating }));
+    setSavingTrack(track.position);
 
-    try {
-      const { error } = await supabase
-        .from('track_ratings')
-        .upsert({
-          user_id: user.id,
-          album_mbid: albumMbid,
-          track_mbid: track.id || null,
-          track_title: track.title,
-          track_position: track.position,
-          rating,
-          rated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,album_mbid,track_position',
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error saving track rating:', error);
-      setTrackRatings(prevRatings);
-      toast({
-        title: 'Error',
-        description: 'Failed to save track rating.',
-        variant: 'destructive',
+    // Fire-and-forget upsert (no .select() so PostgREST returns 204 quickly)
+    supabase
+      .from('track_ratings')
+      .upsert({
+        user_id: user.id,
+        album_mbid: albumMbid,
+        track_mbid: track.id || null,
+        track_title: track.title,
+        track_position: track.position,
+        rating,
+        rated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id,album_mbid,track_position',
+      })
+      .then(({ error }) => {
+        setSavingTrack(null);
+        if (error) {
+          console.error('Error saving track rating:', error);
+          // Revert on failure
+          setTrackRatings(prev => {
+            const next = { ...prev };
+            delete next[track.position];
+            return next;
+          });
+          toast({
+            title: 'Error',
+            description: 'Failed to save track rating.',
+            variant: 'destructive',
+          });
+        }
       });
-    } finally {
-      setSavingTrack(null);
-    }
-  }, [user, albumMbid, trackRatings, toast]);
+  }, [user, albumMbid, toast]);
 
   const handlePlayTrack = useCallback((track: Track) => {
     playYT(track, albumMbid, artistName, albumTitle, tracks);
