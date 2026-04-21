@@ -210,21 +210,71 @@ export function YouTubePlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [volume, startProgressTracking, stopProgressTracking]);
 
-  const searchAndPlay = useCallback(async (query: string) => {
+  // Parse ISO 8601 duration (PT4M33S) to seconds
+  const parseISODuration = (iso: string): number => {
+    const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!m) return 0;
+    return (parseInt(m[1] || '0') * 3600) + (parseInt(m[2] || '0') * 60) + parseInt(m[3] || '0');
+  };
+
+  const ALBUM_KEYWORDS = /\b(full album|complete album|entire album|álbum completo|full lp|whole album|album completo|disco completo|all songs|playlist|mix|compilation|greatest hits|discography)\b/i;
+
+  const searchAndPlay = useCallback(async (query: string, expectedDurationSec?: number) => {
     if (!apiReadyRef.current) {
       pendingSearchRef.current = query;
       return;
     }
-    console.log('[YouTube] Searching for:', query);
+    console.log('[YouTube] Searching for:', query, 'expected duration:', expectedDurationSec);
     try {
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5&key=${YOUTUBE_API_KEY}`;
-      const resp = await fetch(url);
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=10&videoEmbeddable=true&key=${YOUTUBE_API_KEY}`;
+      const resp = await fetch(searchUrl);
       if (!resp.ok) { console.error('[YouTube] API error:', resp.status); return; }
       const data = await resp.json();
-      console.log('[YouTube] Search results:', data.items?.map((i: any) => ({ title: i.snippet?.title, id: i.id?.videoId })));
-      const videoId = data.items?.[0]?.id?.videoId;
-      if (videoId) { console.log('[YouTube] Playing videoId:', videoId); initPlayer(videoId); }
-      else console.error('[YouTube] No results found');
+      const items = data.items || [];
+      if (items.length === 0) { console.error('[YouTube] No results found'); return; }
+
+      // Fetch durations for all candidates
+      const ids = items.map((i: any) => i.id?.videoId).filter(Boolean).join(',');
+      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${ids}&key=${YOUTUBE_API_KEY}`;
+      const detailsResp = await fetch(detailsUrl);
+      const detailsData = await detailsResp.json();
+
+      type Candidate = { id: string; title: string; duration: number; score: number };
+      const candidates: Candidate[] = (detailsData.items || []).map((it: any) => {
+        const id = it.id;
+        const title: string = it.snippet?.title || '';
+        const duration = parseISODuration(it.contentDetails?.duration || 'PT0S');
+        let score = 0;
+
+        // Heavy penalty for album/compilation uploads
+        if (ALBUM_KEYWORDS.test(title)) score -= 1000;
+
+        // Penalty for very long videos (likely full albums) when no expected duration
+        if (!expectedDurationSec && duration > 900) score -= 500; // > 15min
+
+        // Duration match scoring
+        if (expectedDurationSec && expectedDurationSec > 0) {
+          const diff = Math.abs(duration - expectedDurationSec);
+          if (diff <= 5) score += 1000;
+          else if (diff <= 15) score += 500;
+          else if (diff <= 30) score += 100;
+          else if (diff > 60) score -= 200;
+          // Strong penalty if YT video is much longer than expected (full album case)
+          if (duration > expectedDurationSec * 2.5 && duration > 600) score -= 2000;
+        }
+
+        // Bonus for "official audio/video/lyrics"
+        if (/official\s+(audio|video|music\s+video|lyric)/i.test(title)) score += 50;
+
+        return { id, title, duration, score };
+      });
+
+      candidates.sort((a, b) => b.score - a.score);
+      console.log('[YouTube] Ranked candidates:', candidates.map(c => ({ title: c.title, dur: c.duration, score: c.score })));
+
+      const best = candidates[0];
+      if (best) { console.log('[YouTube] Playing:', best.title, best.id); initPlayer(best.id); }
+      else console.error('[YouTube] No suitable candidate');
     } catch (err) { console.error('[YouTube] Search failed:', err); }
   }, [initPlayer]);
 
