@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
@@ -60,8 +60,9 @@ const AlbumPage = () => {
     fetchRating();
   }, [user, id]);
 
-  // Save album score when track ratings change
-  const handleAlbumScoreChange = useCallback(async (score: number | null) => {
+  // Debounced album_ratings upsert — coalesces rapid track rating changes
+  const albumWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleAlbumScoreChange = useCallback((score: number | null) => {
     if (!user || !id || !release || score === null) {
       if (score === null) setUserRating(0);
       return;
@@ -70,11 +71,13 @@ const AlbumPage = () => {
     const roundedScore = Math.round(score * 10) / 10;
     setUserRating(roundedScore);
 
-    try {
+    if (albumWriteTimer.current) clearTimeout(albumWriteTimer.current);
+    albumWriteTimer.current = setTimeout(() => {
       const artistName = release['artist-credit']?.[0]?.artist.name;
       const coverUrl = getCoverArtUrl(id, '500');
 
-      const { error } = await supabase
+      // Fire-and-forget — no select(), no await
+      supabase
         .from('album_ratings')
         .upsert({
           user_id: user.id,
@@ -86,13 +89,16 @@ const AlbumPage = () => {
           rated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,album_mbid',
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error saving album score:', error);
         });
+    }, 600);
+  }, [user, id, release]);
 
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error saving album score:', error);
-    }
-  }, [user, id, release, toast]);
+  useEffect(() => () => {
+    if (albumWriteTimer.current) clearTimeout(albumWriteTimer.current);
+  }, []);
 
   if (isLoading) {
     return (
