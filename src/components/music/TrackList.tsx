@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Clock, Star, PlayCircle } from 'lucide-react';
-import { formatDuration } from '@/lib/musicbrainz';
+import { formatDuration, type DeezerTrack } from '@/lib/deezer';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,22 +9,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
 
-interface Track {
-  id: string;
-  title: string;
-  position: number;
-  length?: number;
-}
-
 interface TrackListProps {
-  tracks: Track[];
-  albumMbid: string;
+  tracks: DeezerTrack[];
+  albumDeezerId: string;
   artistName?: string;
   albumTitle?: string;
   onAlbumScoreChange?: (score: number | null) => void;
 }
 
-export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumScoreChange }: TrackListProps) {
+function getPosition(track: DeezerTrack, fallbackIndex: number): number {
+  return track.track_position ?? fallbackIndex + 1;
+}
+
+export function TrackList({ tracks, albumDeezerId, artistName, albumTitle, onAlbumScoreChange }: TrackListProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { playTrack: playYT, currentTrack: ytCurrentTrack } = useYouTubePlayer();
@@ -32,20 +29,19 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [savingTrack, setSavingTrack] = useState<number | null>(null);
 
-  // Fetch existing track ratings
   useEffect(() => {
     const fetchTrackRatings = async () => {
-      if (!user || !albumMbid) return;
+      if (!user || !albumDeezerId) return;
 
       const { data } = await supabase
         .from('track_ratings')
         .select('track_position, rating')
         .eq('user_id', user.id)
-        .eq('album_mbid', albumMbid);
+        .eq('album_deezer_id', albumDeezerId);
 
       if (data) {
         const ratingsMap: Record<number, number> = {};
-        data.forEach((r: any) => {
+        data.forEach((r: { track_position: number; rating: number }) => {
           ratingsMap[r.track_position] = r.rating;
         });
         setTrackRatings(ratingsMap);
@@ -53,9 +49,8 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
     };
 
     fetchTrackRatings();
-  }, [user, albumMbid]);
+  }, [user, albumDeezerId]);
 
-  // Compute and propagate album score
   useEffect(() => {
     const ratedValues = Object.values(trackRatings);
     if (ratedValues.length > 0) {
@@ -66,7 +61,7 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
     }
   }, [trackRatings, tracks.length, onAlbumScoreChange]);
 
-  const handleRateTrack = useCallback((track: Track, rating: number) => {
+  const handleRateTrack = useCallback((track: DeezerTrack, position: number, rating: number) => {
     if (!user) {
       toast({
         title: 'Sign in required',
@@ -76,32 +71,29 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
       return;
     }
 
-    // Optimistic UI — update immediately, no awaiting
-    setTrackRatings(prev => ({ ...prev, [track.position]: rating }));
-    setSavingTrack(track.position);
+    setTrackRatings(prev => ({ ...prev, [position]: rating }));
+    setSavingTrack(position);
 
-    // Fire-and-forget upsert (no .select() so PostgREST returns 204 quickly)
     supabase
       .from('track_ratings')
       .upsert({
         user_id: user.id,
-        album_mbid: albumMbid,
-        track_mbid: track.id || null,
+        album_deezer_id: albumDeezerId,
+        track_deezer_id: String(track.id),
         track_title: track.title,
-        track_position: track.position,
+        track_position: position,
         rating,
         rated_at: new Date().toISOString(),
       }, {
-        onConflict: 'user_id,album_mbid,track_position',
+        onConflict: 'user_id,album_deezer_id,track_position',
       })
       .then(({ error }) => {
         setSavingTrack(null);
         if (error) {
           console.error('Error saving track rating:', error);
-          // Revert on failure
           setTrackRatings(prev => {
             const next = { ...prev };
-            delete next[track.position];
+            delete next[position];
             return next;
           });
           toast({
@@ -111,25 +103,36 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
           });
         }
       });
-  }, [user, albumMbid, toast]);
+  }, [user, albumDeezerId, toast]);
 
-  const handlePlayTrack = useCallback((track: Track) => {
-    playYT(track, albumMbid, artistName, albumTitle, tracks);
-  }, [playYT, albumMbid, artistName, albumTitle, tracks]);
+  const handlePlayTrack = useCallback((track: DeezerTrack, position: number) => {
+    playYT(
+      { id: String(track.id), title: track.title, position, length: track.duration * 1000 },
+      albumDeezerId,
+      artistName,
+      albumTitle,
+      tracks.map((t, i) => ({
+        id: String(t.id),
+        title: t.title,
+        position: getPosition(t, i),
+        length: t.duration * 1000,
+      })),
+    );
+  }, [playYT, albumDeezerId, artistName, albumTitle, tracks]);
 
-  // Voice rating: rate the currently playing track
   const handleVoiceRating = useCallback((rating: number) => {
     if (!ytCurrentTrack) return;
-    const track = tracks.find(t => t.position === ytCurrentTrack.position);
-    if (track) {
-      handleRateTrack(track, rating);
-      toast({ title: `Rated "${track.title}"`, description: `${rating}/10` });
+    const idx = tracks.findIndex((t, i) => getPosition(t, i) === ytCurrentTrack.position);
+    if (idx >= 0) {
+      const t = tracks[idx];
+      const pos = getPosition(t, idx);
+      handleRateTrack(t, pos, rating);
+      toast({ title: `Rated "${t.title}"`, description: `${rating}/10` });
     }
   }, [ytCurrentTrack, tracks, handleRateTrack, toast]);
 
   return (
     <div className="space-y-1">
-      {/* Voice Assistant */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border">
         <div className="grid grid-cols-[auto_auto_1fr_auto_auto] gap-4 text-xs text-muted-foreground uppercase tracking-wider">
           <span className="w-8"></span>
@@ -140,12 +143,13 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
         </div>
         <VoiceAssistant onRatingDetected={handleVoiceRating} />
       </div>
-      
+
       {tracks.map((track, index) => {
-        const currentRating = trackRatings[track.position] || 0;
-        const currentHover = hoverRatings[track.position] || 0;
+        const position = getPosition(track, index);
+        const currentRating = trackRatings[position] || 0;
+        const currentHover = hoverRatings[position] || 0;
         const displayRating = currentHover || currentRating;
-        const isCurrentlyPlaying = ytCurrentTrack?.position === track.position && ytCurrentTrack?.title === track.title;
+        const isCurrentlyPlaying = ytCurrentTrack?.position === position && ytCurrentTrack?.title === track.title;
 
         return (
           <motion.div
@@ -158,9 +162,8 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
               isCurrentlyPlaying && "bg-primary/10 border border-primary/20"
             )}
           >
-            {/* Play button */}
             <button
-              onClick={() => handlePlayTrack(track)}
+              onClick={() => handlePlayTrack(track, position)}
               className="flex items-center justify-center w-8 text-muted-foreground hover:text-primary transition-colors"
             >
               <PlayCircle className={cn(
@@ -170,9 +173,9 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
             </button>
 
             <span className="text-muted-foreground group-hover:text-primary transition-colors font-mono text-sm w-8">
-              {track.position}
+              {position}
             </span>
-            
+
             <div className="flex items-center gap-3 min-w-0">
               <Music className="w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
               <span className={cn(
@@ -183,19 +186,18 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
               </span>
             </div>
 
-            {/* Inline star rating */}
             <div className="flex items-center gap-0.5">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                 <button
                   key={star}
                   type="button"
-                  disabled={savingTrack === track.position}
-                  onClick={() => handleRateTrack(track, star)}
-                  onMouseEnter={() => setHoverRatings(prev => ({ ...prev, [track.position]: star }))}
-                  onMouseLeave={() => setHoverRatings(prev => ({ ...prev, [track.position]: 0 }))}
+                  disabled={savingTrack === position}
+                  onClick={() => handleRateTrack(track, position, star)}
+                  onMouseEnter={() => setHoverRatings(prev => ({ ...prev, [position]: star }))}
+                  onMouseLeave={() => setHoverRatings(prev => ({ ...prev, [position]: 0 }))}
                   className={cn(
                     'transition-all duration-150',
-                    savingTrack === track.position && 'opacity-50 cursor-wait'
+                    savingTrack === position && 'opacity-50 cursor-wait'
                   )}
                 >
                   <Star
@@ -212,15 +214,14 @@ export function TrackList({ tracks, albumMbid, artistName, albumTitle, onAlbumSc
                 {currentRating > 0 ? currentRating : '–'}
               </span>
             </div>
-            
+
             <span className="text-muted-foreground text-sm font-mono">
-              {track.length ? formatDuration(track.length) : '--:--'}
+              {track.duration ? formatDuration(track.duration) : '--:--'}
             </span>
           </motion.div>
         );
       })}
 
-      {/* Album Score Summary */}
       {Object.keys(trackRatings).length > 0 && (
         <div className="flex items-center justify-between px-4 py-4 mt-2 border-t border-border">
           <span className="text-sm font-semibold text-muted-foreground">
