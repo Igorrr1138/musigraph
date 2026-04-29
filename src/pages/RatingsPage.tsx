@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Rating {
   id: string;
-  album_mbid: string;
+  album_deezer_id: string;
   album_title: string;
   artist_name: string | null;
   cover_url: string | null;

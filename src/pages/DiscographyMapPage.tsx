@@ -27,13 +27,13 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TrackRating {
-  album_mbid: string;
+  album_deezer_id: string;
   track_position: number;
   rating: number;
 }
 
 interface AlbumRating {
-  album_mbid: string;
+  album_deezer_id: string;
   album_title: string;
   artist_name: string | null;
   cover_url: string | null;
@@ -73,11 +73,11 @@ const DiscographyMapPage = () => {
         const [albumRes, trackRes] = await Promise.all([
           supabase
             .from('album_ratings')
-            .select('album_mbid, album_title, artist_name, cover_url, rated_at')
+            .select('album_deezer_id, album_title, artist_name, cover_url, rated_at')
             .eq('user_id', user.id),
           supabase
             .from('track_ratings')
-            .select('album_mbid, track_position, rating')
+            .select('album_deezer_id, track_position, rating')
             .eq('user_id', user.id),
         ]);
 
@@ -105,17 +105,17 @@ const DiscographyMapPage = () => {
     const albumScores: Record<string, { total: number; count: number }> = {};
 
     trackRatings.forEach((trackRating) => {
-      if (!albumScores[trackRating.album_mbid]) {
-        albumScores[trackRating.album_mbid] = { total: 0, count: 0 };
+      if (!albumScores[trackRating.album_deezer_id]) {
+        albumScores[trackRating.album_deezer_id] = { total: 0, count: 0 };
       }
-      albumScores[trackRating.album_mbid].total += trackRating.rating;
-      albumScores[trackRating.album_mbid].count += 1;
+      albumScores[trackRating.album_deezer_id].total += trackRating.rating;
+      albumScores[trackRating.album_deezer_id].count += 1;
     });
 
     return albumRatings
-      .filter((albumRating) => albumScores[albumRating.album_mbid])
+      .filter((albumRating) => albumScores[albumRating.album_deezer_id])
       .map((albumRating) => {
-        const score = albumScores[albumRating.album_mbid];
+        const score = albumScores[albumRating.album_deezer_id];
         const avg = score.total / score.count;
         const year = new Date(albumRating.rated_at).getFullYear();
 
@@ -125,7 +125,7 @@ const DiscographyMapPage = () => {
           album: albumRating.album_title,
           artist: albumRating.artist_name || 'Unknown',
           cover: albumRating.cover_url,
-          mbid: albumRating.album_mbid,
+          mbid: albumRating.album_deezer_id,
           tracksRated: score.count,
         };
       })

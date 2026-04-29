@@ -5,29 +5,29 @@ import { Header } from '@/components/layout/Header';
 import { SearchBar } from '@/components/search/SearchBar';
 import { ArtistCard } from '@/components/music/ArtistCard';
 import { AlbumCard } from '@/components/music/AlbumCard';
-import { searchArtists, searchReleases, type MusicBrainzArtist, type MusicBrainzRelease } from '@/lib/musicbrainz';
+import { searchArtists, searchAlbums, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const { user } = useAuth();
   const [isSearching, setIsSearching] = useState(false);
-  const [artists, setArtists] = useState<MusicBrainzArtist[]>([]);
-  const [albums, setAlbums] = useState<MusicBrainzRelease[]>([]);
+  const [artists, setArtists] = useState<DeezerArtist[]>([]);
+  const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchType, setSearchType] = useState<'artists' | 'albums'>('artists');
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
     setHasSearched(true);
-    
+
     try {
       if (searchType === 'artists') {
         const results = await searchArtists(query, 12);
         setArtists(results);
         setAlbums([]);
       } else {
-        const results = await searchReleases(query, 12);
+        const results = await searchAlbums(query, 12);
         setAlbums(results);
         setArtists([]);
       }
@@ -41,17 +41,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      {/* Hero Section */}
+
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Background glow elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         </div>
 
         <div className="container mx-auto max-w-6xl relative">
-          {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -63,13 +60,12 @@ const Index = () => {
               <br />
               <span className="text-foreground">&amp; RATE</span>
             </h1>
-            
+
             <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
               Explore millions of artists and albums. Rate your favorites and visualize your musical journey.
             </p>
           </motion.div>
 
-          {/* Search Tabs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -88,14 +84,13 @@ const Index = () => {
               </TabsList>
             </Tabs>
 
-            <SearchBar 
-              onSearch={handleSearch} 
+            <SearchBar
+              onSearch={handleSearch}
               isLoading={isSearching}
               placeholder={searchType === 'artists' ? 'Search for artists...' : 'Search for albums...'}
             />
           </motion.div>
 
-          {/* Stats */}
           {!hasSearched && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -123,7 +118,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Results Section */}
       {hasSearched && (
         <section className="py-12 px-4">
           <div className="container mx-auto max-w-6xl">
@@ -170,17 +164,7 @@ const Index = () => {
                       <div className="mb-12">
                         <h2 className="text-2xl font-boldonse mb-6 uppercase tracking-wider">Best Match</h2>
                         <div className="max-w-[200px]">
-                          <AlbumCard
-                            key={best.id}
-                            album={{
-                              id: best['release-group']?.id || best.id,
-                              title: best.title,
-                              artistName: best['artist-credit']?.[0]?.artist.name,
-                              releaseDate: best.date,
-                              type: best['release-group']?.['primary-type'],
-                            }}
-                            index={0}
-                          />
+                          <AlbumCard key={best.id} album={best} index={0} />
                         </div>
                       </div>
 
@@ -188,18 +172,8 @@ const Index = () => {
                         <div>
                           <h2 className="text-lg font-boldonse mb-6 text-muted-foreground uppercase tracking-wider">Other Results</h2>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                            {others.map((release, index) => (
-                              <AlbumCard
-                                key={release.id}
-                                album={{
-                                  id: release['release-group']?.id || release.id,
-                                  title: release.title,
-                                  artistName: release['artist-credit']?.[0]?.artist.name,
-                                  releaseDate: release.date,
-                                  type: release['release-group']?.['primary-type'],
-                                }}
-                                index={index}
-                              />
+                            {others.map((album, index) => (
+                              <AlbumCard key={album.id} album={album} index={index} />
                             ))}
                           </div>
                         </div>

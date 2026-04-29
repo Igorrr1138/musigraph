@@ -1,20 +1,15 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, MapPin } from 'lucide-react';
-import type { MusicBrainzArtist } from '@/lib/musicbrainz';
-import { useArtistImage } from '@/hooks/useArtistImage';
+import { User } from 'lucide-react';
+import { pickArtistImage, type DeezerArtist } from '@/lib/deezer';
 
 interface ArtistCardProps {
-  artist: MusicBrainzArtist;
+  artist: DeezerArtist;
   index?: number;
 }
 
 export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
-  const { imageUrl, isLoading } = useArtistImage(artist.name);
-
-  const topGenre = artist.tags
-    ?.sort((a, b) => b.count - a.count)
-    .find(t => t.name)?.name;
+  const imageUrl = pickArtistImage(artist);
 
   return (
     <motion.div
@@ -34,28 +29,7 @@ export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                {isLoading ? (
-                  <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                ) : (
-                  <User className="w-16 h-16 text-muted-foreground" />
-                )}
-              </div>
-            )}
-
-            {artist.type && (
-              <div className="absolute top-3 left-3">
-                <span className="px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs font-medium text-foreground">
-                  {artist.type}
-                </span>
-              </div>
-            )}
-
-            {artist.country && (
-              <div className="absolute top-3 right-3">
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs font-medium text-foreground">
-                  <MapPin className="w-3 h-3" />
-                  {artist.country}
-                </span>
+                <User className="w-16 h-16 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -64,9 +38,9 @@ export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
             <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
               {artist.name}
             </h3>
-            {topGenre && (
-              <span className="inline-block px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground capitalize">
-                {topGenre}
+            {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
+              <span className="inline-block px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground">
+                {artist.nb_fan.toLocaleString()} fans
               </span>
             )}
           </div>

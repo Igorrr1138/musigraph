@@ -16,8 +16,10 @@ export type Database = {
     Tables: {
       album_ratings: {
         Row: {
-          album_mbid: string
+          album_deezer_id: string | null
+          album_mbid: string | null
           album_title: string
+          artist_deezer_id: string | null
           artist_name: string | null
           cover_url: string | null
           id: string
@@ -26,8 +28,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          album_mbid: string
+          album_deezer_id?: string | null
+          album_mbid?: string | null
           album_title: string
+          artist_deezer_id?: string | null
           artist_name?: string | null
           cover_url?: string | null
           id?: string
@@ -36,8 +40,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          album_mbid?: string
+          album_deezer_id?: string | null
+          album_mbid?: string | null
           album_title?: string
+          artist_deezer_id?: string | null
           artist_name?: string | null
           cover_url?: string | null
           id?: string
@@ -49,34 +55,40 @@ export type Database = {
       }
       albums_cache: {
         Row: {
+          artist_deezer_id: string | null
           artist_mbid: string | null
           artist_name: string | null
           cached_at: string
           cover_url: string | null
+          deezer_id: string | null
           id: string
-          mbid: string
+          mbid: string | null
           release_date: string | null
           title: string
           track_count: number | null
         }
         Insert: {
+          artist_deezer_id?: string | null
           artist_mbid?: string | null
           artist_name?: string | null
           cached_at?: string
           cover_url?: string | null
+          deezer_id?: string | null
           id?: string
-          mbid: string
+          mbid?: string | null
           release_date?: string | null
           title: string
           track_count?: number | null
         }
         Update: {
+          artist_deezer_id?: string | null
           artist_mbid?: string | null
           artist_name?: string | null
           cached_at?: string
           cover_url?: string | null
+          deezer_id?: string | null
           id?: string
-          mbid?: string
+          mbid?: string | null
           release_date?: string | null
           title?: string
           track_count?: number | null
@@ -95,37 +107,40 @@ export type Database = {
         Row: {
           cached_at: string
           country: string | null
+          deezer_id: string | null
           description: string | null
           disambiguation: string | null
           id: string
           image_url: string | null
           life_span_begin: string | null
           life_span_end: string | null
-          mbid: string
+          mbid: string | null
           name: string
         }
         Insert: {
           cached_at?: string
           country?: string | null
+          deezer_id?: string | null
           description?: string | null
           disambiguation?: string | null
           id?: string
           image_url?: string | null
           life_span_begin?: string | null
           life_span_end?: string | null
-          mbid: string
+          mbid?: string | null
           name: string
         }
         Update: {
           cached_at?: string
           country?: string | null
+          deezer_id?: string | null
           description?: string | null
           disambiguation?: string | null
           id?: string
           image_url?: string | null
           life_span_begin?: string | null
           life_span_end?: string | null
-          mbid?: string
+          mbid?: string | null
           name?: string
         }
         Relationships: []
@@ -231,30 +246,36 @@ export type Database = {
       }
       track_ratings: {
         Row: {
-          album_mbid: string
+          album_deezer_id: string | null
+          album_mbid: string | null
           id: string
           rated_at: string
           rating: number
+          track_deezer_id: string | null
           track_mbid: string | null
           track_position: number
           track_title: string
           user_id: string
         }
         Insert: {
-          album_mbid: string
+          album_deezer_id?: string | null
+          album_mbid?: string | null
           id?: string
           rated_at?: string
           rating: number
+          track_deezer_id?: string | null
           track_mbid?: string | null
           track_position: number
           track_title: string
           user_id: string
         }
         Update: {
-          album_mbid?: string
+          album_deezer_id?: string | null
+          album_mbid?: string | null
           id?: string
           rated_at?: string
           rating?: number
+          track_deezer_id?: string | null
           track_mbid?: string | null
           track_position?: number
           track_title?: string
@@ -264,28 +285,37 @@ export type Database = {
       }
       tracks_cache: {
         Row: {
+          album_deezer_id: string | null
           album_mbid: string | null
           cached_at: string
+          deezer_id: string | null
           duration_ms: number | null
           id: string
+          isrc: string | null
           mbid: string | null
           position: number | null
           title: string
         }
         Insert: {
+          album_deezer_id?: string | null
           album_mbid?: string | null
           cached_at?: string
+          deezer_id?: string | null
           duration_ms?: number | null
           id?: string
+          isrc?: string | null
           mbid?: string | null
           position?: number | null
           title: string
         }
         Update: {
+          album_deezer_id?: string | null
           album_mbid?: string | null
           cached_at?: string
+          deezer_id?: string | null
           duration_ms?: number | null
           id?: string
+          isrc?: string | null
           mbid?: string | null
           position?: number | null
           title?: string
@@ -308,13 +338,13 @@ export type Database = {
       get_community_album_averages: {
         Args: never
         Returns: {
-          album_mbid: string
+          album_deezer_id: string
           avg_rating: number
           rater_count: number
         }[]
       }
       get_community_track_averages: {
-        Args: { p_album_mbid: string }
+        Args: { p_album_deezer_id: string }
         Returns: {
           avg_rating: number
           rater_count: number
