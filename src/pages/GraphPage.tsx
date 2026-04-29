@@ -28,7 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Rating {
   id: string;
-  album_mbid: string;
+  album_deezer_id: string;
   album_title: string;
   artist_name: string | null;
   cover_url: string | null;
@@ -97,7 +97,7 @@ const GraphPage = () => {
         artist: rating.artist_name || 'Unknown',
         cover: rating.cover_url,
         date: new Date(rating.rated_at).toLocaleDateString(),
-        mbid: rating.album_mbid,
+        mbid: rating.album_deezer_id,
       })),
     [ratings],
   );

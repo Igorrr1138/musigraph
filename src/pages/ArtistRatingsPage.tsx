@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/breadcrumb';
 
 interface AlbumRating {
-  album_mbid: string;
+  album_deezer_id: string;
   album_title: string;
   rating: number;
   rated_at: string;
@@ -50,7 +50,7 @@ interface TrackRating {
 }
 
 interface CommunityAlbumAvg {
-  album_mbid: string;
+  album_deezer_id: string;
   avg_rating: number;
   rater_count: number;
 }
@@ -91,7 +91,7 @@ const ArtistRatingsPage = () => {
       try {
         const { data, error } = await supabase
           .from('album_ratings')
-          .select('album_mbid, album_title, rating, rated_at, cover_url')
+          .select('album_deezer_id, album_title, rating, rated_at, cover_url')
           .eq('user_id', user.id)
           .eq('artist_name', decodedName)
           .order('rated_at', { ascending: true });
@@ -116,7 +116,7 @@ const ArtistRatingsPage = () => {
         if (error) throw error;
         setCommunityAlbumAvgs(
           (data || []).map((entry: any) => ({
-            album_mbid: entry.album_mbid,
+            album_deezer_id: entry.album_deezer_id,
             avg_rating: Number(entry.avg_rating),
             rater_count: Number(entry.rater_count),
           })),
@@ -141,7 +141,7 @@ const ArtistRatingsPage = () => {
           .from('track_ratings')
           .select('track_position, track_title, rating')
           .eq('user_id', user.id)
-          .eq('album_mbid', selectedAlbum.album_mbid)
+          .eq('album_deezer_id', selectedAlbum.album_deezer_id)
           .order('track_position', { ascending: true });
 
         if (error) throw error;
@@ -163,7 +163,7 @@ const ArtistRatingsPage = () => {
 
       try {
         const { data, error } = await supabase.rpc('get_community_track_averages', {
-          p_album_mbid: selectedAlbum.album_mbid,
+          p_album_deezer_id: selectedAlbum.album_deezer_id,
         });
         if (error) throw error;
         setCommunityTrackAvgs(
@@ -182,9 +182,9 @@ const ArtistRatingsPage = () => {
   }, [selectedAlbum]);
 
   const discographyData = useMemo(() => {
-    const communityMap = new Map(communityAlbumAvgs.map((entry) => [entry.album_mbid, entry]));
+    const communityMap = new Map(communityAlbumAvgs.map((entry) => [entry.album_deezer_id, entry]));
     return albumRatings.map((rating) => {
-      const community = communityMap.get(rating.album_mbid);
+      const community = communityMap.get(rating.album_deezer_id);
       return {
         name: rating.album_title.length > 20 ? `${rating.album_title.slice(0, 18)}…` : rating.album_title,
         fullTitle: rating.album_title,
@@ -192,7 +192,7 @@ const ArtistRatingsPage = () => {
         communityRating: community?.avg_rating ?? null,
         communityCount: community?.rater_count ?? 0,
         cover: rating.cover_url,
-        mbid: rating.album_mbid,
+        mbid: rating.album_deezer_id,
       };
     });
   }, [albumRatings, communityAlbumAvgs]);
@@ -434,10 +434,10 @@ const ArtistRatingsPage = () => {
               <div className="flex flex-wrap gap-3">
                 {albumRatings.map((rating) => (
                   <button
-                    key={rating.album_mbid}
-                    onClick={() => setSelectedAlbum(selectedAlbum?.album_mbid === rating.album_mbid ? null : rating)}
+                    key={rating.album_deezer_id}
+                    onClick={() => setSelectedAlbum(selectedAlbum?.album_deezer_id === rating.album_deezer_id ? null : rating)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                      selectedAlbum?.album_mbid === rating.album_mbid
+                      selectedAlbum?.album_deezer_id === rating.album_deezer_id
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-card border-border/50 text-foreground hover:border-primary/50'
                     }`}
@@ -460,7 +460,7 @@ const ArtistRatingsPage = () => {
                       Track-by-track motion of your album score.
                     </p>
                   </div>
-                  <Link to={`/album/${selectedAlbum.album_mbid}`}>
+                  <Link to={`/album/${selectedAlbum.album_deezer_id}`}>
                     <Button variant="outline" size="sm">
                       View Album
                     </Button>
@@ -539,7 +539,7 @@ const ArtistRatingsPage = () => {
           {selectedAlbum && trackRatings.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No individual track ratings for this album yet.</p>
-              <Link to={`/album/${selectedAlbum.album_mbid}`}>
+              <Link to={`/album/${selectedAlbum.album_deezer_id}`}>
                 <Button variant="outline" className="mt-4">
                   Rate Tracks
                 </Button>
