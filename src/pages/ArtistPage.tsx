@@ -1,30 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Disc3, ExternalLink, User } from 'lucide-react';
+import { Calendar, Disc3, ExternalLink, User } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
-import { getArtist, getArtistReleaseGroups, type MusicBrainzArtist, type MusicBrainzReleaseGroup } from '@/lib/musicbrainz';
+import { getArtist, getArtistAlbums, pickArtistImage, deezerRecordCategory, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
-import { useArtistImage } from '@/hooks/useArtistImage';
-
-function ArtistPageAvatar({ name }: { name: string }) {
-  const { imageUrl, isLoading } = useArtistImage(name);
-  if (imageUrl) return <img src={imageUrl} alt={name} className="w-full h-full object-cover" />;
-  if (isLoading) return <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />;
-  return <User className="w-20 h-20 text-muted-foreground" />;
-}
 
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [artist, setArtist] = useState<MusicBrainzArtist | null>(null);
-  const [albums, setAlbums] = useState<MusicBrainzReleaseGroup[]>([]);
+  const [artist, setArtist] = useState<DeezerArtist | null>(null);
+  const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
 
-  // Load artist (usually from cache → instant) and albums independently
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -41,7 +32,7 @@ const ArtistPage = () => {
       }
     });
 
-    getArtistReleaseGroups(id, 50).then(data => {
+    getArtistAlbums(id, 100).then(data => {
       if (!cancelled) {
         setAlbums(data);
         setIsLoadingAlbums(false);
@@ -50,6 +41,23 @@ const ArtistPage = () => {
 
     return () => { cancelled = true; };
   }, [id]);
+
+  const artistImage = artist ? pickArtistImage(artist) : null;
+
+  const groupedAlbums = useMemo(() => {
+    const sortByYear = (items: DeezerAlbum[]) =>
+      [...items].sort((a, b) => (a.release_date ?? '9999').localeCompare(b.release_date ?? '9999'));
+
+    const albumsList = sortByYear(albums.filter(a => deezerRecordCategory(a.record_type) === 'Album'));
+    const eps = sortByYear(albums.filter(a => deezerRecordCategory(a.record_type) === 'EP'));
+    const others = sortByYear(albums.filter(a => {
+      const cat = deezerRecordCategory(a.record_type);
+      return cat !== 'Album' && cat !== 'EP';
+    }));
+    const otherTypes = Array.from(new Set(others.map(a => deezerRecordCategory(a.record_type))));
+
+    return { albumsList, eps, others, otherTypes };
+  }, [albums]);
 
   if (isLoadingArtist) {
     return (
@@ -86,16 +94,39 @@ const ArtistPage = () => {
     );
   }
 
-  const lifeSpan = artist['life-span'];
-  const yearsActive = lifeSpan?.begin
-    ? `${lifeSpan.begin.split('-')[0]} - ${lifeSpan.ended ? lifeSpan.end?.split('-')[0] : 'Present'}`
-    : null;
+  const { albumsList, eps, others, otherTypes } = groupedAlbums;
+  const filteredOthers = activeOtherFilters.size === 0
+    ? others
+    : others.filter(a => activeOtherFilters.has(deezerRecordCategory(a.record_type)));
+
+  const toggleFilter = (type: string) => {
+    setActiveOtherFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  };
+
+  const renderSection = (title: string, items: DeezerAlbum[], startIndex: number) =>
+    items.length > 0 && (
+      <div className="mb-12">
+        <h3 className="text-xl font-semibold mb-5 text-muted-foreground">{title} ({items.length})</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {items.map((album, index) => (
+            <AlbumCard
+              key={album.id}
+              album={{ ...album, artist: { id: artist.id, name: artist.name } }}
+              index={startIndex + index}
+            />
+          ))}
+        </div>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero */}
       <section className="pt-24 pb-12 px-4 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
@@ -118,65 +149,46 @@ const ArtistPage = () => {
           </Breadcrumb>
 
           <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Avatar */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
             >
-              <ArtistPageAvatar name={artist.name} />
+              {artistImage ? (
+                <img src={artistImage} alt={artist.name} className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-20 h-20 text-muted-foreground" />
+              )}
             </motion.div>
 
-            {/* Info */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
               className="flex-1"
             >
-              {artist.type && (
-                <span className="inline-block px-3 py-1 rounded-full bg-secondary text-sm text-muted-foreground mb-4">
-                  {artist.type}
-                </span>
-              )}
-
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
 
-              {artist.disambiguation && (
-                <p className="text-lg text-muted-foreground mb-4">
-                  {artist.disambiguation}
-                </p>
-              )}
-
               <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-                {artist.country && (
-                  <span className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    {artist.country}
-                  </span>
-                )}
-                {yearsActive && (
-                  <span className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {yearsActive}
-                  </span>
+                {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
+                  <span>{artist.nb_fan.toLocaleString()} fans</span>
                 )}
                 {!isLoadingAlbums && albums.length > 0 && (
                   <span className="flex items-center gap-2">
                     <Disc3 className="w-4 h-4" />
-                    {albums.length} albums
+                    {albums.length} releases
                   </span>
                 )}
               </div>
 
               <a
-                href={`https://musicbrainz.org/artist/${id}`}
+                href={`https://www.deezer.com/artist/${artist.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 mt-6 text-primary hover:underline"
               >
-                View on MusicBrainz
+                View on Deezer
                 <ExternalLink className="w-4 h-4" />
               </a>
             </motion.div>
@@ -184,7 +196,6 @@ const ArtistPage = () => {
         </div>
       </section>
 
-      {/* Discography */}
       <section className="py-12 px-4">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold mb-8">Discography</h2>
@@ -201,122 +212,52 @@ const ArtistPage = () => {
             </div>
           ) : albums.length > 0 ? (
             <>
-              {(() => {
-                const sortByYear = (items: typeof albums) =>
-                  [...items].sort((a, b) => {
-                    const yearA = a['first-release-date']?.split('-')[0] || '9999';
-                    const yearB = b['first-release-date']?.split('-')[0] || '9999';
-                    return yearA.localeCompare(yearB);
-                  });
+              {renderSection('Albums', albumsList, 0)}
+              {renderSection('EPs', eps, albumsList.length)}
 
-                // Official albums: primary type Album with no secondary types (excludes live, compilations, etc.)
-                const officialAlbums = sortByYear(
-                  albums.filter(a => a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0))
-                );
-                const eps = sortByYear(albums.filter(a => a['primary-type'] === 'EP'));
-                const others = sortByYear(
-                  albums.filter(a => {
-                    if (a['primary-type'] === 'EP') return false;
-                    if (a['primary-type'] === 'Album' && (!a['secondary-types'] || a['secondary-types'].length === 0)) return false;
-                    return true;
-                  })
-                );
+              {others.length > 0 && (
+                <div className="mb-12">
+                  <h3 className="text-xl font-semibold mb-4 text-muted-foreground">
+                    Other Releases ({filteredOthers.length})
+                  </h3>
 
-                // Extract unique types from "others"
-                const otherTypes = [...new Set(others.map(a => a['primary-type'] || 'Unknown'))];
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    <button
+                      onClick={() => setActiveOtherFilters(new Set())}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        activeOtherFilters.size === 0
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {otherTypes.map(type => (
+                      <button
+                        key={type}
+                        onClick={() => toggleFilter(type)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                          activeOtherFilters.has(type)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
 
-                const filteredOthers = activeOtherFilters.size === 0
-                  ? others
-                  : others.filter(a => activeOtherFilters.has(a['primary-type'] || 'Unknown'));
-
-                const toggleFilter = (type: string) => {
-                  setActiveOtherFilters(prev => {
-                    const next = new Set(prev);
-                    if (next.has(type)) next.delete(type);
-                    else next.add(type);
-                    return next;
-                  });
-                };
-
-                const renderSection = (title: string, items: typeof albums, startIndex: number) =>
-                  items.length > 0 && (
-                    <div className="mb-12">
-                      <h3 className="text-xl font-semibold mb-5 text-muted-foreground">{title} ({items.length})</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                        {items.map((album, index) => (
-                          <AlbumCard
-                            key={album.id}
-                            album={{
-                              id: album.id,
-                              title: album.title,
-                              artistName: artist.name,
-                              releaseDate: album['first-release-date'],
-                              type: album['primary-type'],
-                            }}
-                            index={startIndex + index}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-
-                return (
-                  <>
-                    {renderSection('Albums', officialAlbums, 0)}
-                    {renderSection('EPs', eps, officialAlbums.length)}
-
-                    {others.length > 0 && (
-                      <div className="mb-12">
-                        <h3 className="text-xl font-semibold mb-4 text-muted-foreground">
-                          Other Releases ({filteredOthers.length})
-                        </h3>
-
-                        <div className="flex flex-wrap gap-2 mb-6">
-                          <button
-                            onClick={() => setActiveOtherFilters(new Set())}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                              activeOtherFilters.size === 0
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            All
-                          </button>
-                          {otherTypes.map(type => (
-                            <button
-                              key={type}
-                              onClick={() => toggleFilter(type)}
-                              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                                activeOtherFilters.has(type)
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-secondary text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              {type}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                          {filteredOthers.map((album, index) => (
-                            <AlbumCard
-                              key={album.id}
-                              album={{
-                                id: album.id,
-                                title: album.title,
-                                artistName: artist.name,
-                                releaseDate: album['first-release-date'],
-                                type: album['primary-type'],
-                              }}
-                              index={officialAlbums.length + eps.length + index}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {filteredOthers.map((album, index) => (
+                      <AlbumCard
+                        key={album.id}
+                        album={{ ...album, artist: { id: artist.id, name: artist.name } }}
+                        index={albumsList.length + eps.length + index}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-12">
