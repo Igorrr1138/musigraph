@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { TrackList } from '@/components/music/TrackList';
 import { getAlbum, pickAlbumCover, type DeezerAlbum, type DeezerTrack } from '@/lib/deezer';
 import { getArtistTags } from '@/lib/lastfm';
-import { resolveGenre } from '@/lib/genreMap';
+import { resolveGenres } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
