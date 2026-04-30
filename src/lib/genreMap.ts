@@ -1,0 +1,108 @@
+/**
+ * Genre Mapping System — Bandcamp-style taxonomy.
+ *
+ * Maps noisy/granular Last.fm tags to a small set of clean parent categories
+ * so we can show consistent genre badges and (later) power a genre discovery page.
+ */
+
+export type GenreCategory =
+  | 'Metal'
+  | 'Rock'
+  | 'Electronic'
+  | 'Hip-Hop'
+  | 'Pop'
+  | 'Jazz'
+  | 'Folk/Acoustic'
+  | 'R&B/Soul'
+  | 'Country'
+  | 'Reggae'
+  | 'Classical'
+  | 'Experimental'
+  | 'Various';
+
+export const GENRE_DATABASE: Record<Exclude<GenreCategory, 'Various'>, string[]> = {
+  Metal: [
+    'metal', 'heavy metal', 'thrash metal', 'groove metal', 'death metal',
+    'black metal', 'power metal', 'doom metal', 'sludge', 'metalcore',
+    'deathcore', 'progressive metal', 'symphonic metal', 'industrial metal', 'grindcore',
+  ],
+  Rock: [
+    'rock', 'alternative rock', 'indie rock', 'punk', 'post-punk', 'hard rock',
+    'psychedelic rock', 'grunge', 'post-rock', 'shoegaze', 'garage rock',
+    'progressive rock', 'noise rock', 'math rock', 'gothic rock',
+  ],
+  Electronic: [
+    'electronic', 'techno', 'house', 'ambient', 'idm', 'synthwave', 'trance',
+    'dubstep', 'drum and bass', 'downtempo', 'vaporwave', 'electro', 'industrial',
+    'breakcore', 'deep house',
+  ],
+  'Hip-Hop': [
+    'hip-hop', 'hip hop', 'rap', 'trap', 'boom bap', 'lo-fi hip hop', 'cloud rap',
+    'gangsta rap', 'conscious hip hop', 'instrumental hip hop', 'hardcore hip hop',
+  ],
+  Pop: [
+    'pop', 'synth-pop', 'synthpop', 'indie pop', 'dream pop', 'art pop', 'j-pop',
+    'k-pop', 'chamber pop', 'electropop', 'hyperpop',
+  ],
+  Jazz: [
+    'jazz', 'fusion', 'bebop', 'free jazz', 'cool jazz', 'vocal jazz', 'acid jazz',
+    'smooth jazz', 'hard bop',
+  ],
+  'Folk/Acoustic': [
+    'folk', 'indie folk', 'singer-songwriter', 'acoustic', 'americana',
+    'traditional folk', 'neofolk',
+  ],
+  'R&B/Soul': [
+    'soul', 'r&b', 'rnb', 'funk', 'neo-soul', 'contemporary r&b', 'motown', 'disco',
+  ],
+  Country: ['country', 'bluegrass', 'alt-country', 'outlaw country', 'honky tonk'],
+  Reggae: ['reggae', 'dub', 'ska', 'dancehall', 'roots reggae'],
+  Classical: [
+    'classical', 'contemporary classical', 'minimalism', 'opera', 'orchestral', 'baroque',
+  ],
+  Experimental: [
+    'experimental', 'avant-garde', 'avantgarde', 'drone', 'noise', 'field recordings',
+    'dark ambient',
+  ],
+};
+
+// Build a fast lookup: tag -> category. Longer/more-specific tags are inserted
+// first so that exact matches win (e.g. "death metal" beats "metal").
+const TAG_TO_CATEGORY: Map<string, GenreCategory> = (() => {
+  const entries: Array<[string, GenreCategory]> = [];
+  for (const [category, tags] of Object.entries(GENRE_DATABASE) as Array<[GenreCategory, string[]]>) {
+    for (const t of tags) entries.push([t.toLowerCase(), category]);
+  }
+  // Sort by length desc so specific subgenres are matched first when iterating
+  entries.sort((a, b) => b[0].length - a[0].length);
+  return new Map(entries);
+})();
+
+function normalize(tag: string): string {
+  return tag.trim().toLowerCase();
+}
+
+/**
+ * Resolve a list of raw tags (from Last.fm or elsewhere) to a single clean
+ * parent category. Returns the first matching category, falling back to
+ * "Various" if nothing matches.
+ */
+export function resolveGenre(tags: string[] | null | undefined): GenreCategory {
+  if (!tags || tags.length === 0) return 'Various';
+
+  for (const raw of tags) {
+    if (!raw) continue;
+    const tag = normalize(raw);
+
+    // Exact match first
+    const direct = TAG_TO_CATEGORY.get(tag);
+    if (direct) return direct;
+
+    // Substring match against known sub-genre tags (longest first wins)
+    for (const [knownTag, category] of TAG_TO_CATEGORY) {
+      if (tag.includes(knownTag)) return category;
+    }
+  }
+
+  return 'Various';
+}
