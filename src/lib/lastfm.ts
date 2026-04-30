@@ -49,7 +49,7 @@ function cleanTags(rawTags: LastfmTag[], limit = 5): string[] {
 }
 
 async function fetchTagsFromLastfm(artistName: string): Promise<string[] | null> {
-  if (!LASTFM_API_KEY || LASTFM_API_KEY === 'YOUR_LASTFM_API_KEY_HERE') {
+  if (!LASTFM_API_KEY || (LASTFM_API_KEY as string) === 'YOUR_LASTFM_API_KEY_HERE') {
     console.warn('[Last.fm] API key not configured');
     return null;
   }

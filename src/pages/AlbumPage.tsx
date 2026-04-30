@@ -5,7 +5,10 @@ import { Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { TrackList } from '@/components/music/TrackList';
 import { getAlbum, pickAlbumCover, type DeezerAlbum, type DeezerTrack } from '@/lib/deezer';
+import { getArtistTags } from '@/lib/lastfm';
+import { resolveGenre } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
@@ -17,6 +20,16 @@ const AlbumPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
+  const [tags, setTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!album?.artist?.id || !album?.artist?.name) return;
+    let cancelled = false;
+    getArtistTags(String(album.artist.id), album.artist.name).then(t => {
+      if (!cancelled) setTags(t);
+    });
+    return () => { cancelled = true; };
+  }, [album?.artist?.id, album?.artist?.name]);
 
   useEffect(() => {
     if (!id) return;
@@ -197,6 +210,22 @@ const AlbumPage = () => {
                   {artistName}
                 </Link>
               )}
+
+              {tags.length > 0 && (() => {
+                const genre = resolveGenre(tags);
+                return (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Link to={`/genre/${encodeURIComponent(genre.toLowerCase())}`} className="inline-flex">
+                      <Badge
+                        variant="secondary"
+                        className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 cursor-pointer text-sm px-3 py-1"
+                      >
+                        {genre}
+                      </Badge>
+                    </Link>
+                  </div>
+                );
+              })()}
 
               <div className="flex flex-wrap items-center gap-4 mt-4 text-muted-foreground">
                 {album.release_date && (
