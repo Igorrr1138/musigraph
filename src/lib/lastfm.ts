@@ -11,7 +11,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // TODO: Replace with your Last.fm API key from https://www.last.fm/api/account/create
-const LASTFM_API_KEY = 'YOUR_LASTFM_API_KEY_HERE';
+const LASTFM_API_KEY = '3786d2446250a6394a81de4d0855df60';
 const LASTFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
 const TAGS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
