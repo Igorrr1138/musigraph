@@ -27,11 +27,14 @@ const ArtistPage = () => {
     setIsLoadingAlbums(true);
     setArtist(null);
     setAlbums([]);
+    setTags([]);
 
     getArtist(id).then(data => {
-      if (!cancelled) {
-        setArtist(data);
-        setIsLoadingArtist(false);
+      if (cancelled) return;
+      setArtist(data);
+      setIsLoadingArtist(false);
+      if (data?.name) {
+        getArtistTags(id, data.name).then(t => { if (!cancelled) setTags(t); });
       }
     });
 
