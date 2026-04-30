@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { getArtist, getArtistAlbums, pickArtistImage, deezerRecordCategory, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
 import { getArtistTags } from '@/lib/lastfm';
+import { resolveGenre } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
