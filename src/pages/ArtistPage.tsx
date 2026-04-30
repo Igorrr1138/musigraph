@@ -5,13 +5,16 @@ import { Calendar, Disc3, ExternalLink, User } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { getArtist, getArtistAlbums, pickArtistImage, deezerRecordCategory, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
+import { getArtistTags } from '@/lib/lastfm';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
 
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
@@ -24,11 +27,14 @@ const ArtistPage = () => {
     setIsLoadingAlbums(true);
     setArtist(null);
     setAlbums([]);
+    setTags([]);
 
     getArtist(id).then(data => {
-      if (!cancelled) {
-        setArtist(data);
-        setIsLoadingArtist(false);
+      if (cancelled) return;
+      setArtist(data);
+      setIsLoadingArtist(false);
+      if (data?.name) {
+        getArtistTags(id, data.name).then(t => { if (!cancelled) setTags(t); });
       }
     });
 
@@ -169,6 +175,20 @@ const ArtistPage = () => {
               className="flex-1"
             >
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
+
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tags.map(tag => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="capitalize bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                 {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (

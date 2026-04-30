@@ -116,6 +116,8 @@ export type Database = {
           life_span_end: string | null
           mbid: string | null
           name: string
+          tags: string[] | null
+          tags_cached_at: string | null
         }
         Insert: {
           cached_at?: string
@@ -129,6 +131,8 @@ export type Database = {
           life_span_end?: string | null
           mbid?: string | null
           name: string
+          tags?: string[] | null
+          tags_cached_at?: string | null
         }
         Update: {
           cached_at?: string
@@ -142,6 +146,8 @@ export type Database = {
           life_span_end?: string | null
           mbid?: string | null
           name?: string
+          tags?: string[] | null
+          tags_cached_at?: string | null
         }
         Relationships: []
       }
