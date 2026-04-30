@@ -82,6 +82,24 @@ function normalize(tag: string): string {
   return tag.trim().toLowerCase();
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Whole-word containment check.
+ *
+ * Returns true if `knownTag` appears in `tag` as a discrete token rather than
+ * a substring of a larger word. This prevents false positives such as
+ * "metallica" matching the genre "metal", or "anthrax" matching nothing
+ * accidentally. Hyphens, slashes and ampersands all count as word boundaries
+ * so multi-word genres like "hip-hop" and "r&b" still match cleanly.
+ */
+function containsAsWord(tag: string, knownTag: string): boolean {
+  const re = new RegExp(`(^|[^a-z0-9])${escapeRegex(knownTag)}([^a-z0-9]|$)`, 'i');
+  return re.test(tag);
+}
+
 /**
  * Resolve a list of raw tags (from Last.fm or elsewhere) to a single clean
  * parent category. Returns the first matching category, falling back to
@@ -98,9 +116,9 @@ export function resolveGenre(tags: string[] | null | undefined): GenreCategory {
     const direct = TAG_TO_CATEGORY.get(tag);
     if (direct) return direct;
 
-    // Substring match against known sub-genre tags (longest first wins)
+    // Whole-word match against known sub-genre tags (longest first wins)
     for (const [knownTag, category] of TAG_TO_CATEGORY) {
-      if (tag.includes(knownTag)) return category;
+      if (containsAsWord(tag, knownTag)) return category;
     }
   }
 
@@ -109,8 +127,9 @@ export function resolveGenre(tags: string[] | null | undefined): GenreCategory {
 
 /**
  * Map any raw tag to its parent category, or null if it isn't a recognised
- * music genre/sub-genre. Used to filter out noise like "favorites" or random
- * descriptors while keeping specific sub-genres ("groove metal", "shoegaze").
+ * music genre/sub-genre. Used to filter out noise like "favorites", artist
+ * names ("metallica"), or random descriptors while keeping specific
+ * sub-genres ("groove metal", "shoegaze").
  */
 export function categoryForTag(rawTag: string): GenreCategory | null {
   const tag = normalize(rawTag);
@@ -118,7 +137,7 @@ export function categoryForTag(rawTag: string): GenreCategory | null {
   const direct = TAG_TO_CATEGORY.get(tag);
   if (direct) return direct;
   for (const [knownTag, category] of TAG_TO_CATEGORY) {
-    if (tag.includes(knownTag)) return category;
+    if (containsAsWord(tag, knownTag)) return category;
   }
   return null;
 }
