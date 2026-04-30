@@ -178,20 +178,19 @@ const ArtistPage = () => {
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
 
               {tags.length > 0 && (() => {
-                const genre = resolveGenre(tags);
+                const genres = resolveGenres(tags, 5);
                 return (
                   <div className="flex flex-wrap gap-2 mb-4">
-                    <Link
-                      to={`/genre/${encodeURIComponent(genre.toLowerCase())}`}
-                      className="inline-flex"
-                    >
-                      <Badge
-                        variant="secondary"
-                        className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 cursor-pointer text-sm px-3 py-1"
-                      >
-                        {genre}
-                      </Badge>
-                    </Link>
+                    {genres.map(g => (
+                      <Link key={g.slug} to={`/genre/${encodeURIComponent(g.slug)}`} className="inline-flex">
+                        <Badge
+                          variant="secondary"
+                          className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 cursor-pointer text-sm px-3 py-1"
+                        >
+                          {g.label}
+                        </Badge>
+                      </Link>
+                    ))}
                   </div>
                 );
               })()}
