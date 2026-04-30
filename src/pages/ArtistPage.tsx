@@ -176,6 +176,20 @@ const ArtistPage = () => {
             >
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
 
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tags.map(tag => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="capitalize bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                 {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
                   <span>{artist.nb_fan.toLocaleString()} fans</span>
