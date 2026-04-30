@@ -211,6 +211,22 @@ const AlbumPage = () => {
                 </Link>
               )}
 
+              {tags.length > 0 && (() => {
+                const genre = resolveGenre(tags);
+                return (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Link to={`/genre/${encodeURIComponent(genre.toLowerCase())}`} className="inline-flex">
+                      <Badge
+                        variant="secondary"
+                        className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 cursor-pointer text-sm px-3 py-1"
+                      >
+                        {genre}
+                      </Badge>
+                    </Link>
+                  </div>
+                );
+              })()}
+
               <div className="flex flex-wrap items-center gap-4 mt-4 text-muted-foreground">
                 {album.release_date && (
                   <span className="flex items-center gap-2">
