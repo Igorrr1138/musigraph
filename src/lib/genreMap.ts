@@ -106,3 +106,73 @@ export function resolveGenre(tags: string[] | null | undefined): GenreCategory {
 
   return 'Various';
 }
+
+/**
+ * Map any raw tag to its parent category, or null if it isn't a recognised
+ * music genre/sub-genre. Used to filter out noise like "favorites" or random
+ * descriptors while keeping specific sub-genres ("groove metal", "shoegaze").
+ */
+export function categoryForTag(rawTag: string): GenreCategory | null {
+  const tag = normalize(rawTag);
+  if (!tag) return null;
+  const direct = TAG_TO_CATEGORY.get(tag);
+  if (direct) return direct;
+  for (const [knownTag, category] of TAG_TO_CATEGORY) {
+    if (tag.includes(knownTag)) return category;
+  }
+  return null;
+}
+
+function titleCase(tag: string): string {
+  return tag
+    .split(/\s+/)
+    .map(w => (w.length <= 3 && w !== w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+export interface ResolvedGenreTag {
+  /** Display label, e.g. "Groove Metal" */
+  label: string;
+  /** Lowercase slug used for routing, e.g. "groove-metal" */
+  slug: string;
+  /** Parent category, e.g. "Metal" */
+  category: GenreCategory;
+}
+
+/**
+ * Resolve a raw tag list to a deduped list of specific sub-genre badges
+ * (e.g. ["Groove Metal", "Metalcore", "Thrash Metal"]). Tags that don't map
+ * to any known music category are dropped. Falls back to a single "Various"
+ * entry when nothing matches.
+ */
+export function resolveGenres(
+  tags: string[] | null | undefined,
+  limit = 5,
+): ResolvedGenreTag[] {
+  if (!tags || tags.length === 0) {
+    return [{ label: 'Various', slug: 'various', category: 'Various' }];
+  }
+
+  const seen = new Set<string>();
+  const out: ResolvedGenreTag[] = [];
+
+  for (const raw of tags) {
+    if (!raw) continue;
+    const tag = normalize(raw);
+    const category = categoryForTag(tag);
+    if (!category) continue;
+    if (seen.has(tag)) continue;
+    seen.add(tag);
+    out.push({
+      label: titleCase(tag),
+      slug: tag.replace(/\s+/g, '-'),
+      category,
+    });
+    if (out.length >= limit) break;
+  }
+
+  if (out.length === 0) {
+    return [{ label: 'Various', slug: 'various', category: 'Various' }];
+  }
+  return out;
+}
