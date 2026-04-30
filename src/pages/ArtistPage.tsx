@@ -14,6 +14,7 @@ const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
