@@ -20,6 +20,16 @@ const AlbumPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
+  const [tags, setTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!album?.artist?.id || !album?.artist?.name) return;
+    let cancelled = false;
+    getArtistTags(String(album.artist.id), album.artist.name).then(t => {
+      if (!cancelled) setTags(t);
+    });
+    return () => { cancelled = true; };
+  }, [album?.artist?.id, album?.artist?.name]);
 
   useEffect(() => {
     if (!id) return;
