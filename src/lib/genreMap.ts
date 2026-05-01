@@ -167,17 +167,19 @@ export interface ResolvedGenreTag {
 export function resolveGenres(
   tags: string[] | null | undefined,
   limit = 5,
+  excludeName?: string | null,
 ): ResolvedGenreTag[] {
-  if (!tags || tags.length === 0) {
-    return [{ label: 'Various', slug: 'various', category: 'Various' }];
-  }
+  const fallback: ResolvedGenreTag = { label: 'Music', slug: 'music', category: 'Various' };
+  if (!tags || tags.length === 0) return [fallback];
 
+  const exclude = excludeName ? normalize(excludeName) : '';
   const seen = new Set<string>();
   const out: ResolvedGenreTag[] = [];
 
   for (const raw of tags) {
     if (!raw) continue;
     const tag = normalize(raw);
+    if (exclude && (tag === exclude || tag.includes(exclude) || exclude.includes(tag))) continue;
     const category = categoryForTag(tag);
     if (!category) continue;
     if (seen.has(tag)) continue;
@@ -190,8 +192,20 @@ export function resolveGenres(
     if (out.length >= limit) break;
   }
 
-  if (out.length === 0) {
-    return [{ label: 'Various', slug: 'various', category: 'Various' }];
-  }
+  if (out.length === 0) return [fallback];
   return out;
+}
+
+/**
+ * Filter raw Last.fm-style tags down to recognised musical genres,
+ * excluding any tag that matches the artist's name. Returns up to `limit`
+ * resolved genres, or a single "Music" fallback when nothing matches.
+ */
+export function getValidGenres(
+  apiTags: Array<{ name: string }> | string[] | null | undefined,
+  artistName?: string | null,
+  limit = 5,
+): ResolvedGenreTag[] {
+  const names = (apiTags ?? []).map(t => (typeof t === 'string' ? t : t?.name)).filter(Boolean) as string[];
+  return resolveGenres(names, limit, artistName);
 }
