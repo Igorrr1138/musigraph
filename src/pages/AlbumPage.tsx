@@ -212,7 +212,7 @@ const AlbumPage = () => {
               )}
 
               {tags.length > 0 && (() => {
-                const genres = resolveGenres(tags, 5);
+                const genres = resolveGenres(tags, 5, album.artist?.name);
                 return (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {genres.map(g => (
