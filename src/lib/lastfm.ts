@@ -107,7 +107,7 @@ function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 20): string
  * that old cache rows containing junk (e.g. the artist's own name) are
  * cleaned up at read time instead of waiting for the 30-day TTL.
  */
-function filterCachedTags(cachedTags: string[], artistName: string, limit = 5): string[] {
+function filterCachedTags(cachedTags: string[], artistName: string, limit = 20): string[] {
   const artistKeys = artistNameKeys(artistName);
   const out: string[] = [];
   for (const t of cachedTags) {
@@ -134,7 +134,7 @@ async function fetchTagsFromLastfm(artistName: string): Promise<string[] | null>
     }
     const raw = json.toptags?.tag;
     const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-    return cleanTags(arr, artistName, 5);
+    return cleanTags(arr, artistName, 20);
   } catch (err) {
     console.error('[Last.fm] fetch failed:', err);
     return null;
