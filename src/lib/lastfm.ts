@@ -93,7 +93,7 @@ function isAcceptableTag(rawName: string, artistKeys: Set<string>): boolean {
   return true;
 }
 
-function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 5): string[] {
+function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 20): string[] {
   const artistKeys = artistNameKeys(artistName);
   return rawTags
     .filter(t => t && isAcceptableTag(t.name, artistKeys))
