@@ -178,7 +178,7 @@ const ArtistPage = () => {
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
 
               {tags.length > 0 && (() => {
-                const genres = resolveGenres(tags, 5);
+                const genres = resolveGenres(tags, 5, artist.name);
                 return (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {genres.map(g => (
