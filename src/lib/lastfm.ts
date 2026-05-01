@@ -93,7 +93,7 @@ function isAcceptableTag(rawName: string, artistKeys: Set<string>): boolean {
   return true;
 }
 
-function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 5): string[] {
+function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 20): string[] {
   const artistKeys = artistNameKeys(artistName);
   return rawTags
     .filter(t => t && isAcceptableTag(t.name, artistKeys))
@@ -107,7 +107,7 @@ function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 5): string[
  * that old cache rows containing junk (e.g. the artist's own name) are
  * cleaned up at read time instead of waiting for the 30-day TTL.
  */
-function filterCachedTags(cachedTags: string[], artistName: string, limit = 5): string[] {
+function filterCachedTags(cachedTags: string[], artistName: string, limit = 20): string[] {
   const artistKeys = artistNameKeys(artistName);
   const out: string[] = [];
   for (const t of cachedTags) {
@@ -134,7 +134,7 @@ async function fetchTagsFromLastfm(artistName: string): Promise<string[] | null>
     }
     const raw = json.toptags?.tag;
     const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-    return cleanTags(arr, artistName, 5);
+    return cleanTags(arr, artistName, 20);
   } catch (err) {
     console.error('[Last.fm] fetch failed:', err);
     return null;
@@ -156,8 +156,8 @@ export async function getArtistTags(deezerId: string, artistName: string): Promi
     .eq('deezer_id', deezerId)
     .maybeSingle();
 
-  if (cached?.tags && cached.tags.length > 0) {
-    const cleaned = filterCachedTags(cached.tags, artistName, 5);
+  if (cached?.tags && cached.tags.length > 5) {
+    const cleaned = filterCachedTags(cached.tags, artistName, 20);
     const cachedAt = cached.tags_cached_at ? new Date(cached.tags_cached_at).getTime() : 0;
     const age = Date.now() - cachedAt;
     // Refresh in the background if expired OR if filtering removed anything
