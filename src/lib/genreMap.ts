@@ -82,6 +82,15 @@ function normalize(tag: string): string {
   return tag.trim().toLowerCase();
 }
 
+/**
+ * Canonical form for dedup: lowercase, hyphens/underscores -> spaces,
+ * collapse whitespace. So "nu Metal", "Nu-metal" and "nu_metal" all
+ * collapse to the same key "nu metal".
+ */
+function canonicalize(tag: string): string {
+  return normalize(tag).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
