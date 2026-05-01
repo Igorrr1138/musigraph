@@ -82,6 +82,15 @@ function normalize(tag: string): string {
   return tag.trim().toLowerCase();
 }
 
+/**
+ * Canonical form for dedup: lowercase, hyphens/underscores -> spaces,
+ * collapse whitespace. So "nu Metal", "Nu-metal" and "nu_metal" all
+ * collapse to the same key "nu metal".
+ */
+function canonicalize(tag: string): string {
+  return normalize(tag).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -172,21 +181,22 @@ export function resolveGenres(
   const fallback: ResolvedGenreTag = { label: 'Music', slug: 'music', category: 'Various' };
   if (!tags || tags.length === 0) return [fallback];
 
-  const exclude = excludeName ? normalize(excludeName) : '';
+  const exclude = excludeName ? canonicalize(excludeName) : '';
   const seen = new Set<string>();
   const out: ResolvedGenreTag[] = [];
 
   for (const raw of tags) {
     if (!raw) continue;
     const tag = normalize(raw);
-    if (exclude && (tag === exclude || tag.includes(exclude) || exclude.includes(tag))) continue;
+    const canon = canonicalize(tag);
+    if (exclude && (canon === exclude || canon.includes(exclude) || exclude.includes(canon))) continue;
     const category = categoryForTag(tag);
     if (!category) continue;
-    if (seen.has(tag)) continue;
-    seen.add(tag);
+    if (seen.has(canon)) continue;
+    seen.add(canon);
     out.push({
-      label: titleCase(tag),
-      slug: tag.replace(/\s+/g, '-'),
+      label: titleCase(tag.replace(/-/g, ' ')),
+      slug: canon.replace(/\s+/g, '-'),
       category,
     });
     if (out.length >= limit) break;
