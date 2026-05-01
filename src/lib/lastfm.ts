@@ -157,7 +157,7 @@ export async function getArtistTags(deezerId: string, artistName: string): Promi
     .maybeSingle();
 
   if (cached?.tags && cached.tags.length > 0) {
-    const cleaned = filterCachedTags(cached.tags, artistName, 5);
+    const cleaned = filterCachedTags(cached.tags, artistName, 20);
     const cachedAt = cached.tags_cached_at ? new Date(cached.tags_cached_at).getTime() : 0;
     const age = Date.now() - cachedAt;
     // Refresh in the background if expired OR if filtering removed anything
