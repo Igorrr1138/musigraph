@@ -41,6 +41,8 @@ interface AlbumRating {
   rating: number;
   rated_at: string;
   cover_url: string | null;
+  /** ISO date string from albums_cache; null if we don't have it yet. */
+  release_date: string | null;
 }
 
 interface TrackRating {
@@ -89,15 +91,58 @@ const ArtistRatingsPage = () => {
       setIsLoading(true);
 
       try {
-        const { data, error } = await supabase
+        const { data: ratingsRows, error } = await supabase
           .from('album_ratings')
           .select('album_deezer_id, album_title, rating, rated_at, cover_url')
           .eq('user_id', user.id)
-          .eq('artist_name', decodedName)
-          .order('rated_at', { ascending: true });
+          .eq('artist_name', decodedName);
 
         if (error) throw error;
-        setAlbumRatings(data || []);
+
+        const rows = ratingsRows ?? [];
+        const deezerIds = rows
+          .map(r => r.album_deezer_id)
+          .filter((v): v is string => Boolean(v));
+
+        // Enrich with release_date so the chart X-axis can run chronologically
+        // (oldest → newest by release_date, not by when the user rated them).
+        let releaseMap = new Map<string, string | null>();
+        if (deezerIds.length > 0) {
+          const { data: cacheRows, error: cacheErr } = await supabase
+            .from('albums_cache')
+            .select('deezer_id, release_date')
+            .in('deezer_id', deezerIds);
+          if (cacheErr) {
+            console.warn('[ArtistRatings] albums_cache lookup failed:', cacheErr);
+          } else if (cacheRows) {
+            releaseMap = new Map(
+              cacheRows
+                .filter((row): row is { deezer_id: string; release_date: string | null } =>
+                  Boolean(row.deezer_id))
+                .map(row => [row.deezer_id, row.release_date]),
+            );
+          }
+        }
+
+        const enriched: AlbumRating[] = rows.map(r => ({
+          album_deezer_id: r.album_deezer_id ?? '',
+          album_title: r.album_title,
+          rating: r.rating,
+          rated_at: r.rated_at,
+          cover_url: r.cover_url,
+          release_date: releaseMap.get(r.album_deezer_id ?? '') ?? null,
+        }));
+
+        // Strict ascending chronology by release_date; undated rows fall to
+        // the right edge of the chart so they don't distort the timeline.
+        enriched.sort((a, b) => {
+          const da = a.release_date ?? '9999-12-31';
+          const db = b.release_date ?? '9999-12-31';
+          if (da !== db) return da.localeCompare(db);
+          return a.rated_at.localeCompare(b.rated_at);
+        });
+
+        setAlbumRatings(enriched);
       } catch (error) {
         console.error(error);
         toast({ title: 'Error', description: 'Failed to load ratings.', variant: 'destructive' });

@@ -1,15 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Disc3, ExternalLink, User } from 'lucide-react';
+import { Disc3, ExternalLink, User } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
-import { getArtist, getArtistAlbums, pickArtistImage, deezerRecordCategory, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
+import {
+  getArtist,
+  getArtistAlbums,
+  pickArtistImage,
+  type DeezerArtist,
+  type DeezerAlbum,
+} from '@/lib/deezer';
+import { buildDiscography, type ClassifiedAlbum } from '@/lib/discography';
 import { getArtistTags } from '@/lib/lastfm';
 import { resolveGenres } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb';
+import { Switch } from '@/components/ui/switch';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb';
 
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +33,7 @@ const ArtistPage = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
-  const [activeOtherFilters, setActiveOtherFilters] = useState<Set<string>>(new Set());
+  const [showExtras, setShowExtras] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -51,20 +66,16 @@ const ArtistPage = () => {
 
   const artistImage = artist ? pickArtistImage(artist) : null;
 
-  const groupedAlbums = useMemo(() => {
-    const sortByYear = (items: DeezerAlbum[]) =>
-      [...items].sort((a, b) => (a.release_date ?? '9999').localeCompare(b.release_date ?? '9999'));
-
-    const albumsList = sortByYear(albums.filter(a => deezerRecordCategory(a.record_type) === 'Album'));
-    const eps = sortByYear(albums.filter(a => deezerRecordCategory(a.record_type) === 'EP'));
-    const others = sortByYear(albums.filter(a => {
-      const cat = deezerRecordCategory(a.record_type);
-      return cat !== 'Album' && cat !== 'EP';
-    }));
-    const otherTypes = Array.from(new Set(others.map(a => deezerRecordCategory(a.record_type))));
-
-    return { albumsList, eps, others, otherTypes };
-  }, [albums]);
+  /**
+   * Build a Wikipedia-style discography from the raw Deezer feed:
+   *   • dedup Deluxe/Remastered/Anniversary into the original
+   *   • classify by record_type + primary-artist check
+   *   • sort every bucket oldest → newest
+   */
+  const discography = useMemo(
+    () => (artist ? buildDiscography(albums, artist.id) : null),
+    [albums, artist],
+  );
 
   if (isLoadingArtist) {
     return (
@@ -101,23 +112,16 @@ const ArtistPage = () => {
     );
   }
 
-  const { albumsList, eps, others, otherTypes } = groupedAlbums;
-  const filteredOthers = activeOtherFilters.size === 0
-    ? others
-    : others.filter(a => activeOtherFilters.has(deezerRecordCategory(a.record_type)));
-
-  const toggleFilter = (type: string) => {
-    setActiveOtherFilters(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
-    });
-  };
-
-  const renderSection = (title: string, items: DeezerAlbum[], startIndex: number) =>
+  const renderSection = (
+    title: string,
+    items: ClassifiedAlbum[],
+    startIndex: number,
+  ) =>
     items.length > 0 && (
       <div className="mb-12">
-        <h3 className="text-xl font-semibold mb-5 text-muted-foreground">{title} ({items.length})</h3>
+        <h3 className="text-xl font-semibold mb-5 text-muted-foreground">
+          {title} ({items.length})
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {items.map((album, index) => (
             <AlbumCard
@@ -129,6 +133,20 @@ const ArtistPage = () => {
         </div>
       </div>
     );
+
+  // Section count totals so each card's animation index stays unique
+  // across sections (preserves the existing staggered entrance).
+  const studioCount        = discography?.studioAlbums.length        ?? 0;
+  const epCount            = discography?.eps.length                 ?? 0;
+  const singleCount        = discography?.singles.length             ?? 0;
+  const collaborationCount = discography?.collaborations.length      ?? 0;
+  const liveCount          = discography?.live.length                ?? 0;
+  const compilationCount   = discography?.compilations.length        ?? 0;
+
+  const hasAnyRelease =
+    studioCount + epCount + singleCount + collaborationCount + liveCount + compilationCount > 0;
+
+  const extrasTotal = liveCount + compilationCount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -225,7 +243,7 @@ const ArtistPage = () => {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold mb-8">Discography</h2>
 
-          {isLoadingAlbums ? (
+          {isLoadingAlbums || !discography ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div key={i} className="space-y-3">
@@ -235,52 +253,52 @@ const ArtistPage = () => {
                 </div>
               ))}
             </div>
-          ) : albums.length > 0 ? (
+          ) : hasAnyRelease ? (
             <>
-              {renderSection('Albums', albumsList, 0)}
-              {renderSection('EPs', eps, albumsList.length)}
+              {renderSection('Studio Albums', discography.studioAlbums, 0)}
+              {renderSection('EPs', discography.eps, studioCount)}
+              {renderSection('Singles', discography.singles, studioCount + epCount)}
+              {renderSection(
+                'Collaborations',
+                discography.collaborations,
+                studioCount + epCount + singleCount,
+              )}
 
-              {others.length > 0 && (
+              {extrasTotal > 0 && (
                 <div className="mb-12">
-                  <h3 className="text-xl font-semibold mb-4 text-muted-foreground">
-                    Other Releases ({filteredOthers.length})
-                  </h3>
-
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    <button
-                      onClick={() => setActiveOtherFilters(new Set())}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        activeOtherFilters.size === 0
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {otherTypes.map(type => (
-                      <button
-                        key={type}
-                        onClick={() => toggleFilter(type)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                          activeOtherFilters.has(type)
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {filteredOthers.map((album, index) => (
-                      <AlbumCard
-                        key={album.id}
-                        album={{ ...album, artist: { id: artist.id, name: artist.name } }}
-                        index={albumsList.length + eps.length + index}
+                  <div className="flex items-center justify-between gap-4 mb-6 rounded-2xl border border-border/50 bg-card/40 px-5 py-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground">
+                        Live & Compilations
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {extrasTotal} extra release{extrasTotal === 1 ? '' : 's'} hidden by default.
+                      </p>
+                    </div>
+                    <div className="inline-flex items-center gap-3 text-sm text-muted-foreground">
+                      <span>Show extras</span>
+                      <Switch
+                        checked={showExtras}
+                        onCheckedChange={setShowExtras}
+                        aria-label="Show live and compilation releases"
                       />
-                    ))}
+                    </div>
                   </div>
+
+                  {showExtras && (
+                    <>
+                      {renderSection(
+                        'Live Albums',
+                        discography.live,
+                        studioCount + epCount + singleCount + collaborationCount,
+                      )}
+                      {renderSection(
+                        'Compilations',
+                        discography.compilations,
+                        studioCount + epCount + singleCount + collaborationCount + liveCount,
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </>

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { TrackList } from '@/components/music/TrackList';
-import { getAlbum, pickAlbumCover, type DeezerAlbum, type DeezerTrack } from '@/lib/deezer';
+import { getAlbum, getArtistAlbums, pickAlbumCover, type DeezerAlbum, type DeezerTrack } from '@/lib/deezer';
+import { resolveOriginalAlbumId } from '@/lib/discography';
 import { getArtistTags } from '@/lib/lastfm';
 import { resolveGenres } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,6 +23,19 @@ const AlbumPage = () => {
   const [userRating, setUserRating] = useState<number>(0);
   const [tags, setTags] = useState<string[]>([]);
 
+  /**
+   * Album_id used for music_cache rating writes/reads.
+   *
+   * If the user lands on "Album (Deluxe Edition)" we want their rating to
+   * attach to the original release in `album_ratings` so the score survives
+   * the studio-album de-duplication on the artist page. Going-forward only:
+   * we don't migrate existing rows.
+   *
+   * Defaults to the displayed album's id; overwritten with the original's id
+   * once we have the artist's album list.
+   */
+  const [originalAlbumId, setOriginalAlbumId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!album?.artist?.id || !album?.artist?.name) return;
     let cancelled = false;
@@ -30,6 +44,22 @@ const AlbumPage = () => {
     });
     return () => { cancelled = true; };
   }, [album?.artist?.id, album?.artist?.name]);
+
+  // Resolve the original album_id (collapses Deluxe / Remastered / Anniversary
+  // variants into the earliest-released version of the same title) so the
+  // album_ratings upsert writes against the original.
+  useEffect(() => {
+    if (!album?.artist?.id) {
+      setOriginalAlbumId(null);
+      return;
+    }
+    let cancelled = false;
+    getArtistAlbums(String(album.artist.id), 100).then(artistAlbums => {
+      if (cancelled) return;
+      setOriginalAlbumId(resolveOriginalAlbumId(album, artistAlbums));
+    });
+    return () => { cancelled = true; };
+  }, [album]);
 
   useEffect(() => {
     if (!id) return;
@@ -42,16 +72,36 @@ const AlbumPage = () => {
   useEffect(() => {
     const fetchRating = async () => {
       if (!user || !id) return;
+
+      // Prefer the rating attached to the original release, but fall back to
+      // the displayed album's id so legacy rows (rated on the Deluxe before
+      // this refactor) continue to show up.
+      const lookupId = originalAlbumId ?? id;
+
       const { data } = await supabase
         .from('album_ratings')
         .select('rating')
         .eq('user_id', user.id)
-        .eq('album_deezer_id', id)
+        .eq('album_deezer_id', lookupId)
         .maybeSingle();
-      if (data) setUserRating(data.rating);
+
+      if (data) {
+        setUserRating(data.rating);
+        return;
+      }
+
+      if (originalAlbumId && originalAlbumId !== id) {
+        const { data: legacy } = await supabase
+          .from('album_ratings')
+          .select('rating')
+          .eq('user_id', user.id)
+          .eq('album_deezer_id', id)
+          .maybeSingle();
+        if (legacy) setUserRating(legacy.rating);
+      }
     };
     fetchRating();
-  }, [user, id]);
+  }, [user, id, originalAlbumId]);
 
   const albumWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleAlbumScoreChange = useCallback((score: number | null) => {
@@ -68,11 +118,15 @@ const AlbumPage = () => {
       const artistName = album.artist?.name;
       const coverUrl = pickAlbumCover(album);
 
+      // Always write to the original release id so the rating attaches to
+      // the de-duplicated version surfaced on the artist page.
+      const writeAlbumId = originalAlbumId ?? id;
+
       supabase
         .from('album_ratings')
         .upsert({
           user_id: user.id,
-          album_deezer_id: id,
+          album_deezer_id: writeAlbumId,
           artist_deezer_id: album.artist?.id ? String(album.artist.id) : null,
           album_title: album.title,
           artist_name: artistName,
@@ -86,7 +140,7 @@ const AlbumPage = () => {
           if (error) console.error('Error saving album score:', error);
         });
     }, 600);
-  }, [user, id, album]);
+  }, [user, id, album, originalAlbumId]);
 
   useEffect(() => () => {
     if (albumWriteTimer.current) clearTimeout(albumWriteTimer.current);
