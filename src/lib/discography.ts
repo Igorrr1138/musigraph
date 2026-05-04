@@ -26,11 +26,11 @@ const VARIANT_KEYWORDS_RE =
 
 const VARIANT_PATTERNS: RegExp[] = [
   // Parenthesised qualifier containing at least one variant keyword.
-  /\s*\([^)]*\b(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate(?:\s+edition)?|box\s+set|collector(?:'s)?|limited(?:\s+edition)?|edition|version|mono|stereo)\b[^)]*\)\s*/gi,
-  // Square-bracket qualifier with the same keywords.
-  /\s*\[[^\]]*\b(?:deluxe|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special|ultimate|box\s+set|edition|version)\b[^\]]*\]\s*/gi,
-  // Hyphenated suffix forms ("- Deluxe Edition", "- Remastered 2011", "- Anniversary").
-  /\s*-\s*(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate)(?:\s+(?:edition|version))?\s*$/gi,
+  /\s*\([^)]*\b(?:\d{2,4}\s+)?(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate(?:\s+edition)?|box\s+set|collector(?:'s)?|limited(?:\s+edition)?|edition|version|mono|stereo)\b[^)]*\)\s*/gi,
+  // Square-bracket qualifier with the same keywords (incl. "[2011 Remaster]").
+  /\s*\[[^\]]*\b(?:\d{2,4}\s+)?(?:deluxe|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special|ultimate|box\s+set|edition|version|mono|stereo)\b[^\]]*\]\s*/gi,
+  // Hyphenated suffix forms ("- Deluxe Edition", "- Remastered 2011", "- 2011 Remaster", "- Anniversary").
+  /\s*-\s*(?:\d{2,4}\s+)?(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate|mono|stereo)(?:\s+(?:edition|version|remaster(?:ed)?))?\s*$/gi,
 ];
 
 /**
@@ -59,11 +59,46 @@ const COMPILATION_PATTERNS: RegExp[] = [
   /\bbest\s+of\b/i,
   /\bcompilation\b/i,
   /\banthology\b/i,
+  /\bcollection\b/i,
   /\bcovers?\s+album\b/i,
   /\btribute\b/i,
   /\bblacklist\b/i, // covers/tribute albums (e.g. The Metallica Blacklist)
   /\b(?:original|motion\s+picture)\s+soundtrack\b/i,
+  /\bvol\.?\s*\d+/i,
+  /\bvolume\s+\d+/i,
 ];
+
+/**
+ * Strict "noise" exclusion patterns for the Studio Albums bucket.
+ * Anything matching these is dropped from studio entirely (it may still
+ * appear in Live or Compilations buckets via their own classifiers).
+ *
+ * Keywords: Live, Concert, Tribute, Best Of, Greatest Hits, Session, BBC,
+ * Radio, Remix, Anthology, Vol., Collection.
+ */
+const STUDIO_NOISE_PATTERNS: RegExp[] = [
+  /\blive\b/i,
+  /\bconcert\b/i,
+  /\btribute\b/i,
+  /\bbest\s+of\b/i,
+  /\bgreatest\s+hits\b/i,
+  /\bsessions?\b/i,
+  /\bbbc\b/i,
+  /\bradio\b/i,
+  /\bremix(?:es|ed)?\b/i,
+  /\banthology\b/i,
+  /\bvol\.?\s*\d+/i,
+  /\bvolume\s+\d+/i,
+  /\bcollection\b/i,
+  /\bunplugged\b/i,
+  /\bdemo(?:s)?\b/i,
+  /\bb-?sides?\b/i,
+  /\brarities\b/i,
+];
+
+export function isStudioNoise(title: string): boolean {
+  return STUDIO_NOISE_PATTERNS.some(p => p.test(title));
+}
 
 /**
  * Normalize an album title for de-duplication: strip variant qualifiers
@@ -72,9 +107,18 @@ const COMPILATION_PATTERNS: RegExp[] = [
  * forms match.
  */
 export function normalizeAlbumTitle(title: string): string {
-  let normalized = title;
-  for (const pattern of VARIANT_PATTERNS) normalized = normalized.replace(pattern, ' ');
-  return normalized.replace(/\s+/g, ' ').trim().toLowerCase();
+  return getCleanTitle(title).toLowerCase();
+}
+
+/**
+ * Strip variant suffixes ("(Remastered)", "(Deluxe Edition)", "(Expanded)",
+ * "(Anniversary)", "[2011 Remaster]", "(Mono)", "(Stereo)" …) from a title
+ * while preserving original casing — for display in the UI.
+ */
+export function getCleanTitle(title: string): string {
+  let cleaned = title;
+  for (const pattern of VARIANT_PATTERNS) cleaned = cleaned.replace(pattern, ' ');
+  return cleaned.replace(/\s+/g, ' ').trim();
 }
 
 /** Title-based heuristic: is this a live recording? */
@@ -238,7 +282,11 @@ export function buildDiscography(
   }));
 
   const buckets = {
-    studio:        classified.filter(a => a.category === 'studio'),
+    // Strict noise filter for the Studio bucket: drop Live / Best Of / BBC /
+    // Sessions / Remix / Anthology / Vol. / Collection / etc. even if Deezer
+    // labelled them `record_type: 'album'`. They remain available in the
+    // Live and Compilations buckets via their own classifiers.
+    studio:        classified.filter(a => a.category === 'studio' && !isStudioNoise(a.title)),
     ep:            classified.filter(a => a.category === 'ep'),
     single:        classified.filter(a => a.category === 'single'),
     collaboration: classified.filter(a => a.category === 'collaboration'),
@@ -246,11 +294,14 @@ export function buildDiscography(
     compilation:   classified.filter(a => a.category === 'compilation'),
   };
 
+  const cleanDisplay = <T extends ClassifiedAlbum>(arr: T[]): T[] =>
+    arr.map(a => ({ ...a, title: getCleanTitle(a.title) }));
+
   return {
-    studioAlbums:   sortByReleaseDateAsc(dedupePreferOldest(buckets.studio)),
-    eps:            sortByReleaseDateAsc(dedupePreferOldest(buckets.ep)),
+    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.studio))),
+    eps:            cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.ep))),
     singles:        sortByReleaseDateAsc(dedupePreferOldest(buckets.single)),
-    collaborations: sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration)),
+    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration))),
     live:           sortByReleaseDateAsc(dedupePreferOldest(buckets.live)),
     compilations:   sortByReleaseDateAsc(dedupePreferOldest(buckets.compilation)),
   };
