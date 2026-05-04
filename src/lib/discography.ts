@@ -107,9 +107,18 @@ export function isStudioNoise(title: string): boolean {
  * forms match.
  */
 export function normalizeAlbumTitle(title: string): string {
-  let normalized = title;
-  for (const pattern of VARIANT_PATTERNS) normalized = normalized.replace(pattern, ' ');
-  return normalized.replace(/\s+/g, ' ').trim().toLowerCase();
+  return getCleanTitle(title).toLowerCase();
+}
+
+/**
+ * Strip variant suffixes ("(Remastered)", "(Deluxe Edition)", "(Expanded)",
+ * "(Anniversary)", "[2011 Remaster]", "(Mono)", "(Stereo)" …) from a title
+ * while preserving original casing — for display in the UI.
+ */
+export function getCleanTitle(title: string): string {
+  let cleaned = title;
+  for (const pattern of VARIANT_PATTERNS) cleaned = cleaned.replace(pattern, ' ');
+  return cleaned.replace(/\s+/g, ' ').trim();
 }
 
 /** Title-based heuristic: is this a live recording? */
