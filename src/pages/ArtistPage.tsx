@@ -11,12 +11,15 @@ import {
   type DeezerArtist,
   type DeezerAlbum,
 } from '@/lib/deezer';
-import { buildDiscography, type ClassifiedAlbum } from '@/lib/discography';
+import {
+  buildDiscography,
+  sortByReleaseDateAsc,
+  type ClassifiedAlbum,
+} from '@/lib/discography';
 import { getArtistTags } from '@/lib/lastfm';
 import { resolveGenres } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -26,6 +29,8 @@ import {
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
 
+type OtherReleasesTab = 'all' | 'singles' | 'live' | 'compilations';
+
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
@@ -33,7 +38,7 @@ const ArtistPage = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
-  const [showExtras, setShowExtras] = useState(false);
+  const [otherTab, setOtherTab] = useState<OtherReleasesTab>('all');
 
   useEffect(() => {
     if (!id) return;
@@ -44,6 +49,7 @@ const ArtistPage = () => {
     setArtist(null);
     setAlbums([]);
     setTags([]);
+    setOtherTab('all');
 
     getArtist(id).then(data => {
       if (cancelled) return;
@@ -68,14 +74,36 @@ const ArtistPage = () => {
 
   /**
    * Build a Wikipedia-style discography from the raw Deezer feed:
-   *   • dedup Deluxe/Remastered/Anniversary into the original
-   *   • classify by record_type + primary-artist check
+   *   • dedup Deluxe/Remastered/Anniversary into the original (oldest variant wins)
+   *   • classify by record_type + primary-artist + title heuristics
    *   • sort every bucket oldest → newest
    */
   const discography = useMemo(
     () => (artist ? buildDiscography(albums, artist.id) : null),
     [albums, artist],
   );
+
+  /**
+   * Other Releases — Singles / Live / Compilations rolled into one section
+   * with filter tabs. The "all" view re-sorts the merged list ascending.
+   */
+  const otherReleases = useMemo(() => {
+    const empty = { all: [], singles: [], live: [], compilations: [] } as Record<
+      OtherReleasesTab,
+      ClassifiedAlbum[]
+    >;
+    if (!discography) return empty;
+    return {
+      singles:      discography.singles,
+      live:         discography.live,
+      compilations: discography.compilations,
+      all:          sortByReleaseDateAsc([
+        ...discography.singles,
+        ...discography.live,
+        ...discography.compilations,
+      ]),
+    };
+  }, [discography]);
 
   if (isLoadingArtist) {
     return (
@@ -138,15 +166,20 @@ const ArtistPage = () => {
   // across sections (preserves the existing staggered entrance).
   const studioCount        = discography?.studioAlbums.length        ?? 0;
   const epCount            = discography?.eps.length                 ?? 0;
-  const singleCount        = discography?.singles.length             ?? 0;
   const collaborationCount = discography?.collaborations.length      ?? 0;
-  const liveCount          = discography?.live.length                ?? 0;
-  const compilationCount   = discography?.compilations.length        ?? 0;
+
+  const otherTotal = otherReleases.all.length;
+  const visibleOther = otherReleases[otherTab];
 
   const hasAnyRelease =
-    studioCount + epCount + singleCount + collaborationCount + liveCount + compilationCount > 0;
+    studioCount + epCount + collaborationCount + otherTotal > 0;
 
-  const extrasTotal = liveCount + compilationCount;
+  const otherTabs: Array<{ id: OtherReleasesTab; label: string; count: number }> = [
+    { id: 'all',          label: 'All',          count: otherReleases.all.length },
+    { id: 'singles',      label: 'Singles',      count: otherReleases.singles.length },
+    { id: 'live',         label: 'Live',         count: otherReleases.live.length },
+    { id: 'compilations', label: 'Compilations', count: otherReleases.compilations.length },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -257,47 +290,65 @@ const ArtistPage = () => {
             <>
               {renderSection('Studio Albums', discography.studioAlbums, 0)}
               {renderSection('EPs', discography.eps, studioCount)}
-              {renderSection('Singles', discography.singles, studioCount + epCount)}
               {renderSection(
                 'Collaborations',
                 discography.collaborations,
-                studioCount + epCount + singleCount,
+                studioCount + epCount,
               )}
 
-              {extrasTotal > 0 && (
+              {otherTotal > 0 && (
                 <div className="mb-12">
-                  <div className="flex items-center justify-between gap-4 mb-6 rounded-2xl border border-border/50 bg-card/40 px-5 py-4">
-                    <div>
-                      <h3 className="text-base font-semibold text-foreground">
-                        Live & Compilations
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {extrasTotal} extra release{extrasTotal === 1 ? '' : 's'} hidden by default.
-                      </p>
-                    </div>
-                    <div className="inline-flex items-center gap-3 text-sm text-muted-foreground">
-                      <span>Show extras</span>
-                      <Switch
-                        checked={showExtras}
-                        onCheckedChange={setShowExtras}
-                        aria-label="Show live and compilation releases"
-                      />
-                    </div>
+                  <h3 className="text-xl font-semibold mb-5 text-muted-foreground">
+                    Other Releases ({otherTotal})
+                  </h3>
+
+                  <div
+                    role="tablist"
+                    aria-label="Filter other releases"
+                    className="flex flex-wrap gap-2 mb-6"
+                  >
+                    {otherTabs.map(tab => {
+                      const disabled = tab.id !== 'all' && tab.count === 0;
+                      const active = otherTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          role="tab"
+                          type="button"
+                          aria-selected={active}
+                          aria-disabled={disabled || undefined}
+                          disabled={disabled}
+                          onClick={() => setOtherTab(tab.id)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            active
+                              ? 'bg-primary text-primary-foreground'
+                              : disabled
+                                ? 'bg-secondary/40 text-muted-foreground/40 cursor-not-allowed'
+                                : 'bg-secondary text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {tab.label} ({tab.count})
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {showExtras && (
-                    <>
-                      {renderSection(
-                        'Live Albums',
-                        discography.live,
-                        studioCount + epCount + singleCount + collaborationCount,
-                      )}
-                      {renderSection(
-                        'Compilations',
-                        discography.compilations,
-                        studioCount + epCount + singleCount + collaborationCount + liveCount,
-                      )}
-                    </>
+                  {visibleOther.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                      {visibleOther.map((album, index) => (
+                        <AlbumCard
+                          key={album.id}
+                          album={{ ...album, artist: { id: artist.id, name: artist.name } }}
+                          index={
+                            studioCount + epCount + collaborationCount + index
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-6">
+                      No releases in this category.
+                    </p>
                   )}
                 </div>
               )}
