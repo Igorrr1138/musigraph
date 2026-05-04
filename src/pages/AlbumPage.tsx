@@ -5,7 +5,7 @@ import { Calendar, Disc3, ExternalLink, Music } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { TrackList } from '@/components/music/TrackList';
 import { getAlbum, getArtistAlbums, pickAlbumCover, type DeezerAlbum, type DeezerTrack } from '@/lib/deezer';
-import { resolveOriginalAlbumId } from '@/lib/discography';
+import { resolveOriginalAlbumId, filterTrackList, looksLikeVariant } from '@/lib/discography';
 import { getArtistTags } from '@/lib/lastfm';
 import { resolveGenres } from '@/lib/genreMap';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -183,7 +183,13 @@ const AlbumPage = () => {
 
   const artistName = album.artist?.name;
   const artistId = album.artist?.id;
-  const tracks: DeezerTrack[] = album.tracks?.data ?? [];
+
+  // Filter out bonus/live/demo/remix tracks for the core tracklist experience.
+  // isDeluxe=true triggers strict position-gap trim in addition to keyword filter.
+  const isDeluxe = looksLikeVariant(album.title ?? '');
+  const rawTracks: DeezerTrack[] = album.tracks?.data ?? [];
+  const tracks = filterTrackList(rawTracks, isDeluxe);
+
   const coverUrl = pickAlbumCover(album);
 
   return (
@@ -293,7 +299,12 @@ const AlbumPage = () => {
                 {tracks.length > 0 && (
                   <span className="flex items-center gap-2">
                     <Music className="w-4 h-4" />
-                    {tracks.length} tracks
+                    {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+                    {rawTracks.length !== tracks.length && (
+                      <span className="text-xs opacity-60">
+                        ({rawTracks.length - tracks.length} bonus filtered)
+                      </span>
+                    )}
                   </span>
                 )}
               </div>

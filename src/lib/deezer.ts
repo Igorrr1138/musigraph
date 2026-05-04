@@ -4,7 +4,8 @@
  * Deezer is the primary source for search, visuals, and track lists.
  * Original release dates — which Deezer sometimes reports as the remaster year
  * rather than the original release year for catalog re-releases — are corrected
- * in getArtistAlbums() via Last.fm's album.getinfo API.
+ * in getArtistAlbums() via Last.fm's album.getinfo API and then persisted back
+ * to albums_cache so the Ratings chart X-axis stays accurate.
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -219,9 +220,12 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
  * Fetch all albums for an artist from Deezer, then correct any release dates
  * that Deezer reports as the remaster year instead of the original year.
  *
- * Date correction is applied only to studio albums and EPs (the record types
- * most commonly affected by catalog remasters). Correction is via Last.fm's
- * album.getinfo, cached in memory for the browser session.
+ * Date correction strategy:
+ *  1. Collect all studio albums / EPs (the types Deezer most commonly mislabels).
+ *  2. Call Last.fm album.getinfo for each (batched, 4 concurrent, session-cached).
+ *  3. Apply the Last.fm date when it is strictly earlier than Deezer's date.
+ *  4. Persist any changed dates back to albums_cache so the Ratings page chart
+ *     X-axis (which reads albums_cache.release_date) reflects the real year.
  */
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
@@ -245,7 +249,7 @@ export async function getArtistAlbums(deezerId: string, limit = 100): Promise<De
     if (originalDates.size === 0) return albums;
 
     // Apply corrected dates — never push a date *forward*, only earlier.
-    return albums.map(album => {
+    const corrected = albums.map(album => {
       const normalized = normalizeAlbumTitle(album.title);
       const originalDate = originalDates.get(normalized);
       if (!originalDate) return album;
@@ -254,6 +258,31 @@ export async function getArtistAlbums(deezerId: string, limit = 100): Promise<De
         ? { ...album, release_date: originalDate }
         : album;
     });
+
+    // Persist corrected release_dates to albums_cache so the Ratings page chart
+    // X-axis (which reads albums_cache.release_date) uses the real original year.
+    // We only upsert the rows that actually changed to avoid unnecessary writes.
+    const changed = corrected.filter((a, i) => a.release_date !== albums[i].release_date);
+    if (changed.length > 0) {
+      void supabase
+        .from('albums_cache')
+        .upsert(
+          changed.map(album => ({
+            deezer_id: String(album.id),
+            title: album.title,
+            release_date: album.release_date ?? null,
+            artist_name: album.artist?.name ?? artistName,
+            artist_deezer_id: album.artist?.id ? String(album.artist.id) : deezerId,
+            cached_at: new Date().toISOString(),
+          })),
+          { onConflict: 'deezer_id' },
+        )
+        .then(({ error }) => {
+          if (error) console.warn('[Deezer] corrected date cache write error:', error);
+        });
+    }
+
+    return corrected;
   } catch (err) {
     console.error('[Deezer] getArtistAlbums failed:', err);
     return [];

@@ -31,6 +31,15 @@ import {
 
 type OtherReleasesTab = 'all' | 'singles' | 'live' | 'compilations';
 
+/** Strict ascending sort by release_date using Date.getTime(). */
+function chronoSort<T extends { release_date?: string }>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => {
+    const ta = new Date(a.release_date ?? '9999-12-31').getTime();
+    const tb = new Date(b.release_date ?? '9999-12-31').getTime();
+    return ta - tb;
+  });
+}
+
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
@@ -77,11 +86,23 @@ const ArtistPage = () => {
    *   • dedup Deluxe/Remastered/Anniversary into the original (oldest variant wins)
    *   • classify by record_type + primary-artist + title heuristics
    *   • sort every bucket oldest → newest
+   *
+   * After buildDiscography(), apply an explicit Date.getTime() sort so that
+   * the album grid strictly follows chronological order regardless of any
+   * internal sort implementation details.
    */
-  const discography = useMemo(
-    () => (artist ? buildDiscography(albums, artist.id) : null),
-    [albums, artist],
-  );
+  const discography = useMemo(() => {
+    if (!artist) return null;
+    const d = buildDiscography(albums, artist.id);
+    return {
+      studioAlbums:   chronoSort(d.studioAlbums),
+      eps:            chronoSort(d.eps),
+      singles:        d.singles,        // singles sorted inside buildDiscography
+      collaborations: chronoSort(d.collaborations),
+      live:           d.live,
+      compilations:   d.compilations,
+    };
+  }, [albums, artist]);
 
   /**
    * Other Releases — Singles / Live / Compilations rolled into one section
