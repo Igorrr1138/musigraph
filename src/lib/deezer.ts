@@ -1,22 +1,19 @@
 /**
  * Deezer API client (browser-side via JSONP to bypass CORS).
  *
- * Deezer is now the primary source for search and visuals. Each entity also
- * carries an optional MusicBrainz ID (mbid) as a secondary persistent identifier
- * mirrored into the Supabase cache tables.
+ * Deezer is the primary source for search, visuals, and track lists.
+ * Original release dates — which Deezer sometimes reports as the remaster year
+ * rather than the original release year for catalog re-releases — are corrected
+ * in getArtistAlbums() via Last.fm's album.getinfo API.
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeAlbumTitle } from './discography';
-import {
-  getArtistReleaseGroups,
-  searchArtists as searchMusicBrainzArtists,
-} from './musicbrainz';
+import { normalizeAlbumTitle, getCleanTitle } from './discography';
+import { getOriginalReleaseDateMap } from './lastfm';
 
 const DEEZER_BASE = 'https://api.deezer.com';
 const JSONP_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const ORIGINAL_RELEASE_CACHE = new Map<string, Promise<Map<string, string>>>();
 
 // ---------- Types (subset of the Deezer payload we actually use) ----------
 
@@ -132,78 +129,6 @@ async function deezerPaginatedList<T>(path: string, limit = 100): Promise<T[]> {
   return items.slice(0, limit);
 }
 
-function normalizeArtistName(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
-
-function normalizePartialDate(date?: string): string | null {
-  if (!date) return null;
-  const [year, month, day] = date.split('-');
-  if (!year) return null;
-  return `${year}-${(month ?? '01').padStart(2, '0')}-${(day ?? '01').padStart(2, '0')}`;
-}
-
-async function getOriginalReleaseDates(artistId: string, artistName: string): Promise<Map<string, string>> {
-  const cacheKey = `${artistId}:${normalizeArtistName(artistName)}`;
-  const cached = ORIGINAL_RELEASE_CACHE.get(cacheKey);
-  if (cached) return cached;
-
-  const pending = (async () => {
-    const artists = await searchMusicBrainzArtists(artistName, 5);
-    const normalizedArtistName = normalizeArtistName(artistName);
-    const match = artists.find(artist => normalizeArtistName(artist.name) === normalizedArtistName) ?? artists[0];
-    if (!match) return new Map<string, string>();
-
-    const releaseGroups = await getArtistReleaseGroups(match.id, 100);
-    const releaseDateMap = new Map<string, string>();
-
-    for (const group of releaseGroups) {
-      const primaryType = (group['primary-type'] ?? '').toLowerCase();
-      if (primaryType !== 'album' && primaryType !== 'ep') continue;
-
-      const normalizedTitle = normalizeAlbumTitle(group.title ?? '');
-      const firstReleaseDate = normalizePartialDate(group['first-release-date']);
-      if (!normalizedTitle || !firstReleaseDate) continue;
-
-      const existingDate = releaseDateMap.get(normalizedTitle);
-      if (!existingDate || firstReleaseDate < existingDate) {
-        releaseDateMap.set(normalizedTitle, firstReleaseDate);
-      }
-    }
-
-    return releaseDateMap;
-  })().catch(error => {
-    console.warn('[Deezer] original release lookup failed:', error);
-    return new Map<string, string>();
-  });
-
-  ORIGINAL_RELEASE_CACHE.set(cacheKey, pending);
-  return pending;
-}
-
-function applyOriginalReleaseDates(albums: DeezerAlbum[], releaseDates: Map<string, string>): DeezerAlbum[] {
-  return albums.map(album => {
-    const recordType = (album.record_type ?? '').toLowerCase();
-    if (recordType !== 'album' && recordType !== 'ep') return album;
-
-    const originalReleaseDate = releaseDates.get(normalizeAlbumTitle(album.title));
-    if (!originalReleaseDate) return album;
-
-    const currentReleaseDate = normalizePartialDate(album.release_date);
-    if (!currentReleaseDate || originalReleaseDate < currentReleaseDate) {
-      return { ...album, release_date: originalReleaseDate };
-    }
-
-    return { ...album, release_date: currentReleaseDate };
-  });
-}
-
 // ---------- Image helpers ----------
 
 const DEEZER_EMPTY_IMAGE_HASH = 'd41d8cd98f00b204e9800998ecf8427e';
@@ -249,7 +174,6 @@ export async function searchAlbums(query: string, limit = 12): Promise<DeezerAlb
 // ---------- Entity getters with cache ----------
 
 export async function getArtist(deezerId: string): Promise<DeezerArtist | null> {
-  // Cache lookup (stale-while-revalidate)
   const { data: cached } = await supabase
     .from('artists_cache')
     .select('*')
@@ -291,14 +215,45 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
   }
 }
 
+/**
+ * Fetch all albums for an artist from Deezer, then correct any release dates
+ * that Deezer reports as the remaster year instead of the original year.
+ *
+ * Date correction is applied only to studio albums and EPs (the record types
+ * most commonly affected by catalog remasters). Correction is via Last.fm's
+ * album.getinfo, cached in memory for the browser session.
+ */
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
     const albums = await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
-    const artistName = albums.find(album => album.artist?.name)?.artist?.name;
+    const artistName = albums.find(a => a.artist?.name)?.artist?.name;
     if (!artistName) return albums;
 
-    const originalReleaseDates = await getOriginalReleaseDates(deezerId, artistName);
-    return applyOriginalReleaseDates(albums, originalReleaseDates);
+    // Only look up dates for album/EP types — those are the ones Deezer
+    // commonly mislabels with the remaster year (e.g. Kill 'Em All → 2016).
+    const lookupAlbums = albums
+      .filter(a => {
+        const rt = (a.record_type ?? '').toLowerCase();
+        return rt === 'album' || rt === 'ep';
+      })
+      .map(a => ({
+        normalizedTitle: normalizeAlbumTitle(a.title),
+        cleanTitle: getCleanTitle(a.title),
+      }));
+
+    const originalDates = await getOriginalReleaseDateMap(artistName, lookupAlbums);
+    if (originalDates.size === 0) return albums;
+
+    // Apply corrected dates — never push a date *forward*, only earlier.
+    return albums.map(album => {
+      const normalized = normalizeAlbumTitle(album.title);
+      const originalDate = originalDates.get(normalized);
+      if (!originalDate) return album;
+      const currentDate = album.release_date ?? '9999-12-31';
+      return originalDate < currentDate
+        ? { ...album, release_date: originalDate }
+        : album;
+    });
   } catch (err) {
     console.error('[Deezer] getArtistAlbums failed:', err);
     return [];
@@ -310,7 +265,6 @@ export async function getAlbum(deezerId: string): Promise<DeezerAlbum | null> {
     const album = await deezerJsonp<DeezerAlbum & { error?: unknown }>(`/album/${deezerId}`);
     if ((album as { error?: unknown }).error) return null;
 
-    // Fire-and-forget cache write
     void supabase.from('albums_cache').upsert({
       deezer_id: String(album.id),
       title: album.title,

@@ -1,5 +1,5 @@
 /**
- * Last.fm API client — used to fetch genre/style tags for artists.
+ * Last.fm API client — artist genre tags + original album release dates.
  *
  * The API key is a publishable key (designed for browser use, rate-limited per key).
  * Replace LASTFM_API_KEY below with your own key from https://www.last.fm/api/account/create
@@ -8,6 +8,10 @@
  * Last.fm on every page view (TTL: 30 days). Cached tags are also re-filtered
  * on read so old "dirty" entries (band names, junk descriptors) disappear
  * immediately when this code ships, without waiting for the cache to expire.
+ *
+ * Original release dates are fetched via `album.getinfo` and cached in memory
+ * for the browser session. This fixes Deezer catalog entries that carry a
+ * remaster year (e.g. 2016) instead of the original year (e.g. 1983).
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -160,16 +164,12 @@ export async function getArtistTags(deezerId: string, artistName: string): Promi
     const cleaned = filterCachedTags(cached.tags, artistName, 20);
     const cachedAt = cached.tags_cached_at ? new Date(cached.tags_cached_at).getTime() : 0;
     const age = Date.now() - cachedAt;
-    // Refresh in the background if expired OR if filtering removed anything
-    // (i.e. the cache is dirty by current rules and worth re-fetching).
     if (age > TAGS_TTL_MS || cleaned.length < cached.tags.length) {
       void refreshTags(deezerId, artistName);
     }
     if (cleaned.length > 0) return cleaned;
-    // Fall through to a fresh fetch if filtering wiped everything
   }
 
-  // No (usable) cached tags — fetch synchronously this time
   const tags = await fetchTagsFromLastfm(artistName);
   if (tags && tags.length > 0) {
     void supabase
@@ -188,4 +188,136 @@ async function refreshTags(deezerId: string, artistName: string): Promise<void> 
     .from('artists_cache')
     .update({ tags, tags_cached_at: new Date().toISOString() })
     .eq('deezer_id', deezerId);
+}
+
+// ─── Original album release dates ────────────────────────────────────────────
+
+interface LastfmAlbumInfoResponse {
+  album?: {
+    name?: string;
+    releasedate?: string;
+  };
+  error?: number;
+  message?: string;
+}
+
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Parse the many date formats Last.fm uses for album.releasedate into
+ * a normalised YYYY-MM-DD string. Returns null when no valid date is found.
+ *
+ *  "23 Jul 1983, 00:00" → "1983-07-23"
+ *  "1983-07-25"         → "1983-07-25"
+ *  "1983"               → "1983-01-01"
+ *  "  \n  "             → null
+ */
+function parseLastfmDate(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s) return null;
+
+  // ISO-ish: "1983-07-25" or "1983-07-25T00:00:00"
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+
+  // "23 Jul 1983, 00:00" or "23 July 1983" — day-first
+  const dayFirst = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (dayFirst) {
+    const month = MONTH_MAP[dayFirst[2].slice(0, 3).toLowerCase()];
+    if (month) return `${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, '0')}`;
+  }
+
+  // "July 23, 1983" — month-first
+  const monthFirst = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+  if (monthFirst) {
+    const month = MONTH_MAP[monthFirst[1].slice(0, 3).toLowerCase()];
+    if (month) return `${monthFirst[3]}-${month}-${monthFirst[2].padStart(2, '0')}`;
+  }
+
+  // Bare year: "1983"
+  if (/^\d{4}$/.test(s)) return `${s}-01-01`;
+
+  // Last resort — extract any 4-digit year
+  const anywhere = s.match(/\b(1[89]\d{2}|20\d{2})\b/);
+  if (anywhere) return `${anywhere[1]}-01-01`;
+
+  return null;
+}
+
+// Session memory cache: "artistName::cleanTitle" → ISO-date promise
+const LASTFM_DATE_CACHE = new Map<string, Promise<string | null>>();
+
+function fetchAlbumDateFromLastfm(
+  artistName: string,
+  albumTitle: string,
+): Promise<string | null> {
+  const key = `${artistName}::${albumTitle}`;
+  if (LASTFM_DATE_CACHE.has(key)) return LASTFM_DATE_CACHE.get(key)!;
+
+  const promise = (async (): Promise<string | null> => {
+    if (!LASTFM_API_KEY || LASTFM_API_KEY === 'YOUR_LASTFM_API_KEY_HERE') return null;
+    try {
+      const url =
+        `${LASTFM_BASE}?method=album.getinfo` +
+        `&artist=${encodeURIComponent(artistName)}` +
+        `&album=${encodeURIComponent(albumTitle)}` +
+        `&api_key=${LASTFM_API_KEY}&format=json&autocorrect=1`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json = (await res.json()) as LastfmAlbumInfoResponse;
+      if (json.error) return null;
+      return parseLastfmDate(json.album?.releasedate);
+    } catch {
+      return null;
+    }
+  })();
+
+  LASTFM_DATE_CACHE.set(key, promise);
+  return promise;
+}
+
+/**
+ * Fetch the original release dates for a list of albums from Last.fm's
+ * `album.getinfo` endpoint.
+ *
+ * Last.fm stores historical release dates, so it returns 1983 for Kill 'Em All
+ * while Deezer may return 2016 (the remaster upload year). This function is
+ * called by `getArtistAlbums()` in deezer.ts to correct those dates before
+ * they reach the UI.
+ *
+ * Results are cached in memory for the browser session so subsequent visits
+ * to the same artist page are instant (no extra network requests).
+ *
+ * @param artistName  Artist name for the Last.fm query.
+ * @param albums      Entries need `cleanTitle` (for the API call) and
+ *                    `normalizedTitle` (the dedup key for the returned map).
+ * @returns           Map<normalizedTitle, YYYY-MM-DD>
+ */
+export async function getOriginalReleaseDateMap(
+  artistName: string,
+  albums: Array<{ normalizedTitle: string; cleanTitle: string }>,
+): Promise<Map<string, string>> {
+  if (!artistName || albums.length === 0) return new Map();
+
+  // Deduplicate by normalizedTitle to avoid redundant API calls for variants
+  const unique = Array.from(
+    new Map(albums.map(a => [a.normalizedTitle, a])).values(),
+  );
+
+  const CONCURRENCY = 4;
+  const results = new Map<string, string>();
+
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    await Promise.all(
+      unique.slice(i, i + CONCURRENCY).map(async album => {
+        const date = await fetchAlbumDateFromLastfm(artistName, album.cleanTitle);
+        if (date) results.set(album.normalizedTitle, date);
+      }),
+    );
+  }
+
+  return results;
 }
