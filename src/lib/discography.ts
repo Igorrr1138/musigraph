@@ -59,11 +59,46 @@ const COMPILATION_PATTERNS: RegExp[] = [
   /\bbest\s+of\b/i,
   /\bcompilation\b/i,
   /\banthology\b/i,
+  /\bcollection\b/i,
   /\bcovers?\s+album\b/i,
   /\btribute\b/i,
   /\bblacklist\b/i, // covers/tribute albums (e.g. The Metallica Blacklist)
   /\b(?:original|motion\s+picture)\s+soundtrack\b/i,
+  /\bvol\.?\s*\d+/i,
+  /\bvolume\s+\d+/i,
 ];
+
+/**
+ * Strict "noise" exclusion patterns for the Studio Albums bucket.
+ * Anything matching these is dropped from studio entirely (it may still
+ * appear in Live or Compilations buckets via their own classifiers).
+ *
+ * Keywords: Live, Concert, Tribute, Best Of, Greatest Hits, Session, BBC,
+ * Radio, Remix, Anthology, Vol., Collection.
+ */
+const STUDIO_NOISE_PATTERNS: RegExp[] = [
+  /\blive\b/i,
+  /\bconcert\b/i,
+  /\btribute\b/i,
+  /\bbest\s+of\b/i,
+  /\bgreatest\s+hits\b/i,
+  /\bsessions?\b/i,
+  /\bbbc\b/i,
+  /\bradio\b/i,
+  /\bremix(?:es|ed)?\b/i,
+  /\banthology\b/i,
+  /\bvol\.?\s*\d+/i,
+  /\bvolume\s+\d+/i,
+  /\bcollection\b/i,
+  /\bunplugged\b/i,
+  /\bdemo(?:s)?\b/i,
+  /\bb-?sides?\b/i,
+  /\brarities\b/i,
+];
+
+export function isStudioNoise(title: string): boolean {
+  return STUDIO_NOISE_PATTERNS.some(p => p.test(title));
+}
 
 /**
  * Normalize an album title for de-duplication: strip variant qualifiers
