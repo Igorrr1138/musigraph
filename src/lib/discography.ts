@@ -273,7 +273,11 @@ export function buildDiscography(
   }));
 
   const buckets = {
-    studio:        classified.filter(a => a.category === 'studio'),
+    // Strict noise filter for the Studio bucket: drop Live / Best Of / BBC /
+    // Sessions / Remix / Anthology / Vol. / Collection / etc. even if Deezer
+    // labelled them `record_type: 'album'`. They remain available in the
+    // Live and Compilations buckets via their own classifiers.
+    studio:        classified.filter(a => a.category === 'studio' && !isStudioNoise(a.title)),
     ep:            classified.filter(a => a.category === 'ep'),
     single:        classified.filter(a => a.category === 'single'),
     collaboration: classified.filter(a => a.category === 'collaboration'),
