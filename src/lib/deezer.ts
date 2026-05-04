@@ -109,6 +109,23 @@ function deezerJsonp<T>(path: string, params: Record<string, string | number> = 
   });
 }
 
+async function deezerPaginatedList<T>(path: string, limit = 100): Promise<T[]> {
+  const pageSize = Math.min(limit, 100);
+  const items: T[] = [];
+  let index = 0;
+
+  while (items.length < limit) {
+    const data = await deezerJsonp<DeezerListResponse<T>>(path, { limit: pageSize, index });
+    const batch = data.data ?? [];
+    items.push(...batch);
+
+    if (batch.length === 0 || !data.next) break;
+    index += batch.length;
+  }
+
+  return items.slice(0, limit);
+}
+
 // ---------- Image helpers ----------
 
 const DEEZER_EMPTY_IMAGE_HASH = 'd41d8cd98f00b204e9800998ecf8427e';
@@ -198,8 +215,7 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
 
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerAlbum>>(`/artist/${deezerId}/albums`, { limit });
-    return data.data ?? [];
+    return await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
   } catch (err) {
     console.error('[Deezer] getArtistAlbums failed:', err);
     return [];
