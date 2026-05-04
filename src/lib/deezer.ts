@@ -293,7 +293,12 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
 
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
-    return await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
+    const albums = await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
+    const artistName = albums.find(album => album.artist?.name)?.artist?.name;
+    if (!artistName) return albums;
+
+    const originalReleaseDates = await getOriginalReleaseDates(deezerId, artistName);
+    return applyOriginalReleaseDates(albums, originalReleaseDates);
   } catch (err) {
     console.error('[Deezer] getArtistAlbums failed:', err);
     return [];
