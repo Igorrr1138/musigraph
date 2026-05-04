@@ -294,11 +294,14 @@ export function buildDiscography(
     compilation:   classified.filter(a => a.category === 'compilation'),
   };
 
+  const cleanDisplay = <T extends ClassifiedAlbum>(arr: T[]): T[] =>
+    arr.map(a => ({ ...a, title: getCleanTitle(a.title) }));
+
   return {
-    studioAlbums:   sortByReleaseDateAsc(dedupePreferOldest(buckets.studio)),
-    eps:            sortByReleaseDateAsc(dedupePreferOldest(buckets.ep)),
+    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.studio))),
+    eps:            cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.ep))),
     singles:        sortByReleaseDateAsc(dedupePreferOldest(buckets.single)),
-    collaborations: sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration)),
+    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration))),
     live:           sortByReleaseDateAsc(dedupePreferOldest(buckets.live)),
     compilations:   sortByReleaseDateAsc(dedupePreferOldest(buckets.compilation)),
   };
