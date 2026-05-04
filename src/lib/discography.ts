@@ -94,10 +94,28 @@ const STUDIO_NOISE_PATTERNS: RegExp[] = [
   /\bdemo(?:s)?\b/i,
   /\bb-?sides?\b/i,
   /\brarities\b/i,
+  /\bgarage\s+inc\.?\b/i,
+  /\bmusic\s+from\s+the\s+motion\s+picture\b/i,
 ];
 
 export function isStudioNoise(title: string): boolean {
   return STUDIO_NOISE_PATTERNS.some(p => p.test(title));
+}
+
+const LIVE_TITLE_KEYS = new Set(['s and m', 's and m2']);
+const COMPILATION_TITLE_KEYS = new Set(['garage inc']);
+
+function foldDiscographyText(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’'`]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[…]/g, ' ')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -107,7 +125,7 @@ export function isStudioNoise(title: string): boolean {
  * forms match.
  */
 export function normalizeAlbumTitle(title: string): string {
-  return getCleanTitle(title).toLowerCase();
+  return foldDiscographyText(getCleanTitle(title));
 }
 
 /**
@@ -123,12 +141,14 @@ export function getCleanTitle(title: string): string {
 
 /** Title-based heuristic: is this a live recording? */
 export function isLiveAlbum(album: { title: string }): boolean {
-  return LIVE_PATTERNS.some(pattern => pattern.test(album.title));
+  const normalized = normalizeAlbumTitle(album.title);
+  return LIVE_TITLE_KEYS.has(normalized) || LIVE_PATTERNS.some(pattern => pattern.test(album.title));
 }
 
 /** Title-based heuristic: is this a compilation / covers / tribute / soundtrack? */
 export function isCompilationAlbum(album: { title: string }): boolean {
-  return COMPILATION_PATTERNS.some(pattern => pattern.test(album.title));
+  const normalized = normalizeAlbumTitle(album.title);
+  return COMPILATION_TITLE_KEYS.has(normalized) || COMPILATION_PATTERNS.some(pattern => pattern.test(album.title));
 }
 
 /** Does this title look like a reissue / variant rather than an original release? */
