@@ -26,11 +26,11 @@ const VARIANT_KEYWORDS_RE =
 
 const VARIANT_PATTERNS: RegExp[] = [
   // Parenthesised qualifier containing at least one variant keyword.
-  /\s*\([^)]*\b(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate(?:\s+edition)?|box\s+set|collector(?:'s)?|limited(?:\s+edition)?|edition|version|mono|stereo)\b[^)]*\)\s*/gi,
-  // Square-bracket qualifier with the same keywords.
-  /\s*\[[^\]]*\b(?:deluxe|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special|ultimate|box\s+set|edition|version)\b[^\]]*\]\s*/gi,
-  // Hyphenated suffix forms ("- Deluxe Edition", "- Remastered 2011", "- Anniversary").
-  /\s*-\s*(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate)(?:\s+(?:edition|version))?\s*$/gi,
+  /\s*\([^)]*\b(?:\d{2,4}\s+)?(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate(?:\s+edition)?|box\s+set|collector(?:'s)?|limited(?:\s+edition)?|edition|version|mono|stereo)\b[^)]*\)\s*/gi,
+  // Square-bracket qualifier with the same keywords (incl. "[2011 Remaster]").
+  /\s*\[[^\]]*\b(?:\d{2,4}\s+)?(?:deluxe|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special|ultimate|box\s+set|edition|version|mono|stereo)\b[^\]]*\]\s*/gi,
+  // Hyphenated suffix forms ("- Deluxe Edition", "- Remastered 2011", "- 2011 Remaster", "- Anniversary").
+  /\s*-\s*(?:\d{2,4}\s+)?(?:deluxe|super\s+deluxe|expanded|remaster(?:ed)?(?:\s+\d{2,4})?|anniversary|reissue|reissued|bonus|special\s+edition|ultimate|mono|stereo)(?:\s+(?:edition|version|remaster(?:ed)?))?\s*$/gi,
 ];
 
 /**
