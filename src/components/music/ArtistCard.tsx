@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
@@ -8,7 +9,10 @@ interface ArtistCardProps {
   index?: number;
 }
 
-export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
+// Memoised so the genre discovery grid only re-renders cards whose props
+// actually changed (e.g. when filters reduce the result set). Without this
+// every filter change causes O(N) re-renders of unchanged cards.
+function ArtistCardImpl({ artist, index = 0 }: ArtistCardProps) {
   const imageUrl = pickArtistImage(artist);
 
   return (
@@ -49,3 +53,5 @@ export function ArtistCard({ artist, index = 0 }: ArtistCardProps) {
     </motion.div>
   );
 }
+
+export const ArtistCard = memo(ArtistCardImpl);

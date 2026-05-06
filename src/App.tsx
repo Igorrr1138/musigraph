@@ -15,6 +15,7 @@ import RatingsPage from "./pages/RatingsPage";
 import GraphPage from "./pages/GraphPage";
 import DiscographyMapPage from "./pages/DiscographyMapPage";
 import ArtistRatingsPage from "./pages/ArtistRatingsPage";
+import GenrePage from "./pages/GenrePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,8 @@ const App = () => (
               <Route path="/ratings/artist/:artistName" element={<ArtistRatingsPage />} />
               <Route path="/graph" element={<GraphPage />} />
               <Route path="/discography-map" element={<DiscographyMapPage />} />
+              <Route path="/genre" element={<GenrePage />} />
+              <Route path="/genre/:slug" element={<GenrePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PlaybackBar />

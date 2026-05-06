@@ -1,5 +1,5 @@
 /**
- * Last.fm API client — artist genre tags + original album release dates.
+ * Last.fm API client -- artist genre tags + original album release dates.
  *
  * The API key is a publishable key (designed for browser use, rate-limited per key).
  * Replace LASTFM_API_KEY below with your own key from https://www.last.fm/api/account/create
@@ -15,13 +15,18 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { isWhitelistedTag } from './genreWhitelist';
 
 // TODO: Replace with your Last.fm API key from https://www.last.fm/api/account/create
 const LASTFM_API_KEY = '3786d2446250a6394a81de4d0855df60';
 const LASTFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
 const TAGS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// Junk/non-genre tags to filter out (Last.fm tags are user-generated and noisy)
+// Junk/non-genre tags to filter out (Last.fm tags are user-generated and noisy).
+// NOTE: this is the *negative* list -- the additional positive whitelist gate
+// in genreWhitelist.ts (isWhitelistedTag) is now the authoritative
+// "is this a real genre?" check. The blocklist is kept as a fast pre-filter
+// and as a safety net for any edge case the whitelist misses.
 const TAG_BLOCKLIST = new Set([
   // Listening behaviour
   'seen live', 'favorites', 'favourites', 'favorite', 'favourite',
@@ -68,7 +73,7 @@ function compactKey(s: string): string {
 /**
  * Build the set of strings that should be filtered out as "this is the
  * artist's own name, not a genre". Includes the full name plus the version
- * with a leading "the " stripped (covers cases like "the beatles" → "beatles").
+ * with a leading "the " stripped (covers cases like "the beatles" -> "beatles").
  */
 function artistNameKeys(artistName: string): Set<string> {
   const keys = new Set<string>();
@@ -102,6 +107,10 @@ function cleanTags(rawTags: LastfmTag[], artistName: string, limit = 20): string
   return rawTags
     .filter(t => t && isAcceptableTag(t.name, artistKeys))
     .filter(t => (t.count ?? 0) > 0)
+    // Positive whitelist: only canonical music genres/sub-genres survive.
+    // This is what keeps "awesome", "chill", or any other free-text tag out
+    // of the cache even when they slip past TAG_BLOCKLIST.
+    .filter(t => isWhitelistedTag(t.name))
     .slice(0, limit)
     .map(t => t.name.toLowerCase());
 }
@@ -115,7 +124,9 @@ function filterCachedTags(cachedTags: string[], artistName: string, limit = 20):
   const artistKeys = artistNameKeys(artistName);
   const out: string[] = [];
   for (const t of cachedTags) {
-    if (isAcceptableTag(t, artistKeys)) out.push(t.toLowerCase());
+    if (isAcceptableTag(t, artistKeys) && isWhitelistedTag(t)) {
+      out.push(t.toLowerCase());
+    }
     if (out.length >= limit) break;
   }
   return out;
@@ -190,7 +201,7 @@ async function refreshTags(deezerId: string, artistName: string): Promise<void> 
     .eq('deezer_id', deezerId);
 }
 
-// ─── Original album release dates ────────────────────────────────────────────
+// --- Original album release dates ---
 
 interface LastfmAlbumInfoResponse {
   album?: {
@@ -210,10 +221,10 @@ const MONTH_MAP: Record<string, string> = {
  * Parse the many date formats Last.fm uses for album.releasedate into
  * a normalised YYYY-MM-DD string. Returns null when no valid date is found.
  *
- *  "23 Jul 1983, 00:00" → "1983-07-23"
- *  "1983-07-25"         → "1983-07-25"
- *  "1983"               → "1983-01-01"
- *  "  \n  "             → null
+ *  "23 Jul 1983, 00:00" -> "1983-07-23"
+ *  "1983-07-25"         -> "1983-07-25"
+ *  "1983"               -> "1983-01-01"
+ *  "  \n  "             -> null
  */
 function parseLastfmDate(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -223,14 +234,14 @@ function parseLastfmDate(raw: string | undefined): string | null {
   // ISO-ish: "1983-07-25" or "1983-07-25T00:00:00"
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
 
-  // "23 Jul 1983, 00:00" or "23 July 1983" — day-first
+  // "23 Jul 1983, 00:00" or "23 July 1983" -- day-first
   const dayFirst = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
   if (dayFirst) {
     const month = MONTH_MAP[dayFirst[2].slice(0, 3).toLowerCase()];
     if (month) return `${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, '0')}`;
   }
 
-  // "July 23, 1983" — month-first
+  // "July 23, 1983" -- month-first
   const monthFirst = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
   if (monthFirst) {
     const month = MONTH_MAP[monthFirst[1].slice(0, 3).toLowerCase()];
@@ -240,14 +251,14 @@ function parseLastfmDate(raw: string | undefined): string | null {
   // Bare year: "1983"
   if (/^\d{4}$/.test(s)) return `${s}-01-01`;
 
-  // Last resort — extract any 4-digit year
+  // Last resort -- extract any 4-digit year
   const anywhere = s.match(/\b(1[89]\d{2}|20\d{2})\b/);
   if (anywhere) return `${anywhere[1]}-01-01`;
 
   return null;
 }
 
-// Session memory cache: "artistName::cleanTitle" → ISO-date promise
+// Session memory cache: "artistName::cleanTitle" -> ISO-date promise
 const LASTFM_DATE_CACHE = new Map<string, Promise<string | null>>();
 
 function fetchAlbumDateFromLastfm(

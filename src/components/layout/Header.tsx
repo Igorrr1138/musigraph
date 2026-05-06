@@ -14,7 +14,8 @@ export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
@@ -31,9 +32,15 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-6">
             <Link
               to="/"
-              className={`nav-link ${isActive('/') ? 'active' : ''}`}
+              className={`nav-link ${isActive('/') && location.pathname === '/' ? 'active' : ''}`}
             >
               Discover
+            </Link>
+            <Link
+              to="/genre"
+              className={`nav-link ${isActive('/genre') ? 'active' : ''}`}
+            >
+              Genres
             </Link>
             {user && (
               <>
@@ -69,6 +76,12 @@ export function Header() {
                     <p className="text-sm font-medium">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="md:hidden">
+                    <Link to="/genre" className="flex items-center gap-2">
+                      <Music2 className="w-4 h-4" />
+                      Genres
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild className="md:hidden">
                     <Link to="/ratings" className="flex items-center gap-2">
                       <BarChart3 className="w-4 h-4" />
