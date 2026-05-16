@@ -187,3 +187,76 @@ export async function getArtistsByGenre(
 
   return results.slice(0, limit);
 }
+
+/**
+ * Discovery album with the resolved primary tag attached so the card can
+ * render a genre badge without an extra fetch. `tag` is the raw Last.fm
+ * tag the API was queried with (e.g. "groove metal"), already passed
+ * through our whitelist on the caller side.
+ */
+export interface DiscoveryAlbum extends DeezerAlbum {
+  tag?: string | null;
+}
+
+interface LastfmAlbumArtist {
+  name?: string;
+  '#text'?: string;
+}
+interface LastfmAlbum {
+  name?: string;
+  artist?: LastfmAlbumArtist | string;
+}
+
+/**
+ * Pull the canonical top albums for a genre tag from Last.fm and resolve
+ * each into a Deezer album (for cover art + stable IDs). Returns up to
+ * `limit` resolved albums, dropping anything that fails to resolve.
+ */
+export async function getAlbumsByGenre(
+  slug: string,
+  { limit = 24 }: { limit?: number } = {},
+): Promise<DiscoveryAlbum[]> {
+  const genre = genreFromSlug(slug);
+  if (!genre || !LASTFM_API_KEY) return [];
+
+  let raw: LastfmAlbum[] = [];
+  try {
+    const url =
+      `${LASTFM_BASE}?method=tag.gettopalbums` +
+      `&tag=${encodeURIComponent(genre.key)}` +
+      `&limit=${Math.min(Math.max(limit, 1), 50)}` +
+      `&api_key=${LASTFM_API_KEY}&format=json`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = (await res.json()) as { albums?: { album?: LastfmAlbum[] | LastfmAlbum } };
+    const r = json.albums?.album;
+    raw = Array.isArray(r) ? r : r ? [r] : [];
+  } catch (err) {
+    console.warn('[genreDiscovery] Last.fm tag.gettopalbums failed:', err);
+    return [];
+  }
+
+  // Resolve each Last.fm entry to a Deezer album via search.
+  const concurrency = 4;
+  const out: DiscoveryAlbum[] = [];
+  for (let i = 0; i < raw.length && out.length < limit; i += concurrency) {
+    const slice = raw.slice(i, i + concurrency);
+    const resolved = await Promise.all(
+      slice.map(async entry => {
+        const title = entry.name?.trim();
+        const artistName =
+          typeof entry.artist === 'string'
+            ? entry.artist
+            : entry.artist?.name ?? entry.artist?.['#text'] ?? '';
+        if (!title) return null;
+        const query = artistName ? `${artistName} ${title}` : title;
+        const hits = await searchAlbums(query, 1);
+        const album = hits[0];
+        if (!album) return null;
+        return { ...album, tag: genre.key } satisfies DiscoveryAlbum;
+      }),
+    );
+    for (const a of resolved) if (a) out.push(a);
+  }
+  return out.slice(0, limit);
+}
