@@ -269,7 +269,7 @@ function fetchAlbumDateFromLastfm(
   if (LASTFM_DATE_CACHE.has(key)) return LASTFM_DATE_CACHE.get(key)!;
 
   const promise = (async (): Promise<string | null> => {
-    if (!LASTFM_API_KEY || LASTFM_API_KEY === 'YOUR_LASTFM_API_KEY_HERE') return null;
+    if (!LASTFM_API_KEY) return null;
     try {
       const url =
         `${LASTFM_BASE}?method=album.getinfo` +
