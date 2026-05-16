@@ -1,58 +1,79 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { GenreFilters } from '@/components/discovery/GenreFilters';
 import { GenreArtistGrid } from '@/components/discovery/GenreArtistGrid';
+import { GenreAlbumGrid } from '@/components/discovery/GenreAlbumGrid';
+import { ParentGenreTabs } from '@/components/discovery/ParentGenreTabs';
+import { SubGenrePills } from '@/components/discovery/SubGenrePills';
+import { GenreSearchBar } from '@/components/discovery/GenreSearchBar';
+import { ContentTypeToggle, type DiscoveryContentType } from '@/components/discovery/ContentTypeToggle';
 import { genreFromSlug } from '@/lib/genreWhitelist';
+import { parentCategorySlug, parentCategoryFromSlug, PARENT_CATEGORIES } from '@/lib/genreMap';
 import {
   getArtistsByGenre,
+  getAlbumsByGenre,
   type DiscoveryArtist,
+  type DiscoveryAlbum,
   type SortMode,
 } from '@/lib/genreDiscovery';
 import { useSeoMeta, genrePageSeo } from '@/lib/seo';
 
 /**
- * Genre Discovery page.
- *
- * Layout (per spec):
- *   - Header (global nav)
- *   - Filters toolbar (Country / Decade / Sort)
- *   - <h1>{active sub-genre}</h1>   <-- ONLY h1, directly above the grid
- *   - Artist grid
+ * Genre Discovery page -- Bandcamp-style.
  *
  * URL contract:
- *   /genre              -> H1 "All Artists", empty grid
- *   /genre/:slug        -> H1 = title-cased label from genreWhitelist
- *   /genre/:slug?country=us&decade=1990&sort=newest
- *
- * The H1 is bound to the resolved genre's display label (not the raw slug)
- * so SEO + screen readers see "Alternative Rock" instead of
- * "alternative-rock". When the slug is unknown we fall back to the parent
- * category name when we can guess it; otherwise the literal "All Artists".
+ *   /genre                          -> default to Rock parent
+ *   /genre/:slug                    -> :slug may be a parent (rock, metal, ...)
+ *                                      or a sub-genre (groove-metal, etc.)
+ *   ?type=artists|albums            -> grid mode (default artists)
+ *   ?country=us&decade=1990&sort=newest  -> applied to artists grid
  */
 
-const FALLBACK_TITLE = 'All Artists';
+const FALLBACK_PARENT = 'Rock' as const;
 
-// Conservative starter list of countries the cache populates against.
-// Derived from the most common MusicBrainz country codes; expand as the
-// cache fills out. Keeping it client-side avoids a separate facet query.
 const KNOWN_COUNTRIES: ReadonlyArray<string> = [
   'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'SE', 'NO', 'JP', 'BR',
 ];
 
 const GenrePage = () => {
   const { slug } = useParams<{ slug?: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const genre = useMemo(() => genreFromSlug(slug ?? null), [slug]);
-  const heading = genre?.label ?? FALLBACK_TITLE;
+  // Resolve the active genre + parent category. If slug is a sub-genre, the
+  // parent comes from its `category`; if it's a parent slug, the resolved
+  // genre IS the parent; if absent we default to Rock so the page is never
+  // an empty shell.
+  const { activeGenre, parentCategory, activeIsParent } = useMemo(() => {
+    const g = genreFromSlug(slug ?? null);
+    const parentFromSlug = parentCategoryFromSlug(slug ?? null);
+    if (parentFromSlug) {
+      return { activeGenre: g, parentCategory: parentFromSlug, activeIsParent: true };
+    }
+    if (g) {
+      const parent = PARENT_CATEGORIES.find(p => p === g.category) ?? FALLBACK_PARENT;
+      return { activeGenre: g, parentCategory: parent, activeIsParent: false };
+    }
+    return { activeGenre: null, parentCategory: FALLBACK_PARENT, activeIsParent: true };
+  }, [slug]);
 
-  // Dynamic SEO -- title "[Genre] Albums & Ratings | Rankify" + description.
-  useSeoMeta(genrePageSeo(genre?.label ?? null));
+  const effectiveSlug = slug ?? parentCategorySlug(FALLBACK_PARENT);
+  const heading = activeGenre?.label ?? parentCategory;
 
-  // Memoise the filters object so the effect below only re-runs when a
-  // search param actually changes. This is what keeps the H1 + filter
-  // toolbar from being unmounted on every keystroke -- only the grid does.
+  useSeoMeta(genrePageSeo(activeGenre?.label ?? parentCategory));
+
+  // ---- Content type tab (Top Artists / Top Albums) ----
+  const contentType: DiscoveryContentType =
+    searchParams.get('type') === 'albums' ? 'albums' : 'artists';
+
+  const setContentType = (next: DiscoveryContentType) => {
+    const p = new URLSearchParams(searchParams);
+    if (next === 'artists') p.delete('type');
+    else p.set('type', next);
+    setSearchParams(p, { replace: true });
+  };
+
+  // ---- Filters (for artists grid) ----
   const filters = useMemo(
     () => ({
       country: searchParams.get('country') ?? null,
@@ -68,56 +89,105 @@ const GenrePage = () => {
     [searchParams],
   );
 
+  const hasActiveFilters =
+    searchParams.has('country') || searchParams.has('decade') || searchParams.has('sort');
+
+  const resetFilters = () => {
+    const p = new URLSearchParams(searchParams);
+    p.delete('country');
+    p.delete('decade');
+    p.delete('sort');
+    setSearchParams(p, { replace: true });
+  };
+
+  // ---- Data fetching ----
   const [artists, setArtists] = useState<DiscoveryArtist[]>([]);
+  const [albums, setAlbums] = useState<DiscoveryAlbum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
 
-    if (!slug) {
-      // No genre selected -- show empty state with "All Artists" heading.
-      setArtists([]);
-      setIsLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void getArtistsByGenre(slug, filters)
-      .then(rows => {
-        if (!cancelled) setArtists(rows);
-      })
-      .catch(err => {
+    const run = async () => {
+      try {
+        if (contentType === 'albums') {
+          const res = await getAlbumsByGenre(effectiveSlug, { limit: 24 });
+          if (!cancelled) setAlbums(res);
+        } else {
+          const res = await getArtistsByGenre(effectiveSlug, filters);
+          if (!cancelled) setArtists(res);
+        }
+      } catch (err) {
         console.error('[GenrePage] discovery fetch failed:', err);
-        if (!cancelled) setArtists([]);
-      })
-      .finally(() => {
+        if (!cancelled) {
+          if (contentType === 'albums') setAlbums([]);
+          else setArtists([]);
+        }
+      } finally {
         if (!cancelled) setIsLoading(false);
-      });
+      }
+    };
+    void run();
 
     return () => {
       cancelled = true;
     };
-  }, [slug, filters]);
+  }, [effectiveSlug, contentType, filters]);
+
+  const parentSlug = parentCategorySlug(parentCategory);
+  const activeParentSlug = parentSlug;
+  const activeSubSlug = activeIsParent ? null : activeGenre?.slug ?? null;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto max-w-6xl pt-32 pb-20 px-4">
-        {/* Filters live ABOVE the heading -- the H1 must be the immediate
-            sibling above the grid (no other titles between H1 and grid). */}
-        <GenreFilters countries={KNOWN_COUNTRIES} />
+      <main className="container mx-auto max-w-6xl pt-28 pb-20 px-4">
+        {/* Breadcrumb */}
+        <nav className="text-xs text-muted-foreground mb-6 flex gap-2 items-center" aria-label="Breadcrumb">
+          <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
+          <span>/</span>
+          <span className="text-foreground">Search by genre</span>
+        </nav>
 
-        {/* The active sub-genre is the only H1 on the page. Typography
-            comes from the design system (Boldonse + tracking-wide via the
-            shared `font-boldonse` Tailwind utility). */}
-        <h1 className="text-4xl md:text-5xl font-boldonse uppercase tracking-wide mb-8">
-          {heading}
-        </h1>
+        {/* Search + Parent tiles + Sub-genre pills, grouped in a soft panel */}
+        <section className="mb-10 p-5 md:p-6 rounded-3xl bg-card/30 border border-border/40 space-y-5">
+          <GenreSearchBar />
+          <ParentGenreTabs activeParentSlug={activeParentSlug} />
+          <SubGenrePills parent={parentCategory} activeSlug={activeSubSlug} />
+        </section>
 
-        <GenreArtistGrid artists={artists} isLoading={isLoading} />
+        {/* Heading row */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+          <h1 className="text-4xl md:text-5xl font-boldonse uppercase tracking-wide">
+            {heading}
+          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <ContentTypeToggle value={contentType} onChange={setContentType} />
+            {contentType === 'artists' && (
+              <>
+                <GenreFilters countries={KNOWN_COUNTRIES} />
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="text-xs uppercase tracking-wider px-3 py-2 rounded-md border border-border/50 hover:border-foreground/50 hover:text-foreground text-muted-foreground transition-colors"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Grid */}
+        {contentType === 'artists' ? (
+          <GenreArtistGrid artists={artists} isLoading={isLoading} />
+        ) : (
+          <GenreAlbumGrid albums={albums} isLoading={isLoading} />
+        )}
       </main>
     </div>
   );
