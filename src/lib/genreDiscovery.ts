@@ -16,7 +16,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { searchArtists, type DeezerArtist } from './deezer';
+import { searchArtists, searchAlbums, type DeezerArtist, type DeezerAlbum } from './deezer';
 import { genreFromSlug, type WhitelistedGenre } from './genreWhitelist';
 
 const LASTFM_API_KEY = '3786d2446250a6394a81de4d0855df60';
