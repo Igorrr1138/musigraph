@@ -219,3 +219,39 @@ export function getValidGenres(
   const names = (apiTags ?? []).map(t => (typeof t === 'string' ? t : t?.name)).filter(Boolean) as string[];
   return resolveGenres(names, limit, artistName);
 }
+
+/**
+ * Ordered list of parent categories used by the Discovery page navigation.
+ * Order is taste-driven (most-trafficked categories first) and matches the
+ * wireframe so Rock anchors the left edge.
+ */
+export const PARENT_CATEGORIES: ReadonlyArray<Exclude<GenreCategory, 'Various'>> = [
+  'Rock', 'Metal', 'Electronic', 'Hip-Hop', 'Pop', 'Jazz',
+  'R&B/Soul', 'Folk/Acoustic', 'Country', 'Reggae', 'Classical', 'Experimental',
+];
+
+/** Return all sub-genre tags for a parent category, lowercase canonical. */
+export function getSubGenresForCategory(category: GenreCategory): string[] {
+  if (category === 'Various') return [];
+  return (GENRE_DATABASE[category] ?? []).map(s => s.toLowerCase());
+}
+
+/** URL-safe slug for a parent category, e.g. "Hip-Hop" -> "hip-hop". */
+export function parentCategorySlug(category: Exclude<GenreCategory, 'Various'>): string {
+  return category.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/** Reverse lookup: slug -> parent category, or null if not a parent slug. */
+export function parentCategoryFromSlug(slug: string | null | undefined): Exclude<GenreCategory, 'Various'> | null {
+  if (!slug) return null;
+  const target = slug.toLowerCase();
+  for (const cat of PARENT_CATEGORIES) {
+    if (parentCategorySlug(cat) === target) return cat;
+  }
+  return null;
+}
+
+/** Format a raw tag as a clean display label, e.g. "groove metal" -> "Groove Metal". */
+export function formatTagLabel(tag: string): string {
+  return titleCase(tag.replace(/-/g, ' '));
+}
