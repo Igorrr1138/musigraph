@@ -35,9 +35,11 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/artist/:id" element={<ArtistPage />} />
               <Route path="/album/:id" element={<AlbumPage />} />
-              <Route path="/ratings" element={<RatingsPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard/:tab" element={<DashboardPage />} />
+              <Route path="/ratings" element={<Navigate to="/dashboard/rated-music" replace />} />
               <Route path="/ratings/artist/:artistName" element={<ArtistRatingsPage />} />
-              <Route path="/graph" element={<GraphPage />} />
+              <Route path="/graph" element={<Navigate to="/dashboard" replace />} />
               <Route path="/discography-map" element={<DiscographyMapPage />} />
               <Route path="/genre" element={<GenrePage />} />
               <Route path="/genre/:slug" element={<GenrePage />} />
