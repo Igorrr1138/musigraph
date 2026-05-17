@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { YouTubePlayerProvider } from "@/hooks/useYouTubePlayer";
 import { PlaybackBar } from "@/components/player/PlaybackBar";
@@ -11,8 +11,7 @@ import AuthPage from "./pages/AuthPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
 import AlbumPage from "./pages/AlbumPage";
-import RatingsPage from "./pages/RatingsPage";
-import GraphPage from "./pages/GraphPage";
+import DashboardPage from "./pages/DashboardPage";
 import DiscographyMapPage from "./pages/DiscographyMapPage";
 import ArtistRatingsPage from "./pages/ArtistRatingsPage";
 import GenrePage from "./pages/GenrePage";
@@ -34,9 +33,11 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/artist/:id" element={<ArtistPage />} />
               <Route path="/album/:id" element={<AlbumPage />} />
-              <Route path="/ratings" element={<RatingsPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard/:tab" element={<DashboardPage />} />
+              <Route path="/ratings" element={<Navigate to="/dashboard/rated-music" replace />} />
               <Route path="/ratings/artist/:artistName" element={<ArtistRatingsPage />} />
-              <Route path="/graph" element={<GraphPage />} />
+              <Route path="/graph" element={<Navigate to="/dashboard" replace />} />
               <Route path="/discography-map" element={<DiscographyMapPage />} />
               <Route path="/genre" element={<GenrePage />} />
               <Route path="/genre/:slug" element={<GenrePage />} />

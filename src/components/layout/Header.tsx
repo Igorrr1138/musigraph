@@ -1,5 +1,6 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Music2, User, LogOut, BarChart3 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Search, User, LogOut, BarChart3, Star, ListMusic, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -13,55 +14,70 @@ import {
 export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
 
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    navigate(`/?q=${encodeURIComponent(q)}`);
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
       <div className="container mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center gap-6 h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <span className="text-xl font-boldonse tracking-wider text-primary">
+          <Link to="/" className="flex items-center gap-2 group shrink-0">
+            <div className="w-7 h-7 rounded-lg gradient-bg" />
+            <span className="text-lg font-boldonse tracking-wider text-foreground">
               SOUNDVAULT
             </span>
           </Link>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link
-              to="/"
-              className={`nav-link ${isActive('/') && location.pathname === '/' ? 'active' : ''}`}
-            >
-              Discover
-            </Link>
-            <Link
-              to="/genre"
-              className={`nav-link ${isActive('/genre') ? 'active' : ''}`}
-            >
-              Genres
-            </Link>
-            {user && (
-              <>
-                <Link
-                  to="/ratings"
-                  className={`nav-link ${isActive('/ratings') ? 'active' : ''}`}
-                >
-                  My Ratings
-                </Link>
-                <Link
-                  to="/graph"
-                  className={`nav-link ${isActive('/graph') ? 'active' : ''}`}
-                >
-                  Rating Graph
-                </Link>
-              </>
-            )}
-          </nav>
+          {/* Search */}
+          <form onSubmit={submitSearch} className="flex-1 max-w-md mx-auto hidden md:block">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search"
+                className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/60 border border-border/40 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-secondary transition-colors"
+              />
+            </div>
+          </form>
 
-          {/* Auth */}
-          <div className="flex items-center gap-3">
+          {/* Right side */}
+          <div className="flex items-center gap-2 md:gap-5 ml-auto">
+            <a
+              href="#"
+              className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Pricing
+            </a>
+            <a
+              href="#"
+              className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Download App
+            </a>
+            {user && (
+              <Link
+                to="/dashboard"
+                className={`hidden md:inline text-sm uppercase tracking-wider transition-colors ${
+                  isActive('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                My stats
+              </Link>
+            )}
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -73,31 +89,33 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 glass">
                   <div className="px-3 py-2">
-                    <p className="text-sm font-medium">{user.email}</p>
+                    <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="md:hidden">
-                    <Link to="/genre" className="flex items-center gap-2">
-                      <Music2 className="w-4 h-4" />
-                      Genres
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" /> My stats
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="md:hidden">
-                    <Link to="/ratings" className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      My Ratings
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard/rated-music" className="flex items-center gap-2">
+                      <Star className="w-4 h-4" /> Rated music
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="md:hidden">
-                    <Link to="/graph" className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Rating Graph
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard/playlists" className="flex items-center gap-2">
+                      <ListMusic className="w-4 h-4" /> Playlists
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="md:hidden" />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard/preferences" className="flex items-center gap-2">
+                      <Settings2 className="w-4 h-4" /> Preferences
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive">
                     <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
+                    Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
