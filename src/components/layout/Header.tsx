@@ -55,14 +55,12 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-5 ml-auto">
-            <Link
-              to="/genre"
-              className={`hidden md:inline text-sm uppercase tracking-wider transition-colors ${
-                isActive('/genre') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
+            <a
+              href="#"
+              className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             >
               Pricing
-            </Link>
+            </a>
             <a
               href="#"
               className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
