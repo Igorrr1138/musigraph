@@ -12,6 +12,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
 import AlbumPage from "./pages/AlbumPage";
 import RatingsPage from "./pages/RatingsPage";
+import DashboardPage from "./pages/DashboardPage";
 import GraphPage from "./pages/GraphPage";
 import DiscographyMapPage from "./pages/DiscographyMapPage";
 import ArtistRatingsPage from "./pages/ArtistRatingsPage";
