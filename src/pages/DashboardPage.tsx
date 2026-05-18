@@ -5,6 +5,8 @@ import { Disc3 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { DashboardSidebar, type DashboardTab } from '@/components/dashboard/DashboardSidebar';
 import { MyStatsTab } from '@/components/dashboard/MyStatsTab';
+import { RatedMusicTab } from '@/components/dashboard/RatedMusicTab';
+import { RatedMusicArtistTab } from '@/components/dashboard/RatedMusicArtistTab';
 import { useAuth } from '@/hooks/useAuth';
 
 const TAB_MAP: Record<string, DashboardTab> = {
@@ -16,7 +18,7 @@ const TAB_MAP: Record<string, DashboardTab> = {
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { tab } = useParams<{ tab?: string }>();
+  const { tab, artistName } = useParams<{ tab?: string; artistName?: string }>();
 
   const active: DashboardTab = tab ? TAB_MAP[tab] ?? 'stats' : 'stats';
 
@@ -41,7 +43,12 @@ export default function DashboardPage() {
             <DashboardSidebar active={active} />
             <main className="flex-1 min-w-0">
               {active === 'stats' && <MyStatsTab />}
-              {active === 'rated' && <ComingSoon title="Rated Music" />}
+              {active === 'rated' &&
+                (artistName ? (
+                  <RatedMusicArtistTab artistName={artistName} />
+                ) : (
+                  <RatedMusicTab />
+                ))}
               {active === 'playlists' && <ComingSoon title="Playlists" />}
               {active === 'preferences' && <ComingSoon title="Preferences" />}
             </main>
