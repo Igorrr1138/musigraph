@@ -35,6 +35,7 @@ const App = () => (
               <Route path="/album/:id" element={<AlbumPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/:tab" element={<DashboardPage />} />
+              <Route path="/dashboard/:tab/:artistName" element={<DashboardPage />} />
               <Route path="/ratings" element={<Navigate to="/dashboard/rated-music" replace />} />
               <Route path="/ratings/artist/:artistName" element={<ArtistRatingsPage />} />
               <Route path="/graph" element={<Navigate to="/dashboard" replace />} />
