@@ -7,6 +7,8 @@ import { DashboardSidebar, type DashboardTab } from '@/components/dashboard/Dash
 import { MyStatsTab } from '@/components/dashboard/MyStatsTab';
 import { RatedMusicTab } from '@/components/dashboard/RatedMusicTab';
 import { RatedMusicArtistTab } from '@/components/dashboard/RatedMusicArtistTab';
+import { PlaylistsTab } from '@/components/dashboard/PlaylistsTab';
+import { PlaylistEditor } from '@/components/dashboard/PlaylistEditor';
 import { useAuth } from '@/hooks/useAuth';
 
 const TAB_MAP: Record<string, DashboardTab> = {
@@ -18,9 +20,15 @@ const TAB_MAP: Record<string, DashboardTab> = {
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { tab, artistName } = useParams<{ tab?: string; artistName?: string }>();
+  const { tab, artistName, playlistId } = useParams<{
+    tab?: string;
+    artistName?: string;
+    playlistId?: string;
+  }>();
 
   const active: DashboardTab = tab ? TAB_MAP[tab] ?? 'stats' : 'stats';
+  // The same :artistName slot in the route is reused for playlist id when on playlists tab.
+  const subSlug = playlistId ?? artistName;
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -44,12 +52,13 @@ export default function DashboardPage() {
             <main className="flex-1 min-w-0">
               {active === 'stats' && <MyStatsTab />}
               {active === 'rated' &&
-                (artistName ? (
-                  <RatedMusicArtistTab artistName={artistName} />
+                (subSlug ? (
+                  <RatedMusicArtistTab artistName={subSlug} />
                 ) : (
                   <RatedMusicTab />
                 ))}
-              {active === 'playlists' && <ComingSoon title="Playlists" />}
+              {active === 'playlists' &&
+                (subSlug ? <PlaylistEditor /> : <PlaylistsTab />)}
               {active === 'preferences' && <ComingSoon title="Preferences" />}
             </main>
           </div>
@@ -67,3 +76,4 @@ function ComingSoon({ title }: { title: string }) {
     </div>
   );
 }
+

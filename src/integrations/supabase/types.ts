@@ -181,6 +181,92 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_tracks: {
+        Row: {
+          added_at: string
+          album_deezer_id: string | null
+          album_title: string | null
+          artist_deezer_id: string | null
+          artist_name: string | null
+          cover_url: string | null
+          duration_seconds: number | null
+          id: string
+          playlist_id: string
+          position: number
+          track_deezer_id: string
+          track_title: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          album_deezer_id?: string | null
+          album_title?: string | null
+          artist_deezer_id?: string | null
+          artist_name?: string | null
+          cover_url?: string | null
+          duration_seconds?: number | null
+          id?: string
+          playlist_id: string
+          position?: number
+          track_deezer_id: string
+          track_title: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          album_deezer_id?: string | null
+          album_title?: string | null
+          artist_deezer_id?: string | null
+          artist_name?: string | null
+          cover_url?: string | null
+          duration_seconds?: number | null
+          id?: string
+          playlist_id?: string
+          position?: number
+          track_deezer_id?: string
+          track_title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlists: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
