@@ -172,6 +172,37 @@ export async function searchAlbums(query: string, limit = 12): Promise<DeezerAlb
   }
 }
 
+export async function searchTracks(query: string, limit = 12): Promise<DeezerTrack[]> {
+  try {
+    const data = await deezerJsonp<DeezerListResponse<DeezerTrack>>('/search/track', { q: query, limit });
+    return data.data ?? [];
+  } catch (err) {
+    console.error('[Deezer] searchTracks failed:', err);
+    return [];
+  }
+}
+
+export async function getRelatedArtists(deezerId: string, limit = 8): Promise<DeezerArtist[]> {
+  try {
+    const data = await deezerJsonp<DeezerListResponse<DeezerArtist>>(`/artist/${deezerId}/related`, { limit });
+    return data.data ?? [];
+  } catch (err) {
+    console.error('[Deezer] getRelatedArtists failed:', err);
+    return [];
+  }
+}
+
+export async function getArtistTopTracks(deezerId: string, limit = 10): Promise<DeezerTrack[]> {
+  try {
+    const data = await deezerJsonp<DeezerListResponse<DeezerTrack>>(`/artist/${deezerId}/top`, { limit });
+    return data.data ?? [];
+  } catch (err) {
+    console.error('[Deezer] getArtistTopTracks failed:', err);
+    return [];
+  }
+}
+
+
 // ---------- Entity getters with cache ----------
 
 export async function getArtist(deezerId: string): Promise<DeezerArtist | null> {
