@@ -13,8 +13,8 @@ import {
   getRelatedArtists,
   getArtistTopTracks,
   formatDuration,
-  pickAlbumCover,
   pickArtistImage,
+
   type DeezerTrack,
   type DeezerArtist,
 } from '@/lib/deezer';
