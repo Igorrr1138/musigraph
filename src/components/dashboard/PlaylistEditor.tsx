@@ -33,7 +33,9 @@ interface PlaylistTrack {
 }
 
 export function PlaylistEditor() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ artistName?: string; playlistId?: string }>();
+  const id = params.playlistId ?? params.artistName;
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
