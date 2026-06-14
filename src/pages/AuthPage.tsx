@@ -62,7 +62,13 @@ const AuthPage = () => {
 
     try {
       if (isForgotPassword) {
-        const { error } = await resetPassword(formData.email);
+        const parsed = resetSchema.safeParse({ email: formData.email });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await resetPassword(parsed.data.email);
         if (error) {
           toast({
             title: 'Error',
