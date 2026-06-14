@@ -83,7 +83,13 @@ const AuthPage = () => {
           setIsForgotPassword(false);
         }
       } else if (isLogin) {
-        const { error } = await signIn(formData.email, formData.password);
+        const parsed = signInSchema.safeParse({ email: formData.email, password: formData.password });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signIn(parsed.data.email, parsed.data.password);
         if (error) {
           toast({
             title: 'Sign in failed',
@@ -100,7 +106,17 @@ const AuthPage = () => {
           navigate('/');
         }
       } else {
-        const { error } = await signUp(formData.email, formData.password, formData.username);
+        const parsed = signUpSchema.safeParse({
+          email: formData.email,
+          password: formData.password,
+          username: formData.username,
+        });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signUp(parsed.data.email, parsed.data.password, parsed.data.username);
         if (error) {
           let errorMessage = error.message;
           if (error.message.includes('already registered')) {
