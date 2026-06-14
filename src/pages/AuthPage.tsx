@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Music2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,32 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { lovable } from '@/integrations/lovable/index';
 import { supabase } from '@/integrations/supabase/client';
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(255, 'Email must be less than 255 characters')
+  .email('Please enter a valid email address');
+
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must be less than 128 characters')
+  .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+  .regex(/[a-z]/, 'Password must contain a lowercase letter')
+  .regex(/[0-9]/, 'Password must contain a number');
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(20, 'Username must be 20 characters or less')
+  .regex(/^[a-zA-Z0-9_.-]+$/, 'Username may only contain letters, numbers, dots, underscores and hyphens');
+
+const signInSchema = z.object({ email: emailSchema, password: z.string().min(1, 'Password is required') });
+const signUpSchema = z.object({ email: emailSchema, password: passwordSchema, username: usernameSchema });
+const resetSchema = z.object({ email: emailSchema });
 
 const AuthPage = () => {
   const navigate = useNavigate();
