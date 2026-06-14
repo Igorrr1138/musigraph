@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Music2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,32 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { lovable } from '@/integrations/lovable/index';
 import { supabase } from '@/integrations/supabase/client';
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(255, 'Email must be less than 255 characters')
+  .email('Please enter a valid email address');
+
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must be less than 128 characters')
+  .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+  .regex(/[a-z]/, 'Password must contain a lowercase letter')
+  .regex(/[0-9]/, 'Password must contain a number');
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(20, 'Username must be 20 characters or less')
+  .regex(/^[a-zA-Z0-9_.-]+$/, 'Username may only contain letters, numbers, dots, underscores and hyphens');
+
+const signInSchema = z.object({ email: emailSchema, password: z.string().min(1, 'Password is required') });
+const signUpSchema = z.object({ email: emailSchema, password: passwordSchema, username: usernameSchema });
+const resetSchema = z.object({ email: emailSchema });
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -35,7 +62,13 @@ const AuthPage = () => {
 
     try {
       if (isForgotPassword) {
-        const { error } = await resetPassword(formData.email);
+        const parsed = resetSchema.safeParse({ email: formData.email });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await resetPassword(parsed.data.email);
         if (error) {
           toast({
             title: 'Error',
@@ -50,7 +83,13 @@ const AuthPage = () => {
           setIsForgotPassword(false);
         }
       } else if (isLogin) {
-        const { error } = await signIn(formData.email, formData.password);
+        const parsed = signInSchema.safeParse({ email: formData.email, password: formData.password });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signIn(parsed.data.email, parsed.data.password);
         if (error) {
           toast({
             title: 'Sign in failed',
@@ -67,7 +106,17 @@ const AuthPage = () => {
           navigate('/');
         }
       } else {
-        const { error } = await signUp(formData.email, formData.password, formData.username);
+        const parsed = signUpSchema.safeParse({
+          email: formData.email,
+          password: formData.password,
+          username: formData.username,
+        });
+        if (!parsed.success) {
+          toast({ title: 'Invalid input', description: parsed.error.issues[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signUp(parsed.data.email, parsed.data.password, parsed.data.username);
         if (error) {
           let errorMessage = error.message;
           if (error.message.includes('already registered')) {
