@@ -157,7 +157,7 @@ const ArtistRatingsPage = () => {
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
-        const { data, error } = await supabase.rpc('get_community_album_averages');
+        const { data, error } = await supabase.from('community_album_averages').select('*');
         if (error) throw error;
         setCommunityAlbumAvgs(
           (data || []).map((entry: any) => ({
@@ -207,9 +207,10 @@ const ArtistRatingsPage = () => {
       }
 
       try {
-        const { data, error } = await supabase.rpc('get_community_track_averages', {
-          p_album_deezer_id: selectedAlbum.album_deezer_id,
-        });
+        const { data, error } = await supabase
+          .from('community_track_averages')
+          .select('*')
+          .eq('album_deezer_id', selectedAlbum.album_deezer_id);
         if (error) throw error;
         setCommunityTrackAvgs(
           (data || []).map((entry: any) => ({
