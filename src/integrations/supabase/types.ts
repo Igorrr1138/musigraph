@@ -424,25 +424,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      community_album_averages: {
+        Row: {
+          album_deezer_id: string | null
+          avg_rating: number | null
+          rater_count: number | null
+        }
+        Relationships: []
+      }
+      community_track_averages: {
+        Row: {
+          album_deezer_id: string | null
+          avg_rating: number | null
+          rater_count: number | null
+          track_position: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      get_community_album_averages: {
-        Args: never
-        Returns: {
-          album_deezer_id: string
-          avg_rating: number
-          rater_count: number
-        }[]
-      }
-      get_community_track_averages: {
-        Args: { p_album_deezer_id: string }
-        Returns: {
-          avg_rating: number
-          rater_count: number
-          track_position: number
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
