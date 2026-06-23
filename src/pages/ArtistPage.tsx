@@ -410,7 +410,7 @@ const ArtistPage = () => {
             <div
               role="tablist"
               aria-label="Artist sections"
-              className="flex items-center gap-6 overflow-x-auto no-scrollbar"
+              className="flex items-center gap-6 overflow-x-auto"
             >
               {secondaryTabs.map(tab => {
                 const active = activeTab === tab.id;
