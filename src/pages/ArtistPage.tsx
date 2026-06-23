@@ -396,7 +396,7 @@ const ArtistPage = () => {
             >
               <RadialScoreGauge score={avgScore} rated={ratedCount} total={totalAlbums} />
               <Link
-                to="/dashboard/my-stats"
+                to={`/dashboard/rated-music/${encodeURIComponent(artist.name)}`}
                 className="mt-4 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 See all statistics
