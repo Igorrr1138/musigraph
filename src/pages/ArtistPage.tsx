@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Disc3, ExternalLink, User } from 'lucide-react';
+import { Disc3, User, MapPin, Calendar, Music2, ArrowRight } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import {
@@ -28,10 +28,12 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
-type OtherReleasesTab = 'all' | 'singles' | 'live' | 'compilations';
+type OtherTab = 'all' | 'single' | 'album' | 'compilation';
+type SecondaryTab = 'discography' | 'popular' | 'bio' | 'similar';
 
-/** Strict ascending sort by release_date using Date.getTime(). */
 function chronoSort<T extends { release_date?: string }>(arr: T[]): T[] {
   return [...arr].sort((a, b) => {
     const ta = new Date(a.release_date ?? '9999-12-31').getTime();
@@ -40,25 +42,83 @@ function chronoSort<T extends { release_date?: string }>(arr: T[]): T[] {
   });
 }
 
+/** Semicircular radial gauge — animated on load. */
+function RadialScoreGauge({ score, rated, total }: { score: number; rated: number; total: number }) {
+  const pct = Math.max(0, Math.min(1, score / 10));
+  const radius = 100;
+  const cx = 120;
+  const cy = 120;
+  const circumference = Math.PI * radius;
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setProgress(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
+
+  const dashOffset = circumference * (1 - progress);
+
+  return (
+    <div className="relative w-full max-w-[280px] mx-auto">
+      <svg viewBox="0 0 240 140" className="w-full h-auto">
+        {/* Track */}
+        <path
+          d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
+          fill="none"
+          stroke="hsl(var(--muted))"
+          strokeWidth="16"
+          strokeLinecap="round"
+        />
+        {/* Progress */}
+        <path
+          d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
+          fill="none"
+          stroke="hsl(var(--primary))"
+          strokeWidth="16"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          style={{ transition: 'stroke-dashoffset 1100ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+        />
+      </svg>
+      <div className="absolute inset-x-0 bottom-1 text-center">
+        <p className="text-[10px] tracking-[0.24em] uppercase text-muted-foreground mb-1">
+          Average score
+        </p>
+        <p className="text-4xl font-bold leading-none">
+          {score.toFixed(1)}<span className="text-muted-foreground text-2xl">/10</span>
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Rated albums: {rated}/{total}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
-  const [otherTab, setOtherTab] = useState<OtherReleasesTab>('all');
+  const [otherTab, setOtherTab] = useState<OtherTab>('all');
+  const [activeTab, setActiveTab] = useState<SecondaryTab>('discography');
+  const discoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-
     setIsLoadingArtist(true);
     setIsLoadingAlbums(true);
     setArtist(null);
     setAlbums([]);
     setTags([]);
     setOtherTab('all');
+    setActiveTab('discography');
 
     getArtist(id).then(data => {
       if (cancelled) return;
@@ -79,46 +139,47 @@ const ArtistPage = () => {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Fetch this user's ratings for any of the artist's albums
+  useEffect(() => {
+    if (!user || !artist) return;
+    let cancelled = false;
+    supabase
+      .from('album_ratings')
+      .select('album_deezer_id, rating')
+      .eq('user_id', user.id)
+      .eq('artist_name', artist.name)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const map: Record<string, number> = {};
+        data.forEach(r => { if (r.album_deezer_id) map[String(r.album_deezer_id)] = r.rating; });
+        setRatings(map);
+      });
+    return () => { cancelled = true; };
+  }, [user, artist]);
+
   const artistImage = artist ? pickArtistImage(artist) : null;
 
-  /**
-   * Build a Wikipedia-style discography from the raw Deezer feed:
-   *   • dedup Deluxe/Remastered/Anniversary into the original (oldest variant wins)
-   *   • classify by record_type + primary-artist + title heuristics
-   *   • sort every bucket oldest → newest
-   *
-   * After buildDiscography(), apply an explicit Date.getTime() sort so that
-   * the album grid strictly follows chronological order regardless of any
-   * internal sort implementation details.
-   */
   const discography = useMemo(() => {
     if (!artist) return null;
     const d = buildDiscography(albums, artist.id);
     return {
       studioAlbums:   chronoSort(d.studioAlbums),
       eps:            chronoSort(d.eps),
-      singles:        d.singles,        // singles sorted inside buildDiscography
+      singles:        d.singles,
       collaborations: chronoSort(d.collaborations),
       live:           d.live,
       compilations:   d.compilations,
     };
   }, [albums, artist]);
 
-  /**
-   * Other Releases — Singles / Live / Compilations rolled into one section
-   * with filter tabs. The "all" view re-sorts the merged list ascending.
-   */
   const otherReleases = useMemo(() => {
-    const empty = { all: [], singles: [], live: [], compilations: [] } as Record<
-      OtherReleasesTab,
-      ClassifiedAlbum[]
-    >;
+    const empty = { all: [], single: [], album: [], compilation: [] } as Record<OtherTab, ClassifiedAlbum[]>;
     if (!discography) return empty;
     return {
-      singles:      discography.singles,
-      live:         discography.live,
-      compilations: discography.compilations,
-      all:          sortByReleaseDateAsc([
+      single:      discography.singles,
+      album:       discography.live, // "live" releases live under Other > Album bucket
+      compilation: discography.compilations,
+      all: sortByReleaseDateAsc([
         ...discography.singles,
         ...discography.live,
         ...discography.compilations,
@@ -126,20 +187,47 @@ const ArtistPage = () => {
     };
   }, [discography]);
 
+  const { activeYears, country, totalAlbums } = useMemo(() => {
+    const years = (discography?.studioAlbums ?? [])
+      .map(a => a.release_date ? parseInt(a.release_date.slice(0, 4), 10) : NaN)
+      .filter(n => !Number.isNaN(n))
+      .sort((a, b) => a - b);
+    const first = years[0];
+    const last = years[years.length - 1];
+    const now = new Date().getFullYear();
+    const active = first ? (last && last >= now - 3 ? `${first}–present` : last ? `${first}–${last}` : `${first}`) : null;
+    return {
+      activeYears: active,
+      country: null as string | null, // Deezer artist payload doesn't expose country reliably
+      totalAlbums: discography?.studioAlbums.length ?? 0,
+    };
+  }, [discography]);
+
+  const { avgScore, ratedCount } = useMemo(() => {
+    if (!discography) return { avgScore: 0, ratedCount: 0 };
+    const ids = discography.studioAlbums.map(a => String(a.id));
+    const rated = ids.map(id => ratings[id]).filter((r): r is number => typeof r === 'number');
+    const avg = rated.length ? rated.reduce((s, v) => s + v, 0) / rated.length : 0;
+    return { avgScore: avg, ratedCount: rated.length };
+  }, [discography, ratings]);
+
   if (isLoadingArtist) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <div className="pt-24 px-4">
-          <div className="container mx-auto max-w-6xl">
+          <div className="container mx-auto max-w-[1440px]">
             <Skeleton className="h-8 w-32 mb-8" />
-            <div className="flex flex-col md:flex-row gap-8">
-              <Skeleton className="w-48 h-48 rounded-full" />
-              <div className="flex-1 space-y-4">
-                <Skeleton className="h-12 w-64" />
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-20 w-full" />
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+              <div className="flex gap-6">
+                <Skeleton className="w-56 h-56 rounded-2xl" />
+                <div className="flex-1 space-y-4">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-12 w-64" />
+                  <Skeleton className="h-6 w-48" />
+                </div>
               </div>
+              <Skeleton className="h-56 rounded-2xl" />
             </div>
           </div>
         </div>
@@ -153,9 +241,7 @@ const ArtistPage = () => {
         <Header />
         <div className="pt-24 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Artist not found</h1>
-          <Link to="/" className="text-primary hover:underline">
-            Back to search
-          </Link>
+          <Link to="/" className="text-primary hover:underline">Back to search</Link>
         </div>
       </div>
     );
@@ -167,58 +253,60 @@ const ArtistPage = () => {
     startIndex: number,
   ) =>
     items.length > 0 && (
-      <div className="mb-12">
-        <h3 className="text-xl font-semibold mb-5 text-muted-foreground">
-          {title} ({items.length})
+      <section className="mb-12">
+        <h3 className="text-xl md:text-2xl font-semibold mb-6">
+          {title} <span className="text-muted-foreground font-normal">({items.length})</span>
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {items.map((album, index) => (
-            <AlbumCard
-              key={album.id}
-              album={{ ...album, artist: { id: artist.id, name: artist.name } }}
-              index={startIndex + index}
-            />
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-6">
+          {items.map((album, index) => {
+            const ratingForCard = ratings[String(album.id)];
+            return (
+              <AlbumCard
+                key={album.id}
+                album={{ ...album, artist: { id: artist.id, name: artist.name } }}
+                index={startIndex + index}
+                rating={ratingForCard}
+                showRating={typeof ratingForCard === 'number'}
+              />
+            );
+          })}
         </div>
-      </div>
+      </section>
     );
 
-  // Section count totals so each card's animation index stays unique
-  // across sections (preserves the existing staggered entrance).
-  const studioCount        = discography?.studioAlbums.length        ?? 0;
-  const epCount            = discography?.eps.length                 ?? 0;
-  const collaborationCount = discography?.collaborations.length      ?? 0;
-
+  const studioCount = discography?.studioAlbums.length ?? 0;
+  const epCount = discography?.eps.length ?? 0;
   const otherTotal = otherReleases.all.length;
   const visibleOther = otherReleases[otherTab];
+  const hasAnyRelease = studioCount + epCount + otherTotal > 0;
 
-  const hasAnyRelease =
-    studioCount + epCount + collaborationCount + otherTotal > 0;
-
-  const otherTabs: Array<{ id: OtherReleasesTab; label: string; count: number }> = [
-    { id: 'all',          label: 'All',          count: otherReleases.all.length },
-    { id: 'singles',      label: 'Singles',      count: otherReleases.singles.length },
-    { id: 'live',         label: 'Live',         count: otherReleases.live.length },
-    { id: 'compilations', label: 'Compilations', count: otherReleases.compilations.length },
+  const otherTabs: Array<{ id: OtherTab; label: string; count: number }> = [
+    { id: 'all',         label: 'All',         count: otherReleases.all.length },
+    { id: 'single',      label: 'Single',      count: otherReleases.single.length },
+    { id: 'album',       label: 'Album',       count: otherReleases.album.length },
+    { id: 'compilation', label: 'Compilation', count: otherReleases.compilation.length },
   ];
+
+  const secondaryTabs: Array<{ id: SecondaryTab; label: string }> = [
+    { id: 'discography', label: 'Discography' },
+    { id: 'popular',     label: 'Popular Songs' },
+    { id: 'bio',         label: 'Bio' },
+    { id: 'similar',     label: 'Similar Artists' },
+  ];
+
+  const genres = resolveGenres(tags, 5, artist.name);
+  const artistType = (artist.type ?? 'artist').toLowerCase() === 'artist' ? 'Artist' : 'Group';
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="pt-24 pb-12 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute top-1/2 right-1/4 w-80 h-80 rounded-full bg-accent/10 blur-3xl" />
-        </div>
-
-        <div className="container mx-auto max-w-6xl relative">
-          <Breadcrumb className="mb-8">
+      <div className="pt-24 px-4">
+        <div className="container mx-auto max-w-[1440px]">
+          <Breadcrumb className="mb-6">
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/">Home</Link>
-                </BreadcrumbLink>
+                <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -227,161 +315,237 @@ const ArtistPage = () => {
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 gradient-border overflow-hidden"
-            >
-              {artistImage ? (
-                <img src={artistImage} alt={artist.name} className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-20 h-20 text-muted-foreground" />
-              )}
-            </motion.div>
+          {/* HERO */}
+          <section className="grid grid-cols-1 lg:grid-cols-[1.85fr_1fr] gap-6 lg:gap-10 items-stretch mb-8">
+            {/* Left: image + meta */}
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.45 }}
+                className="w-full md:w-64 aspect-square rounded-2xl bg-secondary overflow-hidden flex-shrink-0 border border-border/40"
+              >
+                {artistImage ? (
+                  <img src={artistImage} alt={artist.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-20 h-20 text-muted-foreground" />
+                  </div>
+                )}
+              </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex-1"
-            >
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">{artist.name}</h1>
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.08 }}
+                className="flex-1 min-w-0 flex flex-col justify-center"
+              >
+                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground mb-2">
+                  {artistType}
+                </p>
+                <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] mb-4 break-words">
+                  {artist.name}
+                </h1>
 
-              {tags.length > 0 && (() => {
-                const genres = resolveGenres(tags, 5, artist.name);
-                return (
-                  <div className="flex flex-wrap gap-2 mb-4">
+                {genres.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-5">
                     {genres.map(g => (
-                      <Link key={g.slug} to={`/genre/${encodeURIComponent(g.slug)}`} className="inline-flex">
+                      <Link key={g.slug} to={`/genre/${encodeURIComponent(g.slug)}`}>
                         <Badge
                           variant="secondary"
-                          className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 cursor-pointer text-sm px-3 py-1"
+                          className="rounded-full border border-border/60 bg-secondary/60 hover:bg-secondary text-foreground text-xs px-3 py-1 font-normal cursor-pointer"
                         >
                           {g.label}
                         </Badge>
                       </Link>
                     ))}
                   </div>
-                );
-              })()}
-
-              <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-                {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
-                  <span>{artist.nb_fan.toLocaleString()} fans</span>
                 )}
-                {!isLoadingAlbums && albums.length > 0 && (
-                  <span className="flex items-center gap-2">
-                    <Disc3 className="w-4 h-4" />
-                    {albums.length} releases
-                  </span>
-                )}
-              </div>
 
-              <a
-                href={`https://www.deezer.com/artist/${artist.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-6 text-primary hover:underline"
-              >
-                View on Deezer
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <h2 className="text-2xl font-bold mb-8">Discography</h2>
-
-          {isLoadingAlbums || !discography ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-square rounded-2xl" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : hasAnyRelease ? (
-            <>
-              {renderSection('Studio Albums', discography.studioAlbums, 0)}
-              {renderSection('EPs', discography.eps, studioCount)}
-              {renderSection(
-                'Collaborations',
-                discography.collaborations,
-                studioCount + epCount,
-              )}
-
-              {otherTotal > 0 && (
-                <div className="mb-12">
-                  <h3 className="text-xl font-semibold mb-5 text-muted-foreground">
-                    Other Releases ({otherTotal})
-                  </h3>
-
-                  <div
-                    role="tablist"
-                    aria-label="Filter other releases"
-                    className="flex flex-wrap gap-2 mb-6"
-                  >
-                    {otherTabs.map(tab => {
-                      const disabled = tab.id !== 'all' && tab.count === 0;
-                      const active = otherTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          role="tab"
-                          type="button"
-                          aria-selected={active}
-                          aria-disabled={disabled || undefined}
-                          disabled={disabled}
-                          onClick={() => setOtherTab(tab.id)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                            active
-                              ? 'bg-primary text-primary-foreground'
-                              : disabled
-                                ? 'bg-secondary/40 text-muted-foreground/40 cursor-not-allowed'
-                                : 'bg-secondary text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          {tab.label} ({tab.count})
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {visibleOther.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                      {visibleOther.map((album, index) => (
-                        <AlbumCard
-                          key={album.id}
-                          album={{ ...album, artist: { id: artist.id, name: artist.name } }}
-                          index={
-                            studioCount + epCount + collaborationCount + index
-                          }
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground py-6">
-                      No releases in this category.
-                    </p>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                  {country && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" /> {country}
+                    </span>
+                  )}
+                  {activeYears && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4" /> {activeYears}
+                    </span>
+                  )}
+                  {totalAlbums > 0 && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Disc3 className="w-4 h-4" /> {totalAlbums} Albums
+                    </span>
+                  )}
+                  {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Music2 className="w-4 h-4" /> {artist.nb_fan.toLocaleString()} fans
+                    </span>
                   )}
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No releases found</p>
+              </motion.div>
             </div>
-          )}
+
+            {/* Right: analytics card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.12 }}
+              className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col justify-between"
+            >
+              <RadialScoreGauge score={avgScore} rated={ratedCount} total={totalAlbums} />
+              <Link
+                to="/dashboard/my-stats"
+                className="mt-4 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                See all statistics
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+          </section>
+
+          {/* SECONDARY TABS */}
+          <div className="sticky top-16 z-30 -mx-4 px-4 bg-background/85 backdrop-blur border-b border-border/50">
+            <div
+              role="tablist"
+              aria-label="Artist sections"
+              className="flex items-center gap-6 overflow-x-auto"
+            >
+              {secondaryTabs.map(tab => {
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id === 'discography') {
+                        discoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className={`relative py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                      active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {tab.label}
+                    {active && (
+                      <motion.span
+                        layoutId="artist-tab-underline"
+                        className="absolute left-0 right-0 -bottom-px h-0.5 bg-foreground rounded-full"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* TAB CONTENT */}
+          <div ref={discoRef} className="py-10">
+            {activeTab === 'discography' && (
+              <>
+                {isLoadingAlbums || !discography ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} className="space-y-3">
+                        <Skeleton className="aspect-square rounded-2xl" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : hasAnyRelease ? (
+                  <>
+                    {renderSection('Albums', discography.studioAlbums, 0)}
+                    {renderSection('LP', discography.eps, studioCount)}
+
+                    {otherTotal > 0 && (
+                      <section className="mb-12">
+                        <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+                          <h3 className="text-xl md:text-2xl font-semibold">
+                            Other Releases <span className="text-muted-foreground font-normal">({otherTotal})</span>
+                          </h3>
+                          <div role="tablist" aria-label="Filter other releases" className="flex flex-wrap gap-2">
+                            {otherTabs.map(tab => {
+                              const disabled = tab.id !== 'all' && tab.count === 0;
+                              const active = otherTab === tab.id;
+                              return (
+                                <button
+                                  key={tab.id}
+                                  role="tab"
+                                  type="button"
+                                  aria-selected={active}
+                                  disabled={disabled}
+                                  onClick={() => setOtherTab(tab.id)}
+                                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    active
+                                      ? 'bg-foreground text-background'
+                                      : disabled
+                                        ? 'bg-secondary/40 text-muted-foreground/40 cursor-not-allowed'
+                                        : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {tab.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {visibleOther.length > 0 ? (
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-6">
+                            {visibleOther.map((album, index) => {
+                              const ratingForCard = ratings[String(album.id)];
+                              return (
+                                <AlbumCard
+                                  key={album.id}
+                                  album={{ ...album, artist: { id: artist.id, name: artist.name } }}
+                                  index={studioCount + epCount + index}
+                                  rating={ratingForCard}
+                                  showRating={typeof ratingForCard === 'number'}
+                                />
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-6">No releases in this category.</p>
+                        )}
+                      </section>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">No releases found</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'popular' && (
+              <div className="py-20 text-center text-muted-foreground">
+                <Music2 className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                Popular songs coming soon.
+              </div>
+            )}
+            {activeTab === 'bio' && (
+              <div className="py-20 text-center text-muted-foreground">
+                <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                Biography coming soon.
+              </div>
+            )}
+            {activeTab === 'similar' && (
+              <div className="py-20 text-center text-muted-foreground">
+                <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                Similar artists coming soon.
+              </div>
+            )}
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 };
