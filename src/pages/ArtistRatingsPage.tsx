@@ -157,7 +157,7 @@ const ArtistRatingsPage = () => {
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
-        const { data, error } = await supabase.rpc('get_community_album_averages');
+        const { data, error } = await supabase.from('community_album_averages').select('*');
         if (error) throw error;
         setCommunityAlbumAvgs(
           (data || []).map((entry: any) => ({
