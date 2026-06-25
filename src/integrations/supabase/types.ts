@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      album_reviews: {
+        Row: {
+          album_deezer_id: string
+          created_at: string
+          id: string
+          review_tags: string[]
+          review_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          album_deezer_id: string
+          created_at?: string
+          id?: string
+          review_tags?: string[]
+          review_text?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          album_deezer_id?: string
+          created_at?: string
+          id?: string
+          review_tags?: string[]
+          review_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       albums_cache: {
         Row: {
           artist_deezer_id: string | null
