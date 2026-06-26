@@ -134,6 +134,8 @@ function TrackRow({
   hoverRating,
   isPlaying,
   saving,
+  isExpanded,
+  onToggleExpand,
   onRate,
   onHoverRate,
   onPlay,
