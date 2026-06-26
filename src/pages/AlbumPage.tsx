@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Disc3, ImageIcon, Loader2, PlayCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
+import { SongDetails } from '@/components/music/SongDetails';
 import {
   getAlbum,
   getArtistAlbums,
@@ -115,6 +116,8 @@ interface TrackRowProps {
   hoverRating: number;
   isPlaying: boolean;
   saving: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onRate: (rating: number) => void;
   onHoverRate: (rating: number) => void;
   onPlay: () => void;
@@ -131,6 +134,8 @@ function TrackRow({
   hoverRating,
   isPlaying,
   saving,
+  isExpanded,
+  onToggleExpand,
   onRate,
   onHoverRate,
   onPlay,
@@ -205,17 +210,19 @@ function TrackRow({
         <span className="truncate text-sm text-muted-foreground group-hover:opacity-0 transition-opacity">
           {albumTitle}
         </span>
-        <Link
-          to={`/track/${track.id}`}
+        <button
+          type="button"
+          onClick={onToggleExpand}
           className={cn(
             'absolute left-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium',
-            'bg-background border border-border shadow-sm',
+            'bg-background border border-border shadow-sm hover:bg-secondary',
             'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0',
             'transition-all duration-200',
+            isExpanded && 'opacity-100 translate-x-0 bg-primary text-primary-foreground border-primary',
           )}
         >
-          Song Details
-        </Link>
+          {isExpanded ? 'Hide details' : 'Song Details'}
+        </button>
       </div>
 
       {/* Rating */}
@@ -418,6 +425,7 @@ const AlbumPage = () => {
   const [trackRatings, setTrackRatings] = useState<Record<number, number>>({});
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [savingTrack, setSavingTrack] = useState<number | null>(null);
+  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
 
   /* Album fetch */
   useEffect(() => {
@@ -735,6 +743,8 @@ const AlbumPage = () => {
                     const isPlaying =
                       ytCurrentTrack?.position === position &&
                       ytCurrentTrack?.title === track.title;
+                    const trackIdStr = String(track.id);
+                    const isExpanded = expandedTrackId === trackIdStr;
                     return (
                       <motion.div
                         key={track.id ?? idx}
@@ -754,12 +764,28 @@ const AlbumPage = () => {
                           hoverRating={hover}
                           isPlaying={isPlaying}
                           saving={savingTrack === position}
+                          isExpanded={isExpanded}
+                          onToggleExpand={() =>
+                            setExpandedTrackId(isExpanded ? null : trackIdStr)
+                          }
                           onRate={(r) => handleRateTrack(track, position, r)}
                           onHoverRate={(r) =>
                             setHoverRatings((prev) => ({ ...prev, [position]: r }))
                           }
                           onPlay={() => handlePlay(track, position)}
                         />
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <SongDetails
+                              key={`details-${trackIdStr}`}
+                              track={track}
+                              albumDeezerId={String(id)}
+                              albumCover={coverUrl}
+                              artistName={artistName}
+                              onClose={() => setExpandedTrackId(null)}
+                            />
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     );
                   })}
