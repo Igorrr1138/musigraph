@@ -210,17 +210,19 @@ function TrackRow({
         <span className="truncate text-sm text-muted-foreground group-hover:opacity-0 transition-opacity">
           {albumTitle}
         </span>
-        <Link
-          to={`/track/${track.id}`}
+        <button
+          type="button"
+          onClick={onToggleExpand}
           className={cn(
             'absolute left-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium',
-            'bg-background border border-border shadow-sm',
+            'bg-background border border-border shadow-sm hover:bg-secondary',
             'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0',
             'transition-all duration-200',
+            isExpanded && 'opacity-100 translate-x-0 bg-primary text-primary-foreground border-primary',
           )}
         >
-          Song Details
-        </Link>
+          {isExpanded ? 'Hide details' : 'Song Details'}
+        </button>
       </div>
 
       {/* Rating */}
