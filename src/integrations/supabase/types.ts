@@ -181,6 +181,30 @@ export type Database = {
         }
         Relationships: []
       }
+      criteria_preferences: {
+        Row: {
+          created_at: string
+          criteria_order: string[]
+          updated_at: string
+          user_id: string
+          visible_criteria: string[]
+        }
+        Insert: {
+          created_at?: string
+          criteria_order?: string[]
+          updated_at?: string
+          user_id: string
+          visible_criteria?: string[]
+        }
+        Update: {
+          created_at?: string
+          criteria_order?: string[]
+          updated_at?: string
+          user_id?: string
+          visible_criteria?: string[]
+        }
+        Relationships: []
+      }
       isrc_mapping: {
         Row: {
           apple_music_id: string | null
@@ -366,6 +390,93 @@ export type Database = {
         }
         Relationships: []
       }
+      track_criteria: {
+        Row: {
+          album_deezer_id: string | null
+          created_at: string
+          id: string
+          scores: Json
+          track_deezer_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          album_deezer_id?: string | null
+          created_at?: string
+          id?: string
+          scores?: Json
+          track_deezer_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          album_deezer_id?: string | null
+          created_at?: string
+          id?: string
+          scores?: Json
+          track_deezer_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      track_lyrics: {
+        Row: {
+          created_at: string
+          plain_text: string | null
+          source: string | null
+          synced: Json | null
+          track_deezer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          plain_text?: string | null
+          source?: string | null
+          synced?: Json | null
+          track_deezer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          plain_text?: string | null
+          source?: string | null
+          synced?: Json | null
+          track_deezer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      track_metadata: {
+        Row: {
+          album_deezer_id: string | null
+          created_at: string
+          metadata: Json
+          source: string | null
+          title: string | null
+          track_deezer_id: string
+          updated_at: string
+        }
+        Insert: {
+          album_deezer_id?: string | null
+          created_at?: string
+          metadata?: Json
+          source?: string | null
+          title?: string | null
+          track_deezer_id: string
+          updated_at?: string
+        }
+        Update: {
+          album_deezer_id?: string | null
+          created_at?: string
+          metadata?: Json
+          source?: string | null
+          title?: string | null
+          track_deezer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       track_ratings: {
         Row: {
           album_deezer_id: string | null
@@ -401,6 +512,36 @@ export type Database = {
           track_mbid?: string | null
           track_position?: number
           track_title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      track_reviews: {
+        Row: {
+          album_deezer_id: string | null
+          created_at: string
+          id: string
+          review: string
+          track_deezer_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          album_deezer_id?: string | null
+          created_at?: string
+          id?: string
+          review?: string
+          track_deezer_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          album_deezer_id?: string | null
+          created_at?: string
+          id?: string
+          review?: string
+          track_deezer_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -468,6 +609,15 @@ export type Database = {
           avg_rating: number | null
           rater_count: number | null
           track_position: number | null
+        }
+        Relationships: []
+      }
+      community_track_criteria: {
+        Row: {
+          avg_score: number | null
+          criterion: string | null
+          rater_count: number | null
+          track_deezer_id: string | null
         }
         Relationships: []
       }
