@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Disc3, ImageIcon, Loader2, PlayCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
+import { SongDetails } from '@/components/music/SongDetails';
 import {
   getAlbum,
   getArtistAlbums,
