@@ -612,15 +612,6 @@ export type Database = {
         }
         Relationships: []
       }
-      community_track_criteria: {
-        Row: {
-          avg_score: number | null
-          criterion: string | null
-          rater_count: number | null
-          track_deezer_id: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       [_ in never]: never
