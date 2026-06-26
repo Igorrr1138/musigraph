@@ -116,6 +116,8 @@ interface TrackRowProps {
   hoverRating: number;
   isPlaying: boolean;
   saving: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onRate: (rating: number) => void;
   onHoverRate: (rating: number) => void;
   onPlay: () => void;
