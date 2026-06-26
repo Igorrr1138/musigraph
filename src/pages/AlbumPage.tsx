@@ -425,6 +425,7 @@ const AlbumPage = () => {
   const [trackRatings, setTrackRatings] = useState<Record<number, number>>({});
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [savingTrack, setSavingTrack] = useState<number | null>(null);
+  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
 
   /* Album fetch */
   useEffect(() => {
