@@ -743,6 +743,8 @@ const AlbumPage = () => {
                     const isPlaying =
                       ytCurrentTrack?.position === position &&
                       ytCurrentTrack?.title === track.title;
+                    const trackIdStr = String(track.id);
+                    const isExpanded = expandedTrackId === trackIdStr;
                     return (
                       <motion.div
                         key={track.id ?? idx}
@@ -762,12 +764,28 @@ const AlbumPage = () => {
                           hoverRating={hover}
                           isPlaying={isPlaying}
                           saving={savingTrack === position}
+                          isExpanded={isExpanded}
+                          onToggleExpand={() =>
+                            setExpandedTrackId(isExpanded ? null : trackIdStr)
+                          }
                           onRate={(r) => handleRateTrack(track, position, r)}
                           onHoverRate={(r) =>
                             setHoverRatings((prev) => ({ ...prev, [position]: r }))
                           }
                           onPlay={() => handlePlay(track, position)}
                         />
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <SongDetails
+                              key={`details-${trackIdStr}`}
+                              track={track}
+                              albumDeezerId={String(id)}
+                              albumCover={coverUrl}
+                              artistName={artistName}
+                              onClose={() => setExpandedTrackId(null)}
+                            />
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     );
                   })}
