@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Play, Pause, SkipForward, SkipBack,
   Volume2, VolumeX, Volume1,
@@ -13,6 +14,7 @@ import { cleanTrackTitle } from '@/lib/cleanMetadata';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
 
 function formatTime(seconds: number): string {
