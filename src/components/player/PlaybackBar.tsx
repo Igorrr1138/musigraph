@@ -215,18 +215,36 @@ export function PlaybackBar() {
 
         {/* RIGHT: rating + voice + volume */}
         <div className="flex items-center justify-end gap-4">
-          {/* Rating bar */}
+          {/* Rating bar — click/drag to rate 1–10 */}
           <div className="flex items-center gap-2">
-            <div className="relative w-24 h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              ref={ratingBarRef}
+              role="slider"
+              aria-label="Rate this track"
+              aria-valuemin={1}
+              aria-valuemax={10}
+              aria-valuenow={rating ?? 0}
+              tabIndex={0}
+              onClick={(e) => saveRating(computeRatingFromEvent(e.clientX))}
+              onMouseMove={(e) => setHoverRating(computeRatingFromEvent(e.clientX))}
+              onMouseLeave={() => setHoverRating(null)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight') saveRating(Math.min(10, (rating ?? 0) + 1));
+                else if (e.key === 'ArrowLeft') saveRating(Math.max(1, (rating ?? 1) - 1));
+              }}
+              className="relative w-24 h-2 rounded-full bg-muted overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/40"
+              title={user ? `Click to rate (${rating ?? '–'}/10)` : 'Sign in to rate'}
+            >
               <div
-                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-300"
-                style={{ width: `${((rating ?? 0) / 10) * 100}%` }}
+                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-150"
+                style={{ width: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`, opacity: hoverRating !== null ? 0.6 : 1 }}
               />
             </div>
             <span className="text-sm font-semibold tabular-nums w-4 text-right">
-              {rating ?? '–'}
+              {hoverRating ?? rating ?? '–'}
             </span>
           </div>
+
 
           {/* Voice control */}
           <button
