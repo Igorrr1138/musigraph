@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Play, Pause, SkipForward, SkipBack,
   Volume2, VolumeX, Volume1,
@@ -13,6 +14,7 @@ import { cleanTrackTitle } from '@/lib/cleanMetadata';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
 
 function formatTime(seconds: number): string {
@@ -34,7 +36,10 @@ export function PlaybackBar() {
 
   const { user } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
+  const ratingBarRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch user's rating for the current track
   useEffect(() => {
@@ -55,6 +60,54 @@ export function PlaybackBar() {
       });
     return () => { cancelled = true; };
   }, [user, currentTrack, currentAlbumMbid]);
+
+  // Fetch artist deezer id for clickable artist link
+  useEffect(() => {
+    if (!currentAlbumMbid) { setArtistDeezerId(null); return; }
+    let cancelled = false;
+    supabase
+      .from('albums_cache')
+      .select('artist_deezer_id')
+      .eq('deezer_id', currentAlbumMbid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setArtistDeezerId(data?.artist_deezer_id ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [currentAlbumMbid]);
+
+  const computeRatingFromEvent = useCallback((clientX: number): number => {
+    const el = ratingBarRef.current;
+    if (!el) return 0;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.max(1, Math.min(10, Math.round(ratio * 10)));
+  }, []);
+
+  const saveRating = useCallback(async (value: number) => {
+    if (!user) {
+      toast({ title: 'Sign in to rate tracks', variant: 'destructive' });
+      return;
+    }
+    if (!currentTrack || !currentAlbumMbid) return;
+    const prev = rating;
+    setRating(value);
+    const { error } = await supabase
+      .from('track_ratings')
+      .upsert({
+        user_id: user.id,
+        album_deezer_id: currentAlbumMbid,
+        track_deezer_id: currentTrack.id ? String(currentTrack.id) : null,
+        track_position: currentTrack.position,
+        track_title: currentTrack.title,
+        rating: value,
+        rated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,album_deezer_id,track_position' });
+    if (error) {
+      setRating(prev);
+      toast({ title: 'Could not save rating', description: error.message, variant: 'destructive' });
+    }
+  }, [user, currentTrack, currentAlbumMbid, rating]);
 
   const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
 
@@ -86,9 +139,18 @@ export function PlaybackBar() {
               {cleanTrackTitle(currentTrack.title)}
             </p>
             {artistName && (
-              <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                {artistName}
-              </p>
+              artistDeezerId ? (
+                <Link
+                  to={`/artist/${artistDeezerId}`}
+                  className="text-xs text-muted-foreground truncate leading-tight mt-0.5 block hover:text-foreground hover:underline transition-colors"
+                >
+                  {artistName}
+                </Link>
+              ) : (
+                <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                  {artistName}
+                </p>
+              )
             )}
           </div>
           <AddToPlaylistButton
@@ -153,18 +215,36 @@ export function PlaybackBar() {
 
         {/* RIGHT: rating + voice + volume */}
         <div className="flex items-center justify-end gap-4">
-          {/* Rating bar */}
+          {/* Rating bar — click/drag to rate 1–10 */}
           <div className="flex items-center gap-2">
-            <div className="relative w-24 h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              ref={ratingBarRef}
+              role="slider"
+              aria-label="Rate this track"
+              aria-valuemin={1}
+              aria-valuemax={10}
+              aria-valuenow={rating ?? 0}
+              tabIndex={0}
+              onClick={(e) => saveRating(computeRatingFromEvent(e.clientX))}
+              onMouseMove={(e) => setHoverRating(computeRatingFromEvent(e.clientX))}
+              onMouseLeave={() => setHoverRating(null)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight') saveRating(Math.min(10, (rating ?? 0) + 1));
+                else if (e.key === 'ArrowLeft') saveRating(Math.max(1, (rating ?? 1) - 1));
+              }}
+              className="relative w-24 h-2 rounded-full bg-muted overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/40"
+              title={user ? `Click to rate (${rating ?? '–'}/10)` : 'Sign in to rate'}
+            >
               <div
-                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-300"
-                style={{ width: `${((rating ?? 0) / 10) * 100}%` }}
+                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-150"
+                style={{ width: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`, opacity: hoverRating !== null ? 0.6 : 1 }}
               />
             </div>
             <span className="text-sm font-semibold tabular-nums w-4 text-right">
-              {rating ?? '–'}
+              {hoverRating ?? rating ?? '–'}
             </span>
           </div>
+
 
           {/* Voice control */}
           <button
