@@ -139,9 +139,18 @@ export function PlaybackBar() {
               {cleanTrackTitle(currentTrack.title)}
             </p>
             {artistName && (
-              <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                {artistName}
-              </p>
+              artistDeezerId ? (
+                <Link
+                  to={`/artist/${artistDeezerId}`}
+                  className="text-xs text-muted-foreground truncate leading-tight mt-0.5 block hover:text-foreground hover:underline transition-colors"
+                >
+                  {artistName}
+                </Link>
+              ) : (
+                <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                  {artistName}
+                </p>
+              )
             )}
           </div>
           <AddToPlaylistButton
