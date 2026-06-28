@@ -1,25 +1,30 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Play, Pause, SkipForward, SkipBack,
   Volume2, VolumeX, Volume1,
   Shuffle, Repeat, Repeat1,
+  Mic, MicOff, Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { cn } from '@/lib/utils';
 import { cleanTrackTitle } from '@/lib/cleanMetadata';
+import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import type { DeezerTrack } from '@/lib/deezer';
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 export function PlaybackBar() {
   const {
-    isPlaying, currentTrack, artistName,
+    isPlaying, currentTrack, currentAlbumMbid, artistName, albumTitle,
     togglePlay, nextTrack, prevTrack,
     volume, setVolume,
     currentTime, duration, seekTo,
@@ -27,9 +32,31 @@ export function PlaybackBar() {
     repeat, cycleRepeat,
   } = useYouTubePlayer();
 
-  const handleSeek = useCallback(([val]: number[]) => {
-    seekTo(val);
-  }, [seekTo]);
+  const { user } = useAuth();
+  const [rating, setRating] = useState<number | null>(null);
+  const [voiceOn, setVoiceOn] = useState(false);
+
+  // Fetch user's rating for the current track
+  useEffect(() => {
+    if (!user || !currentTrack || !currentAlbumMbid) {
+      setRating(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('track_ratings')
+      .select('rating')
+      .eq('user_id', user.id)
+      .eq('album_deezer_id', currentAlbumMbid)
+      .eq('track_position', currentTrack.position)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setRating(data?.rating ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [user, currentTrack, currentAlbumMbid]);
+
+  const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
 
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
@@ -39,84 +66,125 @@ export function PlaybackBar() {
 
   if (!currentTrack) return null;
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl bg-card/70 border-t border-border/40 shadow-[0_-4px_30px_-10px_hsl(var(--primary)/0.15)]">
-      {/* Progress bar - full width thin bar at top */}
-      <div className="px-4">
-        <Slider
-          value={[currentTime]}
-          max={duration || 100}
-          step={0.5}
-          onValueChange={handleSeek}
-          className="w-full h-1 -mt-[2px] cursor-pointer [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-track]]:bg-muted [&_[data-radix-slider-range]]:bg-gradient-to-r [&_[data-radix-slider-range]]:from-primary [&_[data-radix-slider-range]]:to-accent [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:opacity-0 [&:hover_[data-radix-slider-thumb]]:opacity-100 [&_[data-radix-slider-thumb]]:transition-opacity [&_[data-radix-slider-thumb]]:border-primary"
-        />
-      </div>
+  // Build a minimal DeezerTrack for AddToPlaylistButton
+  const trackForPlaylist = {
+    id: Number(currentTrack.id) || 0,
+    title: currentTrack.title,
+    duration: currentTrack.length ? Math.round(currentTrack.length / 1000) : undefined,
+  } as unknown as DeezerTrack;
 
-      <div className="container mx-auto px-4 py-2 flex items-center gap-3">
-        {/* Track info - left */}
-        <div className="flex-1 min-w-0 flex items-center gap-3">
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl bg-card/80 border-t border-border/40 shadow-[0_-4px_30px_-10px_hsl(var(--primary)/0.15)]">
+      <div className="container mx-auto px-4 py-2.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
+        {/* LEFT: cover + meta + add */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0">
+            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{cleanTrackTitle(currentTrack.title)}</p>
+            <p className="text-sm font-semibold truncate leading-tight">
+              {cleanTrackTitle(currentTrack.title)}
+            </p>
             {artistName && (
-              <p className="text-xs text-muted-foreground truncate">{artistName}</p>
+              <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                {artistName}
+              </p>
             )}
+          </div>
+          <AddToPlaylistButton
+            track={trackForPlaylist}
+            artistName={artistName ?? undefined}
+            albumTitle={albumTitle ?? undefined}
+            albumDeezerId={currentAlbumMbid ?? undefined}
+          />
+        </div>
+
+        {/* CENTER: controls + progress */}
+        <div className="flex flex-col items-center gap-1 min-w-[320px] md:min-w-[420px]">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost" size="icon"
+              onClick={toggleShuffle}
+              className={cn('rounded-full h-8 w-8 transition-colors', shuffle && 'text-primary')}
+            >
+              <Shuffle className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={prevTrack} className="rounded-full h-8 w-8">
+              <SkipBack className="w-4 h-4 fill-current" />
+            </Button>
+            <Button
+              variant="ghost" size="icon" onClick={togglePlay}
+              className="rounded-full h-9 w-9 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={nextTrack} className="rounded-full h-8 w-8">
+              <SkipForward className="w-4 h-4 fill-current" />
+            </Button>
+            <Button
+              variant="ghost" size="icon"
+              onClick={cycleRepeat}
+              className={cn('rounded-full h-8 w-8 transition-colors', repeat !== 'off' && 'text-primary')}
+            >
+              {repeat === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+            </Button>
+          </div>
+
+          <div className="w-full flex items-center gap-3">
+            <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-10 text-right">
+              {formatTime(currentTime)}
+            </span>
+            <Slider
+              value={[currentTime]}
+              max={duration || 100}
+              step={0.5}
+              onValueChange={handleSeek}
+              className="flex-1 cursor-pointer [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-track]]:bg-muted [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:opacity-0 [&:hover_[data-radix-slider-thumb]]:opacity-100 [&_[data-radix-slider-thumb]]:transition-opacity [&_[data-radix-slider-thumb]]:border-foreground"
+            />
+            <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-10">
+              {formatTime(duration)}
+            </span>
           </div>
         </div>
 
-        {/* Center controls */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost" size="icon"
-            onClick={toggleShuffle}
-            className={cn(
-              "rounded-full h-8 w-8 transition-colors",
-              shuffle && "text-primary"
-            )}
+        {/* RIGHT: rating + voice + volume */}
+        <div className="flex items-center justify-end gap-4">
+          {/* Rating bar */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-24 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-300"
+                style={{ width: `${((rating ?? 0) / 10) * 100}%` }}
+              />
+            </div>
+            <span className="text-sm font-semibold tabular-nums w-4 text-right">
+              {rating ?? '–'}
+            </span>
+          </div>
+
+          {/* Voice control */}
+          <button
+            onClick={() => setVoiceOn(v => !v)}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Toggle voice control"
           >
-            <Shuffle className="w-4 h-4" />
-          </Button>
+            <div className="flex items-center gap-1.5">
+              {voiceOn ? <Mic className="w-4 h-4 text-primary" /> : <MicOff className="w-4 h-4" />}
+              <span className="text-xs font-medium">{voiceOn ? 'On' : 'Off'}</span>
+            </div>
+            <span className="text-[10px] leading-none hidden md:inline">Voice control</span>
+          </button>
 
-          <Button variant="ghost" size="icon" onClick={prevTrack} className="rounded-full h-8 w-8">
-            <SkipBack className="w-4 h-4" />
-          </Button>
-
-          <Button
-            variant="ghost" size="icon" onClick={togglePlay}
-            className="rounded-full h-10 w-10 bg-primary/10 hover:bg-primary/20 transition-all"
-          >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 text-primary transition-transform duration-200" />
-            ) : (
-              <Play className="w-5 h-5 text-primary ml-0.5 transition-transform duration-200" />
-            )}
-          </Button>
-
-          <Button variant="ghost" size="icon" onClick={nextTrack} className="rounded-full h-8 w-8">
-            <SkipForward className="w-4 h-4" />
-          </Button>
-
-          <Button
-            variant="ghost" size="icon"
-            onClick={cycleRepeat}
-            className={cn(
-              "rounded-full h-8 w-8 transition-colors",
-              repeat !== 'off' && "text-primary"
-            )}
-          >
-            {repeat === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-          </Button>
-        </div>
-
-        {/* Right side - time + volume */}
-        <div className="flex-1 flex items-center justify-end gap-3">
-          <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
-
+          {/* Volume */}
           <div className="flex items-center gap-1.5 w-28">
             <button
               onClick={() => setVolume(volume === 0 ? 80 : 0)}
               className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label="Mute"
             >
               {volumeIcon}
             </button>
@@ -125,7 +193,7 @@ export function PlaybackBar() {
               max={100}
               step={1}
               onValueChange={([v]) => setVolume(v)}
-              className="w-full [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-range]]:bg-primary [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:border-primary"
+              className="w-full [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:border-foreground"
             />
           </div>
         </div>
