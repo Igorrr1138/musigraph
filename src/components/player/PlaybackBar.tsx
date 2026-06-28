@@ -36,7 +36,10 @@ export function PlaybackBar() {
 
   const { user } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
+  const ratingBarRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch user's rating for the current track
   useEffect(() => {
@@ -57,6 +60,54 @@ export function PlaybackBar() {
       });
     return () => { cancelled = true; };
   }, [user, currentTrack, currentAlbumMbid]);
+
+  // Fetch artist deezer id for clickable artist link
+  useEffect(() => {
+    if (!currentAlbumMbid) { setArtistDeezerId(null); return; }
+    let cancelled = false;
+    supabase
+      .from('albums_cache')
+      .select('artist_deezer_id')
+      .eq('deezer_id', currentAlbumMbid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setArtistDeezerId(data?.artist_deezer_id ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [currentAlbumMbid]);
+
+  const computeRatingFromEvent = useCallback((clientX: number): number => {
+    const el = ratingBarRef.current;
+    if (!el) return 0;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.max(1, Math.min(10, Math.round(ratio * 10)));
+  }, []);
+
+  const saveRating = useCallback(async (value: number) => {
+    if (!user) {
+      toast({ title: 'Sign in to rate tracks', variant: 'destructive' });
+      return;
+    }
+    if (!currentTrack || !currentAlbumMbid) return;
+    const prev = rating;
+    setRating(value);
+    const { error } = await supabase
+      .from('track_ratings')
+      .upsert({
+        user_id: user.id,
+        album_deezer_id: currentAlbumMbid,
+        track_deezer_id: currentTrack.id ? String(currentTrack.id) : null,
+        track_position: currentTrack.position,
+        track_title: currentTrack.title,
+        rating: value,
+        rated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,album_deezer_id,track_position' });
+    if (error) {
+      setRating(prev);
+      toast({ title: 'Could not save rating', description: error.message, variant: 'destructive' });
+    }
+  }, [user, currentTrack, currentAlbumMbid, rating]);
 
   const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
 
