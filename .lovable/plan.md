@@ -1,26 +1,35 @@
-## Hybrid Architecture Implementation
+## Redesign PlaybackBar layout to match wireframe
 
-### Phase 1: Database Schema
-Create new tables via migration:
-- **`provider_accounts`** — links users to multiple providers (Spotify, Google, Apple) with tokens
-- **`isrc_mapping`** — cross-platform track mapping using ISRC codes
-- Add `primary_provider` and `is_pro` columns to `profiles`
+Update `src/components/player/PlaybackBar.tsx` only — keep current colors/tokens, just restructure layout.
 
-### Phase 2: Google OAuth Login
-- Use Lovable Cloud's managed Google OAuth (configure_social_auth tool)
-- Update AuthPage.tsx with "Sign in with Google" button
-- Store Google provider account in `provider_accounts` on login
+### New layout (3 zones)
 
-### Phase 3: Provider Abstraction Layer
-- Create `src/lib/playbackProvider.ts` — unified playback interface with priority logic:
-  1. Spotify SDK (if Premium) → 2. YouTube IFrame (current fallback)
-- Create `src/lib/metadataProvider.ts` — search abstraction:
-  1. Spotify API (when key available) → 2. MusicBrainz (current)
-- Keep all existing MusicBrainz + YouTube code working as-is
+```text
+[cover] Song            (+)   [shuf] [prev] (PLAY) [next] [rep]    [▓▓▓░░ 7]  [🎤 Off]  [🔊 ▓▓░]
+        Artist name                01:13 ▬▬▬▬▬▬▬▬▬ 03:09           Voice control
+```
 
-### Phase 4: Data Migration Prep
-- Create a migration-ready function that can map existing MusicBrainz IDs to ISRC codes (will execute when Spotify API is connected later)
+**Left zone**
+- Square rounded cover thumbnail (placeholder icon when none) + Song title (bold) / Artist name (muted) stacked.
+- Circular outlined `+` button → wires to existing `AddToPlaylistButton` for the current track.
 
-### What stays unchanged
-- Current search (MusicBrainz), playback (YouTube), ratings, voice assistant all remain functional
-- New architecture layers on top without breaking existing features
+**Center zone**
+- Top row: Shuffle, Prev, Play/Pause (filled dark circular button), Next, Repeat — all inline, evenly spaced.
+- Bottom row: `currentTime  ▬▬▬▬ progress ▬▬▬▬  duration` (slider moved from top edge to below the controls, with times flanking it).
+- Remove the existing full-width thin progress bar at the very top.
+
+**Right zone**
+- Rating indicator: horizontal filled bar (0–10) showing the current track's user rating + numeric value to the right. Read from `track_ratings` via Supabase for the current track (`user_id` + `album_deezer_id` + `track_position`); non-interactive display only.
+- Voice control toggle: mic icon with "Off"/"On" label underneath. Toggles existing `VoiceAssistant` listening state (lift control into PlaybackBar or add a global store). When off, show muted mic with slash.
+- Volume: speaker icon + thin volume slider (existing behavior preserved).
+
+### Behavioral preservation
+- All existing handlers (play/pause, next/prev, seek, volume, shuffle, repeat cycle) unchanged.
+- No color changes — continue using `bg-card/70`, `text-primary`, `text-muted-foreground`, etc.
+- Responsive: on small screens, hide rating bar label and voice-control label, keep icons.
+
+### Files
+- `src/components/player/PlaybackBar.tsx` — restructure JSX + add rating fetch hook + voice toggle wiring.
+- Possibly small addition: expose a `listening` toggle from `VoiceAssistant` (or inline a minimal mic toggle button) so the playback bar can control it.
+
+No DB, routing, or business-logic changes.
