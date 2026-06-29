@@ -24,7 +24,7 @@ export function Header() {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
-    navigate(`/?q=${encodeURIComponent(q)}`);
+    navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
   return (
