@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { YouTubePlayerProvider } from "@/hooks/useYouTubePlayer";
 import { PlaybackBar } from "@/components/player/PlaybackBar";
 import Index from "./pages/Index";
+import SearchPage from "./pages/SearchPage";
 import AuthPage from "./pages/AuthPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
@@ -29,6 +30,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/artist/:id" element={<ArtistPage />} />
