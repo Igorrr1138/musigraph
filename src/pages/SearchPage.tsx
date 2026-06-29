@@ -150,11 +150,11 @@ export default function SearchPage() {
               )}
 
               {(tab === 'all' || tab === 'albums') && (
-                <Section title="Albums" onSeeAll={albums.length > 3 && tab === 'all' ? () => setTab('albums') : undefined}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {(tab === 'all' ? albums.slice(0, 3) : albums).map((al) => (
-                      <AlbumResultCard key={al.id} album={al} />
-                    ))}
+              <Section title="Albums" onSeeAll={albums.length > 4 && tab === 'all' ? () => setTab('albums') : undefined}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {(tab === 'all' ? albums.slice(0, 4) : albums).map((al) => (
+                    <AlbumResultCard key={al.id} album={al} />
+                  ))}
                     {albums.length === 0 && <EmptyRow label="No albums found." />}
                   </div>
                 </Section>
