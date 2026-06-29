@@ -106,10 +106,16 @@ export default function SearchPage() {
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-10">
-            {/* LEFT — Top result (sticky) */}
+        <div className={cn(
+          "grid gap-10",
+          tab === 'all' || tab === 'artists'
+            ? "grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
+            : "grid-cols-1"
+        )}>
+          {/* LEFT — Top result (sticky) */}
+          {(tab === 'all' || tab === 'artists') && (
             <aside className="lg:sticky lg:top-24 self-start">
-              {topArtist && (tab === 'all' || tab === 'artists') ? (
+              {topArtist ? (
                 <TopResultCard artist={topArtist} albumCount={albums.length} trackCount={tracks.length} />
               ) : (
                 <div className="rounded-2xl border border-dashed border-border/40 p-6 text-sm text-muted-foreground">
@@ -117,6 +123,7 @@ export default function SearchPage() {
                 </div>
               )}
             </aside>
+          )}
 
             {/* RIGHT — Content */}
             <div className="space-y-14 min-w-0">
