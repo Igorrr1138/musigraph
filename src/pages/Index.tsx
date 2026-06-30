@@ -1,202 +1,306 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Disc3, TrendingUp, Star, Users } from 'lucide-react';
+import { useEffect, useMemo, useReducer } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Disc3, Plus, Star, Music, ListMusic } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
-import { SearchBar } from '@/components/search/SearchBar';
-import { ArtistCard } from '@/components/music/ArtistCard';
 import { AlbumCard } from '@/components/music/AlbumCard';
-import { searchArtists, searchAlbums, type DeezerArtist, type DeezerAlbum } from '@/lib/deezer';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArtistCard } from '@/components/music/ArtistCard';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getLastReleases,
+  getRecommendedArtists,
+  getRecentlyRated,
+  getHomePlaylists,
+} from '@/lib/homeFeed';
+
+const ROTATING_WORDS = ['Discover', 'Listen', '& Rate'];
+const ROTATION_INTERVAL_MS = 2500;
+
+function useReducedMotion(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function RotatingHeadline() {
+  const reduced = useReducedMotion();
+  const [index, tick] = useReducer((i: number) => (i + 1) % ROTATING_WORDS.length, 0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const id = window.setInterval(tick, ROTATION_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [reduced]);
+
+  const word = reduced ? 'Discover & Rate' : ROTATING_WORDS[index];
+
+  return (
+    <h1 className="text-6xl md:text-8xl font-boldonse tracking-wide leading-[1.05]">
+      {/* Full phrase for SEO / screen readers */}
+      <span className="sr-only">Discover, Listen, &amp; Rate</span>
+      <span aria-hidden="true" className="relative inline-block min-h-[1.05em]">
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={word}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="gradient-text inline-block"
+          >
+            {word}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+    </h1>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-2xl font-boldonse mb-5 uppercase tracking-wider">{children}</h2>
+  );
+}
+
+function GridSkeleton({ count, aspect = 'aspect-square' }: { count: number; aspect?: string }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton className={`${aspect} w-full rounded-xl`} />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const Index = () => {
   const { user } = useAuth();
-  const [isSearching, setIsSearching] = useState(false);
-  const [artists, setArtists] = useState<DeezerArtist[]>([]);
-  const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [searchType, setSearchType] = useState<'artists' | 'albums'>('artists');
+  const userId = user?.id ?? null;
 
-  const handleSearch = async (query: string) => {
-    setIsSearching(true);
-    setHasSearched(true);
+  const lastReleasesQ = useQuery({
+    queryKey: ['home', 'lastReleases', userId],
+    queryFn: () => getLastReleases(userId, 5),
+    staleTime: 5 * 60 * 1000,
+  });
+  const recommendedQ = useQuery({
+    queryKey: ['home', 'recommended', userId],
+    queryFn: () => getRecommendedArtists(userId, 5),
+    staleTime: 5 * 60 * 1000,
+  });
+  const recentlyRatedQ = useQuery({
+    queryKey: ['home', 'recentlyRated', userId],
+    queryFn: () => getRecentlyRated(userId, 3),
+    staleTime: 60 * 1000,
+  });
+  const playlistsQ = useQuery({
+    queryKey: ['home', 'playlists', userId],
+    queryFn: () => getHomePlaylists(userId, 2),
+    staleTime: 60 * 1000,
+    enabled: !!userId,
+  });
 
-    try {
-      if (searchType === 'artists') {
-        const results = await searchArtists(query, 12);
-        setArtists(results);
-        setAlbums([]);
-      } else {
-        const results = await searchAlbums(query, 12);
-        setAlbums(results);
-        setArtists([]);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  const recentlyRated = recentlyRatedQ.data ?? [];
+  const playlists = playlistsQ.data ?? [];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+      <section className="relative pt-32 pb-12 px-4 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         </div>
 
-        <div className="container mx-auto max-w-6xl relative">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-14"
-          >
-            <h1 className="text-6xl md:text-8xl font-boldonse mb-6 tracking-wide">
-              <span className="gradient-text">DISCOVER</span>
-              <br />
-              <span className="text-foreground">&amp; RATE</span>
-            </h1>
-
-            <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
-              Explore millions of artists and albums. Rate your favorites and visualize your musical journey.
-            </p>
-          </motion.div>
-
+        <div className="container mx-auto max-w-7xl relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-3xl"
           >
-            <Tabs value={searchType} onValueChange={(v) => setSearchType(v as 'artists' | 'albums')} className="w-full max-w-2xl mx-auto mb-8">
-              <TabsList className="grid w-full grid-cols-2 bg-secondary/50">
-                <TabsTrigger value="artists" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground uppercase tracking-widest text-xs">
-                  <Users className="w-4 h-4 mr-2" />
-                  Artists
-                </TabsTrigger>
-                <TabsTrigger value="albums" className="data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground uppercase tracking-widest text-xs">
-                  <Disc3 className="w-4 h-4 mr-2" />
-                  Albums
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <SearchBar
-              onSearch={handleSearch}
-              isLoading={isSearching}
-              placeholder={searchType === 'artists' ? 'Search for artists...' : 'Search for albums...'}
-            />
+            <RotatingHeadline />
+            <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl leading-relaxed">
+              Explore millions of artists and albums. Rate your favorites and visualize your musical journey.
+            </p>
           </motion.div>
-
-          {!hasSearched && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16"
-            >
-              {[
-                { icon: Users, label: 'Artists', value: '2M+' },
-                { icon: Disc3, label: 'Albums', value: '3M+' },
-                { icon: Star, label: 'Ratings', value: user ? 'Track yours' : 'Sign in' },
-                { icon: TrendingUp, label: 'Insights', value: 'Visualize' },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="p-6 rounded-2xl bg-card/50 border border-border/30 text-center hover:border-primary/30 transition-all duration-300 group"
-                >
-                  <stat.icon className="w-5 h-5 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
-                  <div className="text-xl font-boldonse gradient-text">{stat.value}</div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
-          )}
         </div>
       </section>
 
-      {hasSearched && (
-        <section className="py-12 px-4">
-          <div className="container mx-auto max-w-6xl">
-            {isSearching ? (
-              <div className="flex items-center justify-center py-20">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Disc3 className="w-12 h-12 text-primary" />
-                </motion.div>
-              </div>
-            ) : (
-              <>
-                {searchType === 'artists' && artists.length > 0 && (() => {
-                  const [best, ...others] = artists;
-                  return (
-                    <>
-                      <div className="mb-12">
-                        <h2 className="text-2xl font-boldonse mb-6 uppercase tracking-wider">Best Match</h2>
-                        <div className="max-w-sm">
-                          <ArtistCard key={best.id} artist={best} index={0} />
-                        </div>
-                      </div>
-
-                      {others.length > 0 && (
-                        <div>
-                          <h2 className="text-lg font-boldonse mb-6 text-muted-foreground uppercase tracking-wider">Other Results</h2>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {others.map((artist, index) => (
-                              <ArtistCard key={artist.id} artist={artist} index={index} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {searchType === 'albums' && albums.length > 0 && (() => {
-                  const [best, ...others] = albums;
-                  return (
-                    <>
-                      <div className="mb-12">
-                        <h2 className="text-2xl font-boldonse mb-6 uppercase tracking-wider">Best Match</h2>
-                        <div className="max-w-[200px]">
-                          <AlbumCard key={best.id} album={best} index={0} />
-                        </div>
-                      </div>
-
-                      {others.length > 0 && (
-                        <div>
-                          <h2 className="text-lg font-boldonse mb-6 text-muted-foreground uppercase tracking-wider">Other Results</h2>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                            {others.map((album, index) => (
-                              <AlbumCard key={album.id} album={album} index={index} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {((searchType === 'artists' && artists.length === 0) ||
-                  (searchType === 'albums' && albums.length === 0)) && (
-                  <div className="text-center py-20">
-                    <Disc3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-boldonse mb-2 uppercase">No results found</h3>
-                    <p className="text-muted-foreground">
-                      Try adjusting your search query
-                    </p>
+      <section className="pb-20 px-4">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-8 lg:gap-10 items-start">
+            {/* LEFT: discovery feed */}
+            <div className="space-y-12 min-w-0">
+              <div>
+                <SectionHeading>Last releases</SectionHeading>
+                {lastReleasesQ.isLoading ? (
+                  <GridSkeleton count={5} />
+                ) : lastReleasesQ.data && lastReleasesQ.data.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {lastReleasesQ.data.map((album, i) => (
+                      <AlbumCard key={album.id} album={album} index={i} />
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No releases to show yet.</p>
                 )}
-              </>
-            )}
+              </div>
+
+              <div>
+                <SectionHeading>Recommended</SectionHeading>
+                {recommendedQ.isLoading ? (
+                  <GridSkeleton count={5} />
+                ) : recommendedQ.data && recommendedQ.data.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {recommendedQ.data.map((artist, i) => (
+                      <ArtistCard key={artist.id} artist={artist} index={i} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {user ? 'Rate a few albums to unlock recommendations.' : 'Sign in to see tailored picks.'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT: stats aside */}
+            <aside className="lg:sticky lg:top-24 rounded-2xl bg-card/50 border border-border/40 p-5 space-y-8">
+              <div>
+                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">
+                  Recently rated
+                </h3>
+                {recentlyRatedQ.isLoading ? (
+                  <div className="space-y-3">
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="flex gap-3 items-center">
+                        <Skeleton className="w-14 h-14 rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentlyRated.length > 0 ? (
+                  <ul className="space-y-3">
+                    {recentlyRated.map(r => (
+                      <li key={r.id}>
+                        <Link
+                          to={r.albumId ? `/album/${r.albumId}` : '#'}
+                          className="flex gap-3 items-center group"
+                        >
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
+                            {r.coverUrl ? (
+                              <img
+                                src={r.coverUrl}
+                                alt={r.albumTitle}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Disc3 className="w-6 h-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">
+                              {r.albumTitle}
+                            </p>
+                            {r.artistName && (
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {r.artistName}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1 text-xs mt-0.5">
+                              <Star className="w-3 h-3 fill-primary text-primary" />
+                              <span className="font-semibold">{r.rating}/10</span>
+                            </div>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {user ? 'Your rated albums will show up here.' : 'Sign in to start rating.'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">
+                  My playlists
+                </h3>
+                {!user ? (
+                  <Link
+                    to="/auth"
+                    className="block text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Sign in to build playlists →
+                  </Link>
+                ) : playlistsQ.isLoading ? (
+                  <div className="space-y-3">
+                    {[0, 1].map(i => (
+                      <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {playlists.map(p => (
+                      <li key={p.id}>
+                        <Link
+                          to={`/dashboard/playlists`}
+                          className="flex gap-3 items-center group"
+                        >
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
+                            {p.coverUrl ? (
+                              <img
+                                src={p.coverUrl}
+                                alt={p.name}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <ListMusic className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">
+                              {p.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Music className="w-3 h-3" />
+                              {p.trackCount} tracks
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                    <li>
+                      <Link
+                        to="/dashboard/playlists"
+                        className="flex gap-3 items-center group text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <div className="w-12 h-12 rounded-full border border-dashed border-border flex items-center justify-center flex-shrink-0">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                        <span className="text-sm font-semibold">Add New Playlist</span>
+                      </Link>
+                    </li>
+                  </ul>
+                )}
+              </div>
+            </aside>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
     </div>
   );
 };
