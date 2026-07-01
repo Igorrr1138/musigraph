@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useReducer } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useReducer, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Disc3, Plus, Star, Music, ListMusic } from 'lucide-react';
+import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { ArtistCard } from '@/components/music/ArtistCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import {
   getLastReleases,
   getRecommendedArtists,
   getRecentlyRated,
   getHomePlaylists,
 } from '@/lib/homeFeed';
+
+const HINT_DISMISS_KEY = 'onboarding_hint_dismissed';
 
 const ROTATING_WORDS = ['Discover', 'Listen', '& Rate'];
 const ROTATION_INTERVAL_MS = 2500;
