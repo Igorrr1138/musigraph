@@ -82,7 +82,34 @@ function GridSkeleton({ count, aspect = 'aspect-square' }: { count: number; aspe
 
 const Index = () => {
   const { user } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const navigate = useNavigate();
   const userId = user?.id ?? null;
+
+  // Gate: send new users to onboarding before they see the homepage.
+  useEffect(() => {
+    if (!user || profileLoading || !profile) return;
+    if (!profile.onboarding_completed) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, profile, profileLoading, navigate]);
+
+  // Hint banner shown when user skipped onboarding without picking any genre.
+  const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(HINT_DISMISS_KEY) === '1';
+  });
+  const showHint =
+    !!user &&
+    !!profile &&
+    profile.onboarding_completed &&
+    (profile.favorite_genres?.length ?? 0) === 0 &&
+    !hintDismissed;
+  const dismissHint = () => {
+    sessionStorage.setItem(HINT_DISMISS_KEY, '1');
+    setHintDismissed(true);
+  };
+
 
   const lastReleasesQ = useQuery({
     queryKey: ['home', 'lastReleases', userId],
