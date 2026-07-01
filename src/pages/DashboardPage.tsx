@@ -9,6 +9,7 @@ import { RatedMusicTab } from '@/components/dashboard/RatedMusicTab';
 import { RatedMusicArtistTab } from '@/components/dashboard/RatedMusicArtistTab';
 import { PlaylistsTab } from '@/components/dashboard/PlaylistsTab';
 import { PlaylistEditor } from '@/components/dashboard/PlaylistEditor';
+import { PreferencesTab } from '@/components/dashboard/PreferencesTab';
 import { useAuth } from '@/hooks/useAuth';
 
 const TAB_MAP: Record<string, DashboardTab> = {
@@ -59,7 +60,7 @@ export default function DashboardPage() {
                 ))}
               {active === 'playlists' &&
                 (subSlug ? <PlaylistEditor /> : <PlaylistsTab />)}
-              {active === 'preferences' && <ComingSoon title="Preferences" />}
+              {active === 'preferences' && <PreferencesTab />}
             </main>
           </div>
         </div>

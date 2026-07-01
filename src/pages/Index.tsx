@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useReducer } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useReducer, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Disc3, Plus, Star, Music, ListMusic } from 'lucide-react';
+import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { AlbumCard } from '@/components/music/AlbumCard';
 import { ArtistCard } from '@/components/music/ArtistCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import {
   getLastReleases,
   getRecommendedArtists,
   getRecentlyRated,
   getHomePlaylists,
 } from '@/lib/homeFeed';
+
+const HINT_DISMISS_KEY = 'onboarding_hint_dismissed';
 
 const ROTATING_WORDS = ['Discover', 'Listen', '& Rate'];
 const ROTATION_INTERVAL_MS = 2500;
@@ -79,7 +82,34 @@ function GridSkeleton({ count, aspect = 'aspect-square' }: { count: number; aspe
 
 const Index = () => {
   const { user } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const navigate = useNavigate();
   const userId = user?.id ?? null;
+
+  // Gate: send new users to onboarding before they see the homepage.
+  useEffect(() => {
+    if (!user || profileLoading || !profile) return;
+    if (!profile.onboarding_completed) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, profile, profileLoading, navigate]);
+
+  // Hint banner shown when user skipped onboarding without picking any genre.
+  const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(HINT_DISMISS_KEY) === '1';
+  });
+  const showHint =
+    !!user &&
+    !!profile &&
+    profile.onboarding_completed &&
+    (profile.favorite_genres?.length ?? 0) === 0 &&
+    !hintDismissed;
+  const dismissHint = () => {
+    sessionStorage.setItem(HINT_DISMISS_KEY, '1');
+    setHintDismissed(true);
+  };
+
 
   const lastReleasesQ = useQuery({
     queryKey: ['home', 'lastReleases', userId],
@@ -110,7 +140,31 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative pt-32 pb-12 px-4 overflow-hidden">
+      {showHint && (
+        <div className="pt-24 px-4">
+          <div className="container mx-auto max-w-7xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+              <Sparkles className="w-4 h-4 text-primary shrink-0" />
+              <p className="flex-1 text-foreground/90">
+                Pick your favorite genres to personalize your feed.{' '}
+                <Link to="/dashboard/preferences" className="text-primary font-semibold hover:underline">
+                  Set up preferences →
+                </Link>
+              </p>
+              <button
+                type="button"
+                onClick={dismissHint}
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section className={`relative ${showHint ? 'pt-12' : 'pt-32'} pb-12 px-4 overflow-hidden`}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
