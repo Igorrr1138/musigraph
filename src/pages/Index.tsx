@@ -140,7 +140,31 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative pt-32 pb-12 px-4 overflow-hidden">
+      {showHint && (
+        <div className="pt-24 px-4">
+          <div className="container mx-auto max-w-7xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+              <Sparkles className="w-4 h-4 text-primary shrink-0" />
+              <p className="flex-1 text-foreground/90">
+                Pick your favorite genres to personalize your feed.{' '}
+                <Link to="/dashboard/preferences" className="text-primary font-semibold hover:underline">
+                  Set up preferences →
+                </Link>
+              </p>
+              <button
+                type="button"
+                onClick={dismissHint}
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section className={`relative ${showHint ? 'pt-12' : 'pt-32'} pb-12 px-4 overflow-hidden`}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
