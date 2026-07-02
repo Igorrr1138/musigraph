@@ -38,7 +38,7 @@ export function PlaybackBar() {
   const { user } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const [voiceOn, setVoiceOn] = useState(false);
+  const preDuckVolumeRef = useRef<number | null>(null);
   const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
   const ratingBarRef = useRef<HTMLDivElement | null>(null);
 
