@@ -55,12 +55,14 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-5 ml-auto">
-            <a
-              href="#"
-              className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            <Link
+              to="/pricing"
+              className={`hidden md:inline text-sm uppercase tracking-wider transition-colors ${
+                isActive('/pricing') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               Pricing
-            </a>
+            </Link>
             <a
               href="#"
               className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
