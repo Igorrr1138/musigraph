@@ -263,7 +263,7 @@ export function PlaybackBar() {
 
           {/* Voice control */}
           <button
-            onClick={() => setVoiceOn(v => !v)}
+            onClick={toggleVoice}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Toggle voice control"
           >
