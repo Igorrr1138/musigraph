@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
+import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
 import { cn } from '@/lib/utils';
 import { cleanTrackTitle } from '@/lib/cleanMetadata';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
