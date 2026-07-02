@@ -9,6 +9,7 @@ import { PlaybackBar } from "@/components/player/PlaybackBar";
 import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import PricingPage from "./pages/PricingPage";
 import AuthPage from "./pages/AuthPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ArtistPage from "./pages/ArtistPage";
