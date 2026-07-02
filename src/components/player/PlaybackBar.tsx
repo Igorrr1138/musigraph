@@ -112,6 +112,20 @@ export function PlaybackBar() {
 
   const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
 
+  const { enabled: voiceOn, voiceState, toggle: toggleVoice } = useVoiceAssistant({
+    onRatingDetected: (r) => { void saveRating(r); },
+    onDuckVolume: (ducked) => {
+      if (ducked) {
+        if (preDuckVolumeRef.current === null) preDuckVolumeRef.current = volume;
+        setVolume(Math.min(volume, 20));
+      } else if (preDuckVolumeRef.current !== null) {
+        setVolume(preDuckVolumeRef.current);
+        preDuckVolumeRef.current = null;
+      }
+    },
+    hasActiveTrack: !!currentTrack,
+  });
+
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
     if (volume < 50) return <Volume1 className="w-4 h-4" />;
