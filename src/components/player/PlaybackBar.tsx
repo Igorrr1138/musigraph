@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
+import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
 import { cn } from '@/lib/utils';
 import { cleanTrackTitle } from '@/lib/cleanMetadata';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
@@ -37,7 +38,7 @@ export function PlaybackBar() {
   const { user } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const [voiceOn, setVoiceOn] = useState(false);
+  const preDuckVolumeRef = useRef<number | null>(null);
   const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
   const ratingBarRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +111,20 @@ export function PlaybackBar() {
   }, [user, currentTrack, currentAlbumMbid, rating]);
 
   const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
+
+  const { enabled: voiceOn, voiceState, toggle: toggleVoice } = useVoiceAssistant({
+    onRatingDetected: (r) => { void saveRating(r); },
+    onDuckVolume: (ducked) => {
+      if (ducked) {
+        if (preDuckVolumeRef.current === null) preDuckVolumeRef.current = volume;
+        setVolume(Math.min(volume, 20));
+      } else if (preDuckVolumeRef.current !== null) {
+        setVolume(preDuckVolumeRef.current);
+        preDuckVolumeRef.current = null;
+      }
+    },
+    hasActiveTrack: !!currentTrack,
+  });
 
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
@@ -248,15 +263,17 @@ export function PlaybackBar() {
 
           {/* Voice control */}
           <button
-            onClick={() => setVoiceOn(v => !v)}
+            onClick={toggleVoice}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Toggle voice control"
           >
             <div className="flex items-center gap-1.5">
-              {voiceOn ? <Mic className="w-4 h-4 text-primary" /> : <MicOff className="w-4 h-4" />}
-              <span className="text-xs font-medium">{voiceOn ? 'On' : 'Off'}</span>
+              {voiceOn ? <Mic className={cn("w-4 h-4", voiceState === 'active' ? 'text-primary animate-pulse' : 'text-primary')} /> : <MicOff className="w-4 h-4" />}
+              <span className="text-xs font-medium">{voiceOn ? (voiceState === 'active' ? 'Listening…' : 'On') : 'Off'}</span>
             </div>
-            <span className="text-[10px] leading-none hidden md:inline">Voice control</span>
+            <span className="text-[10px] leading-none hidden md:inline">
+              {voiceOn ? 'Say "wake up" then 1–10' : 'Voice control'}
+            </span>
           </button>
 
           {/* Volume */}
