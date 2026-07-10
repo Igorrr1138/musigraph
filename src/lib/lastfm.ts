@@ -207,9 +207,44 @@ interface LastfmAlbumInfoResponse {
   album?: {
     name?: string;
     releasedate?: string;
+    wiki?: {
+      summary?: string;
+      content?: string;
+      published?: string;
+    };
   };
   error?: number;
   message?: string;
+}
+
+/**
+ * Extract an original release date from Last.fm's wiki summary text.
+ * Last.fm dropped the structured `releasedate` field, but the wiki blurb
+ * still opens with phrases like:
+ *   "…released on July 27, 1984, by Megaforce Records."
+ *   "…released on 27 July 1984…"
+ *   "…released in 1984…"
+ * We parse those into YYYY-MM-DD. This is our primary source of original
+ * (non-remaster) dates now that `releasedate` is gone.
+ */
+function parseReleaseFromWiki(text: string | undefined): string | null {
+  if (!text) return null;
+  // "released on July 27, 1984" / "released July 27, 1984"
+  const monthFirst = text.match(/\breleased\s+(?:on\s+)?([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
+  if (monthFirst) {
+    const parsed = parseLastfmDate(monthFirst[1]);
+    if (parsed) return parsed;
+  }
+  // "released on 27 July 1984"
+  const dayFirst = text.match(/\breleased\s+(?:on\s+)?(\d{1,2}\s+[A-Za-z]+\s+\d{4})/i);
+  if (dayFirst) {
+    const parsed = parseLastfmDate(dayFirst[1]);
+    if (parsed) return parsed;
+  }
+  // "released in 1984" / "released on 1984"
+  const yearOnly = text.match(/\breleased\s+(?:on\s+|in\s+)?(\d{4})\b/i);
+  if (yearOnly) return `${yearOnly[1]}-01-01`;
+  return null;
 }
 
 const MONTH_MAP: Record<string, string> = {
@@ -280,7 +315,14 @@ function fetchAlbumDateFromLastfm(
       if (!res.ok) return null;
       const json = (await res.json()) as LastfmAlbumInfoResponse;
       if (json.error) return null;
-      return parseLastfmDate(json.album?.releasedate);
+      // Primary: legacy `releasedate` field (still present for some albums).
+      // Fallback: parse the wiki summary/content — Last.fm removed the
+      // structured date for most albums but the wiki blurb still contains it.
+      return (
+        parseLastfmDate(json.album?.releasedate) ??
+        parseReleaseFromWiki(json.album?.wiki?.summary) ??
+        parseReleaseFromWiki(json.album?.wiki?.content)
+      );
     } catch {
       return null;
     }
