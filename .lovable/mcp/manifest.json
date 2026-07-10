@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.1",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://wyhogaetnnvbwnrjficz.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "soundvault-mcp",
+      "version": "0.1.0",
+      "title": "SoundVault"
+    },
+    "tools": [
+      {
+        "name": "search_music",
+        "title": "Search music",
+        "description": "Search for artists, albums, or tracks on Deezer (the catalog SoundVault uses).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search text."
+            },
+            "type": {
+              "default": "album",
+              "description": "What to search for.",
+              "type": "string",
+              "enum": [
+                "artist",
+                "album",
+                "track"
+              ]
+            },
+            "limit": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_ratings",
+        "title": "List my album ratings",
+        "description": "List the signed-in user's album ratings from SoundVault, most recent first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 20,
+              "description": "Max ratings to return (1-100).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "min_rating": {
+              "description": "Optional minimum rating filter (1-10).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "rate_album",
+        "title": "Rate an album",
+        "description": "Create or update an album rating (1-10) for the signed-in user. Requires the Deezer album id, album title, and artist name.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "album_deezer_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Deezer album id (string)."
+            },
+            "album_title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "artist_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rating": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "cover_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "album_deezer_id",
+            "album_title",
+            "artist_name",
+            "rating"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_my_profile",
+        "title": "Get my profile",
+        "description": "Return the signed-in user's SoundVault profile with a summary of how many albums they have rated.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

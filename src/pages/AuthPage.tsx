@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Music2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
@@ -39,6 +39,7 @@ const resetSchema = z.object({ email: emailSchema });
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { signIn, signUp, resetPassword, user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
@@ -50,9 +51,14 @@ const AuthPage = () => {
     username: '',
   });
 
+  // Safe same-origin relative path only.
+  const rawNext = searchParams.get('next');
+  const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
+  const postAuthRedirect = `${window.location.origin}${nextPath}`;
+
   // Redirect if already logged in
   if (user) {
-    navigate('/');
+    navigate(nextPath);
     return null;
   }
 
@@ -103,7 +109,7 @@ const AuthPage = () => {
             title: 'Welcome back!',
             description: 'You have been signed in successfully.',
           });
-          navigate('/');
+          navigate(nextPath);
         }
       } else {
         const parsed = signUpSchema.safeParse({
@@ -132,7 +138,7 @@ const AuthPage = () => {
             title: 'Account created!',
             description: 'Welcome to SoundVault. Start rating your favorite music!',
           });
-          navigate('/');
+          navigate(nextPath);
         }
       }
     } catch (error) {
@@ -290,7 +296,7 @@ const AuthPage = () => {
                 setIsLoading(true);
                 try {
                   const result = await lovable.auth.signInWithOAuth("google", {
-                    redirect_uri: window.location.origin,
+                    redirect_uri: postAuthRedirect,
                   });
 
                   if (result.error) {
@@ -315,7 +321,7 @@ const AuthPage = () => {
                   }
 
                   toast({ title: 'Welcome!', description: 'Signed in with Google.' });
-                  navigate('/');
+                  navigate(nextPath);
                 } catch {
                   toast({
                     title: 'Error',
