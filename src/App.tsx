@@ -19,6 +19,7 @@ import DiscographyMapPage from "./pages/DiscographyMapPage";
 import ArtistRatingsPage from "./pages/ArtistRatingsPage";
 import GenrePage from "./pages/GenrePage";
 import NotFound from "./pages/NotFound";
+import OAuthConsentPage from "./pages/OAuthConsentPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/discography-map" element={<DiscographyMapPage />} />
               <Route path="/genre" element={<GenrePage />} />
               <Route path="/genre/:slug" element={<GenrePage />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PlaybackBar />
