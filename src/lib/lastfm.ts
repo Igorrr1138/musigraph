@@ -227,7 +227,7 @@ interface LastfmAlbumInfoResponse {
  * We parse those into YYYY-MM-DD. This is our primary source of original
  * (non-remaster) dates now that `releasedate` is gone.
  */
-function parseReleaseFromWiki(text: string | undefined): string | null {
+export function parseReleaseFromWiki(text: string | undefined): string | null {
   if (!text) return null;
   // "released on July 27, 1984" / "released July 27, 1984"
   const monthFirst = text.match(/\breleased\s+(?:on\s+)?([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
