@@ -8,6 +8,7 @@ import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistAlbums, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
+import { annotateOriginalYearFast, enrichAlbumsWithOriginalYear } from "@/lib/metadata";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -133,11 +134,21 @@ const ArtistPage = () => {
       }
     });
 
-    getArtistAlbums(id, 100).then((data) => {
-      if (!cancelled) {
-        setAlbums(data);
-        setIsLoadingAlbums(false);
-      }
+    getArtistAlbums(id, 100).then(async (data) => {
+      if (cancelled) return;
+      // Fast synchronous pass: derive original_year from release_date for
+      // titles that clearly aren't reissues. Renders immediately.
+      const fast = annotateOriginalYearFast(data);
+      setAlbums(fast);
+      setIsLoadingAlbums(false);
+
+      // Background pass: fetch true original years from Last.fm for reissue-
+      // looking titles + studio albums / EPs. Session-cached, concurrency-
+      // limited — does not block the initial paint.
+      const artistName = data.find((a) => a.artist?.name)?.artist?.name;
+      if (!artistName) return;
+      const enriched = await enrichAlbumsWithOriginalYear(fast, artistName);
+      if (!cancelled) setAlbums(enriched);
     });
 
     return () => {
