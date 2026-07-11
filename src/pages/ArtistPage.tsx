@@ -122,10 +122,13 @@ const ArtistPage = () => {
     setOtherTab("all");
     setActiveTab("discography");
 
+    let resolvedArtistName: string | null = null;
+
     getArtist(id).then((data) => {
       if (cancelled) return;
       setArtist(data);
       setIsLoadingArtist(false);
+      resolvedArtistName = data?.name ?? null;
 
       if (data?.name) {
         getArtistTags(id, data.name).then((t) => {
@@ -144,8 +147,10 @@ const ArtistPage = () => {
 
       // Background pass: fetch true original years from Last.fm for reissue-
       // looking titles + studio albums / EPs. Session-cached, concurrency-
-      // limited — does not block the initial paint.
-      const artistName = data.find((a) => a.artist?.name)?.artist?.name;
+      // limited — does not block the initial paint. Falls back to the
+      // resolved artist name when Deezer omits `artist` on album items.
+      const artistName =
+        data.find((a) => a.artist?.name)?.artist?.name ?? resolvedArtistName;
       if (!artistName) return;
       const enriched = await enrichAlbumsWithOriginalYear(fast, artistName);
       if (!cancelled) setAlbums(enriched);

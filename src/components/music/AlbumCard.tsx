@@ -70,10 +70,10 @@ export function AlbumCard({ album, index = 0, rating, showRating }: AlbumCardPro
                 {artistName}
               </p>
             )}
-            {album.release_date && (
+            {(album.original_year || album.release_date) && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="w-3 h-3" />
-                {album.release_date.split('-')[0]}
+                {album.original_year ? String(album.original_year) : album.release_date!.split('-')[0]}
               </div>
             )}
           </div>
