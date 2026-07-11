@@ -8,6 +8,7 @@ import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistAlbums, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
+import { annotateOriginalYearFast, enrichAlbumsWithOriginalYear } from "@/lib/metadata";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
