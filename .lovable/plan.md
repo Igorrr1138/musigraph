@@ -1,102 +1,105 @@
+## Diagnosis
 
-# Onboarding — Favorite Genres
+The remaining "wrong years" are **not a caching problem**. `LASTFM_DATE_CACHE` is in-memory and resets on every page load, so there is nothing stale to clear.
 
-Build a full-screen onboarding step users see once after sign-up and after email-confirmation sign-in, plus wire the same genre-picker into the existing (currently stubbed) Preferences dashboard tab. Users can skip; when they do, the homepage shows a subtle nudge to finish setup in Preferences.
+The real issues are two:
 
-## 1. Data model
+### 1. `AlbumCard` never reads `original_year`
 
-New migration (single call):
+`src/components/music/AlbumCard.tsx` line 73–78 renders the year straight from `album.release_date`:
 
-- Add columns to `public.profiles`:
-  - `favorite_genres text[] not null default '{}'`
-  - `onboarding_completed boolean not null default false`
-- Existing profile RLS already covers per-user read/write. No new table.
+```tsx
+{album.release_date && (
+  <div ...>
+    <Calendar className="w-3 h-3" />
+    {album.release_date.split('-')[0]}
+  </div>
+)}
+```
 
-Genres are stored as canonical lowercase keys from `src/lib/genreWhitelist.ts` (`WhitelistedGenre.key`), so they round-trip cleanly with the existing genre pages.
+So even when `ArtistPage` enriches the album with the correct `original_year` (e.g. 1984 for "Ride the Lightning"), the card still shows the Deezer catalog year (e.g. 2016). `original_year` is currently only used for `chronoSort` and `activeYears`, which is why the sort order looks right but the printed year on each tile is wrong.
 
-## 2. Route + gating
+### 2. Enrichment can silently skip when the album payload has no nested `artist`
 
-- New route `/onboarding` → `src/pages/OnboardingPage.tsx`. Auth-required (redirect to `/auth` if no user).
-- `useAuth` gains a lightweight `profile` fetch (single row from `profiles` for `auth.uid()`) exposed via a new `useProfile()` hook in `src/hooks/useProfile.tsx` (React Query). Returns `{ favorite_genres, onboarding_completed, loading, refetch }`.
-- Gating logic in `src/pages/Index.tsx` (and after login redirects in `AuthPage`): once `user` is loaded and `profile.onboarding_completed === false`, `navigate('/onboarding', { replace: true })`. This satisfies "after sign-up AND after email-confirmation sign-in" because both paths land on `/` with a fresh session and empty profile flag.
-- `AuthPage` post-sign-in redirect: change from `navigate('/')` to a shared helper that checks the flag then routes.
+`ArtistPage.tsx` derives the artist name like this:
 
-## 3. Reusable genre picker
+```ts
+const artistName = data.find((a) => a.artist?.name)?.artist?.name;
+if (!artistName) return;
+```
 
-New component `src/components/onboarding/FavoriteGenresPicker.tsx` — the wireframe's UI, reused by both `/onboarding` and the Preferences dashboard tab.
+For some artists Deezer's `/artist/{id}/albums` items don't include `artist` on every entry (or on any). In that case `enrichAlbumsWithOriginalYear` is skipped entirely and only the fast (non-reissue) path fills `original_year`. Reissue-marked titles like "Absolution XX Anniversary" or "Simulation Theory (Super Deluxe)" then keep the Deezer year forever.
 
-Behavior modeled from the reference frames:
+## Changes
 
-- Header shows brand mark + "Rankify"-style title (we keep our brand — "Discover & Rate" wordmark) — matches app aesthetic (Boldonse heading, dark warm palette; the reference is a light wireframe but we stay on-brand per project memory).
-- H1 "Favorite genres" + subtitle "Choose up to 5 genres. You can always change them in your preferences."
-- Search input (`Input` + magnifier icon) with autocomplete dropdown of top parent categories + sub-genres from `ALL_WHITELISTED_GENRES` (fuzzy startsWith + includes).
-- Selected genres render as large rounded tiles in a centered row (wrapping to next row after 4 on lg). Click a tile to deselect.
-- Below the tiles, a "Related genres" chip row: shows sub-genres of the most-recently-added tile's parent category (pulled from `GENRE_DATABASE[category]`), excluding already-selected ones. Clicking a chip adds it as a tile (respecting the 5-item cap; the chip's cursor + tooltip communicates the limit when full).
-- Enforce max 5 with a toast when a 6th is attempted.
-- Empty state: shows a default 6-tile row (Rock, Pop, Hip-Hop & Rap, Electronic, Jazz, Classical) as starter choices before any selection.
-- Component API:
-  ```ts
-  interface FavoriteGenresPickerProps {
-    initial: string[];
-    onSave: (genres: string[]) => Promise<void>;
-    onSkip?: () => void;                // hides Skip when omitted (Preferences tab)
-    saveLabel?: string;                 // "Save and proceed" | "Save changes"
-  }
-  ```
-- Footer: floating "Skip for now" (bottom-left of viewport, only when `onSkip` provided) and "Save and proceed →" primary button (bottom-right). In the Preferences tab both live inline at the bottom of the section instead of floating.
+### `src/components/music/AlbumCard.tsx`
+Prefer `original_year` when present, fall back to `release_date` year:
 
-## 4. `/onboarding` page
+```tsx
+const displayYear =
+  album.original_year
+    ? String(album.original_year)
+    : album.release_date
+      ? album.release_date.split('-')[0]
+      : null;
 
-`OnboardingPage.tsx`:
+{displayYear && (
+  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+    <Calendar className="w-3 h-3" />
+    {displayYear}
+  </div>
+)}
+```
 
-- Renders `FavoriteGenresPicker` full-bleed on a min-h-screen container, no `Header` (matches the reference, keeps the moment focused).
-- `onSave`: `update profiles set favorite_genres = $1, onboarding_completed = true where user_id = auth.uid()`, then `navigate('/', { replace: true })`.
-- `onSkip`: `update profiles set onboarding_completed = true` (no genres saved), then `navigate('/', { replace: true })`. This satisfies "never show again — hint on homepage instead".
+### `src/pages/ArtistPage.tsx`
+Use the already-loaded `artist` state as the fallback artist name for the enrichment pass, so it runs regardless of whether Deezer nested the artist inside each album:
 
-## 5. Preferences dashboard tab
+```ts
+getArtistAlbums(id, 100).then(async (data) => {
+  if (cancelled) return;
+  const fast = annotateOriginalYearFast(data);
+  setAlbums(fast);
+  setIsLoadingAlbums(false);
 
-Replace the `ComingSoon` placeholder in `DashboardPage.tsx` with a new `PreferencesTab` component (`src/components/dashboard/PreferencesTab.tsx`):
+  const artistName =
+    data.find((a) => a.artist?.name)?.artist?.name ?? artist?.name;
+  if (!artistName) return;
+  const enriched = await enrichAlbumsWithOriginalYear(fast, artistName);
+  if (!cancelled) setAlbums(enriched);
+});
+```
 
-- Section heading "Favorite genres" + short helper text.
-- Renders `FavoriteGenresPicker` with `initial={profile.favorite_genres}`, no `onSkip`, `saveLabel="Save changes"`. Persists via the same UPDATE (without touching `onboarding_completed`).
-- Toast confirmation on save.
+(Read `artist?.name` via a ref or via the closure — the current `useEffect` already sets `artist` in a parallel `.then`, so we'll capture it via a small `latestArtistNameRef` set alongside `setArtist`, or simply await `getArtist` before kicking off enrichment. Simpler: pass the artist name from the `getArtist` result as a fallback via a shared local variable in the effect.)
 
-## 6. Homepage hint (skip fallback)
+Concretely, restructure the effect so both fetches share one `artistNameFromArtist` variable:
 
-In `src/pages/Index.tsx`, when `profile.onboarding_completed === true` **and** `favorite_genres.length === 0`, render a dismissible banner above the hero:
+```ts
+let resolvedArtistName: string | null = null;
 
-> "Pick your favorite genres to personalize your feed → [Set up preferences]"
+getArtist(id).then((data) => {
+  if (cancelled) return;
+  setArtist(data);
+  setIsLoadingArtist(false);
+  resolvedArtistName = data?.name ?? null;
+  if (data?.name) getArtistTags(id, data.name).then((t) => { if (!cancelled) setTags(t); });
+});
 
-The link points to `/dashboard/preferences`. Dismissal is session-scoped (`sessionStorage`), so it reappears next visit until they save at least one genre. No new DB flag needed.
+getArtistAlbums(id, 100).then(async (data) => {
+  if (cancelled) return;
+  const fast = annotateOriginalYearFast(data);
+  setAlbums(fast);
+  setIsLoadingAlbums(false);
 
-## 7. SEO / a11y
+  const artistName =
+    data.find((a) => a.artist?.name)?.artist?.name ?? resolvedArtistName;
+  if (!artistName) return;
+  const enriched = await enrichAlbumsWithOriginalYear(fast, artistName);
+  if (!cancelled) setAlbums(enriched);
+});
+```
 
-- `/onboarding` `<title>` = "Set up your favorite genres — Discover & Rate", meta description matches.
-- H1 remains "Favorite genres".
-- Search input has `aria-label`, dropdown is a proper `role="listbox"` with keyboard nav (ArrowUp/Down, Enter, Esc). Tiles are `<button>` elements with `aria-pressed`.
+## Not doing
 
-## 8. Styling
-
-Stays on brand (dark warm palette, Boldonse headings, Space Grotesk body, glassmorphism cards) — the light wireframes are structural reference only, per project memory. All colors via existing tokens in `index.css`.
-
-## 9. Files touched
-
-New:
-- `src/pages/OnboardingPage.tsx`
-- `src/components/onboarding/FavoriteGenresPicker.tsx`
-- `src/components/dashboard/PreferencesTab.tsx`
-- `src/hooks/useProfile.tsx`
-
-Edited:
-- `src/App.tsx` — add `/onboarding` route
-- `src/pages/DashboardPage.tsx` — mount `PreferencesTab` in the preferences slot
-- `src/pages/AuthPage.tsx` — post-login redirect goes through the onboarding check
-- `src/pages/Index.tsx` — onboarding gate + optional homepage hint banner
-- Migration for `profiles.favorite_genres` + `profiles.onboarding_completed`
-
-No new dependencies. No changes to Header, PlaybackBar, or other tabs.
-
-## Out of scope
-
-- Other preference categories (rating criteria weights, playback provider) — this pass only lands the genre step.
-- Onboarding analytics/telemetry.
+- **Not clearing `LASTFM_DATE_CACHE`.** It is per-session and already gets refetched on reload; clearing it just makes every artist page slower and wouldn't change any output.
+- **Not touching `getArtistAlbums` in `deezer.ts`.** It already applies Last.fm correction to `release_date`; the failure mode is purely on the display / enrichment-trigger side.
+- **Not touching `AlbumPage`.** The user's complaint is about the artist page's album grid; AlbumPage can be handled separately if needed.
