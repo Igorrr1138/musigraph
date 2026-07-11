@@ -39,6 +39,8 @@ export interface DeezerAlbum {
   cover_xl?: string;
   release_date?: string;
   record_type?: string;
+  /** Original release year (from Last.fm), set client-side to override Deezer's remaster year. */
+  original_year?: number;
   nb_tracks?: number;
   artist?: DeezerArtist;
   tracks?: { data: DeezerTrack[] };
