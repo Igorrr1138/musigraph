@@ -333,6 +333,23 @@ function fetchAlbumDateFromLastfm(
 }
 
 /**
+ * Single-album variant of `getOriginalReleaseDateMap`. Returns the original
+ * release year (number) for one album, or null if unknown. Session-cached via
+ * the same `LASTFM_DATE_CACHE` used by the batch helper, so repeat calls with
+ * the same (artist, title) pair are free.
+ */
+export async function fetchOriginalAlbumYear(
+  artistName: string,
+  cleanTitle: string,
+): Promise<number | null> {
+  if (!artistName || !cleanTitle) return null;
+  const iso = await fetchAlbumDateFromLastfm(artistName, cleanTitle);
+  if (!iso) return null;
+  const y = parseInt(iso.slice(0, 4), 10);
+  return Number.isFinite(y) ? y : null;
+}
+
+/**
  * Fetch the original release dates for a list of albums from Last.fm's
  * `album.getinfo` endpoint.
  *
