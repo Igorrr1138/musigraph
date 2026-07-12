@@ -37,8 +37,12 @@ export interface DeezerAlbum {
   cover_xl?: string;
   release_date?: string;
   record_type?: string;
-  /** Original release year (from Last.fm), set client-side to override Deezer's remaster year. */
+  /** Original release year (from Wikidata P577 primary, Deezer year fallback). */
   original_year?: number;
+  /** Set by the pipeline: title carries Deluxe/Expanded/Remastered markers. */
+  is_deluxe?: boolean;
+  /** From Deezer's `explicit_lyrics` when available. */
+  is_explicit?: boolean;
   nb_tracks?: number;
   artist?: DeezerArtist;
   tracks?: { data: DeezerTrack[] };
@@ -248,72 +252,13 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
 }
 
 /**
- * Fetch all albums for an artist from Deezer, then correct any release dates
- * that Deezer reports as the remaster year instead of the original year.
- *
- * Date correction strategy:
- *  1. Collect all studio albums / EPs (the types Deezer most commonly mislabels).
- *  2. Call Last.fm album.getinfo for each (batched, 4 concurrent, session-cached).
- *  3. Apply the Last.fm date when it is strictly earlier than Deezer's date.
- *  4. Persist any changed dates back to albums_cache so the Ratings page chart
- *     X-axis (which reads albums_cache.release_date) reflects the real year.
+ * Fetch all albums for an artist from Deezer. Raw data only — chronological
+ * corrections, dedup, and genre enrichment all happen downstream in
+ * `musicPipeline.ts` using Wikidata as the primary source.
  */
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
-    const albums = await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
-    const artistName = albums.find(a => a.artist?.name)?.artist?.name;
-    if (!artistName) return albums;
-
-    // Only look up dates for album/EP types — those are the ones Deezer
-    // commonly mislabels with the remaster year (e.g. Kill 'Em All → 2016).
-    const lookupAlbums = albums
-      .filter(a => {
-        const rt = (a.record_type ?? '').toLowerCase();
-        return rt === 'album' || rt === 'ep';
-      })
-      .map(a => ({
-        normalizedTitle: normalizeAlbumTitle(a.title),
-        cleanTitle: getCleanTitle(a.title),
-      }));
-
-    const originalDates = await getOriginalReleaseDateMap(artistName, lookupAlbums);
-    if (originalDates.size === 0) return albums;
-
-    // Apply corrected dates — never push a date *forward*, only earlier.
-    const corrected = albums.map(album => {
-      const normalized = normalizeAlbumTitle(album.title);
-      const originalDate = originalDates.get(normalized);
-      if (!originalDate) return album;
-      const currentDate = album.release_date ?? '9999-12-31';
-      return originalDate < currentDate
-        ? { ...album, release_date: originalDate }
-        : album;
-    });
-
-    // Persist corrected release_dates to albums_cache so the Ratings page chart
-    // X-axis (which reads albums_cache.release_date) uses the real original year.
-    // We only upsert the rows that actually changed to avoid unnecessary writes.
-    const changed = corrected.filter((a, i) => a.release_date !== albums[i].release_date);
-    if (changed.length > 0) {
-      void supabase
-        .from('albums_cache')
-        .upsert(
-          changed.map(album => ({
-            deezer_id: String(album.id),
-            title: album.title,
-            release_date: album.release_date ?? null,
-            artist_name: album.artist?.name ?? artistName,
-            artist_deezer_id: album.artist?.id ? String(album.artist.id) : deezerId,
-            cached_at: new Date().toISOString(),
-          })),
-          { onConflict: 'deezer_id' },
-        )
-        .then(({ error }) => {
-          if (error) console.warn('[Deezer] corrected date cache write error:', error);
-        });
-    }
-
-    return corrected;
+    return await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
   } catch (err) {
     console.error('[Deezer] getArtistAlbums failed:', err);
     return [];
