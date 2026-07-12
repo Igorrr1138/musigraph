@@ -1,16 +1,14 @@
 /**
  * Deezer API client (browser-side via JSONP to bypass CORS).
  *
- * Deezer is the primary source for search, visuals, and track lists.
- * Original release dates — which Deezer sometimes reports as the remaster year
- * rather than the original release year for catalog re-releases — are corrected
- * in getArtistAlbums() via Last.fm's album.getinfo API and then persisted back
- * to albums_cache so the Ratings chart X-axis stays accurate.
+ * Deezer is the DATA LAYER of the purification pipeline: it supplies album
+ * lists, tracklists, covers, and artist visuals. Historical release
+ * chronology and genre hierarchy come from Wikidata (see `wikidata.ts`) and
+ * are merged onto these payloads by `musicPipeline.ts`. This module no
+ * longer performs any Last.fm date correction of its own.
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeAlbumTitle, getCleanTitle } from './discography';
-import { getOriginalReleaseDateMap } from './lastfm';
 
 const DEEZER_BASE = 'https://api.deezer.com';
 const JSONP_TIMEOUT_MS = 10_000;
