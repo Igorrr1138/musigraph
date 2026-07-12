@@ -328,7 +328,12 @@ const ArtistPage = () => {
     { id: "similar", label: "Similar Artists" },
   ];
 
-  const genres = resolveGenres(tags, 5, artist.name);
+  // Wikidata P136 is our primary genre source; Last.fm tags are the fallback.
+  const genres = resolveGenres(
+    wikidataGenres.length > 0 ? wikidataGenres : tags,
+    5,
+    artist.name,
+  );
   const artistType = (artist.type ?? "artist").toLowerCase() === "artist" ? "Artist" : "Group";
 
   return (
