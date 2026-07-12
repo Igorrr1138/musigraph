@@ -127,7 +127,7 @@ export async function getArtistDiscography(
           artist_deezer_id: deezerId,
           wikidata_qid: qid,
           source: payload.source,
-          data: payload as unknown as Record<string, unknown>,
+          data: payload as unknown as import('@/integrations/supabase/types').Database['public']['Tables']['music_cache']['Insert']['data'],
           cached_at: new Date().toISOString(),
         },
       ],
