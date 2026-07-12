@@ -5,10 +5,10 @@ import { Disc3, User, MapPin, Calendar, Music2, ArrowRight } from "lucide-react"
 
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
-import { getArtist, getArtistAlbums, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
+import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
-import { annotateOriginalYearFast, enrichAlbumsWithOriginalYear } from "@/lib/metadata";
+import { getArtistDiscography } from "@/lib/musicPipeline";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
