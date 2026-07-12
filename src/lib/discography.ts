@@ -212,51 +212,52 @@ export function classifyAlbum(
   }
 }
 
-// ---------- De-duplication ----------
+// ---------- De-duplication (edition priority) ----------
 
 /**
- * Keep only the earliest-released variant of each normalized title.
- * Tiebreakers (when two variants share a release_date):
- *   1. Prefer the title that does NOT look like a reissue / variant
- *      (so "Album" wins over "Album (Deluxe)" if both are dated 2016).
- *   2. Fall back to lexical title order for full determinism.
+ * Collapse variants of the same album (same normalized title) to a single
+ * canonical entry using an *edition-priority* score:
+ *
+ *   +4  if the album is flagged Explicit (`is_explicit === true`)
+ *   +2  if the album is a Deluxe / Expanded / Remastered variant
+ *
+ * The higher-scoring edition wins. Ties are broken by earlier Deezer
+ * `release_date`, then by lexical title order for full determinism.
+ *
+ * Rationale:
+ *   • Explicit > Clean/Edited so statistics reflect the artist's real work.
+ *   • Deluxe > Standard so we retain unique studio bonus tracks; the
+ *     Deluxe-vs-Standard tracklist noise is stripped downstream by
+ *     `purifyTracks` in `src/lib/purify.ts`.
+ *
+ * Historical chronology is preserved independently via `original_year`
+ * (from Wikidata P577), so choosing the Deluxe edition here doesn't move
+ * the album on the timeline.
  */
-export function dedupePreferOldest<T extends DeezerAlbum>(albums: T[]): T[] {
+export function dedupeByEditionPriority<T extends DeezerAlbum>(albums: T[]): T[] {
   const byKey = new Map<string, T>();
 
-  const score = (album: T): { date: string; isVariant: boolean; title: string } => ({
-    date: album.release_date ?? '9999-12-31',
-    isVariant: looksLikeVariant(album.title ?? ''),
-    title: album.title ?? '',
-  });
+  const editionScore = (album: T): number =>
+    (album.is_explicit === true ? 4 : 0) + (looksLikeVariant(album.title ?? '') ? 2 : 0);
 
   for (const album of albums) {
     const key = normalizeAlbumTitle(album.title);
     const existing = byKey.get(key);
-    if (!existing) {
-      byKey.set(key, album);
-      continue;
-    }
+    if (!existing) { byKey.set(key, album); continue; }
 
-    const a = score(existing);
-    const b = score(album);
+    const s1 = editionScore(existing);
+    const s2 = editionScore(album);
+    if (s2 > s1) { byKey.set(key, album); continue; }
+    if (s2 < s1) continue;
 
-    // Prefer the older release_date.
-    if (b.date < a.date) {
-      byKey.set(key, album);
-      continue;
-    }
-    if (b.date > a.date) continue;
+    // Tie on edition score — prefer earlier Deezer release_date.
+    const d1 = existing.release_date ?? '9999-12-31';
+    const d2 = album.release_date ?? '9999-12-31';
+    if (d2 < d1) { byKey.set(key, album); continue; }
+    if (d2 > d1) continue;
 
-    // Same date — prefer the non-variant title (e.g. "Album" over "Album (Deluxe)").
-    if (a.isVariant && !b.isVariant) {
-      byKey.set(key, album);
-      continue;
-    }
-    if (!a.isVariant && b.isVariant) continue;
-
-    // Final tiebreak: lexical title order, so the result is stable.
-    if (b.title.localeCompare(a.title) < 0) byKey.set(key, album);
+    // Final tiebreak: lexical order for determinism.
+    if ((album.title ?? '').localeCompare(existing.title ?? '') < 0) byKey.set(key, album);
   }
 
   return Array.from(byKey.values());
@@ -323,12 +324,12 @@ export function buildDiscography(
     arr.map(a => ({ ...a, title: getCleanTitle(a.title) }));
 
   return {
-    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.studio))),
-    eps:            cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.ep))),
-    singles:        sortByReleaseDateAsc(dedupePreferOldest(buckets.single)),
-    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration))),
-    live:           sortByReleaseDateAsc(dedupePreferOldest(buckets.live)),
-    compilations:   sortByReleaseDateAsc(dedupePreferOldest(buckets.compilation)),
+    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.studio))),
+    eps:            cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.ep))),
+    singles:        sortByReleaseDateAsc(dedupeByEditionPriority(buckets.single)),
+    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.collaboration))),
+    live:           sortByReleaseDateAsc(dedupeByEditionPriority(buckets.live)),
+    compilations:   sortByReleaseDateAsc(dedupeByEditionPriority(buckets.compilation)),
   };
 }
 
