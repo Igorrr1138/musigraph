@@ -5,10 +5,10 @@ import { Disc3, User, MapPin, Calendar, Music2, ArrowRight } from "lucide-react"
 
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
-import { getArtist, getArtistAlbums, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
+import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
-import { annotateOriginalYearFast, enrichAlbumsWithOriginalYear } from "@/lib/metadata";
+import { getArtistDiscography } from "@/lib/musicPipeline";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +100,7 @@ const ArtistPage = () => {
 
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
+  const [wikidataGenres, setWikidataGenres] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
 
@@ -137,24 +138,20 @@ const ArtistPage = () => {
       }
     });
 
-    getArtistAlbums(id, 100).then(async (data) => {
+    // New pipeline: Wikidata-primary chronology + genres, Deezer as data layer,
+    // result cached in Supabase `music_cache` for 30 days. Fully awaited here
+    // because the payload arrives from the cache in a single query on warm
+    // hits — cold hits fan out Wikidata calls internally.
+    (async () => {
+      const payload = await getArtistDiscography(
+        id,
+        resolvedArtistName ?? undefined,
+      );
       if (cancelled) return;
-      // Fast synchronous pass: derive original_year from release_date for
-      // titles that clearly aren't reissues. Renders immediately.
-      const fast = annotateOriginalYearFast(data);
-      setAlbums(fast);
+      setAlbums(payload.albums);
+      setWikidataGenres(payload.wikidata_genres);
       setIsLoadingAlbums(false);
-
-      // Background pass: fetch true original years from Last.fm for reissue-
-      // looking titles + studio albums / EPs. Session-cached, concurrency-
-      // limited — does not block the initial paint. Falls back to the
-      // resolved artist name when Deezer omits `artist` on album items.
-      const artistName =
-        data.find((a) => a.artist?.name)?.artist?.name ?? resolvedArtistName;
-      if (!artistName) return;
-      const enriched = await enrichAlbumsWithOriginalYear(fast, artistName);
-      if (!cancelled) setAlbums(enriched);
-    });
+    })();
 
     return () => {
       cancelled = true;
@@ -331,7 +328,12 @@ const ArtistPage = () => {
     { id: "similar", label: "Similar Artists" },
   ];
 
-  const genres = resolveGenres(tags, 5, artist.name);
+  // Wikidata P136 is our primary genre source; Last.fm tags are the fallback.
+  const genres = resolveGenres(
+    wikidataGenres.length > 0 ? wikidataGenres : tags,
+    5,
+    artist.name,
+  );
   const artistType = (artist.type ?? "artist").toLowerCase() === "artist" ? "Artist" : "Group";
 
   return (

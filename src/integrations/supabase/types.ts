@@ -235,6 +235,33 @@ export type Database = {
         }
         Relationships: []
       }
+      music_cache: {
+        Row: {
+          artist_deezer_id: string
+          cached_at: string
+          data: Json
+          source: string
+          updated_at: string
+          wikidata_qid: string | null
+        }
+        Insert: {
+          artist_deezer_id: string
+          cached_at?: string
+          data: Json
+          source?: string
+          updated_at?: string
+          wikidata_qid?: string | null
+        }
+        Update: {
+          artist_deezer_id?: string
+          cached_at?: string
+          data?: Json
+          source?: string
+          updated_at?: string
+          wikidata_qid?: string | null
+        }
+        Relationships: []
+      }
       playlist_tracks: {
         Row: {
           added_at: string

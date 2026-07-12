@@ -154,81 +154,12 @@ export function looksLikeVariant(title: string): boolean {
 }
 
 // ---------- Tracklist purification ----------
+//
+// The track-level cleaning contract (title sanitization, non-musical
+// exclusion, contextual duplicate filter, duration floor) now lives in
+// `src/lib/purify.ts`. Callers should import `purifyTracks` from there.
 
-/**
- * Track-title patterns that identify a bonus / non-core track:
- *   • Live recordings  : (Live), [Live], "Live at…", "Live from…"
- *   • Demos            : Demo
- *   • Rough mixes      : Rough Mix
- *   • Fan-club extras  : Outtake
- *   • Remixes          : (Remix), [Remix], "- Remix"
- *
- * Matching is case-insensitive and uses \b word-boundary guards so that
- * a track called "Alive" or "Deliver" is never accidentally filtered.
- */
-const BONUS_TRACK_PATTERNS: RegExp[] = [
-  /\blive\b/i,       // (Live), [Live], Live at…, Live from…
-  /\bdemo\b/i,
-  /\bremix\b/i,
-  /\brough\s+mix\b/i,
-  /\bouttake\b/i,
-];
 
-function isBonusTrack(title: string): boolean {
-  return BONUS_TRACK_PATTERNS.some(p => p.test(title));
-}
-
-/**
- * Return the "core" tracklist for an album, stripping bonus / live tracks.
- *
- * **Step 1 — keyword filter** (always applied): remove any track whose title
- * matches Live / Demo / Remix / Rough Mix / Outtake.
- *
- * **Step 2 — strict trim** (only when `isDeluxe` is true): walk the
- * keyword-filtered list in order. If `track_position` jumps by more than 1
- * between two consecutive tracks, everything from that gap onward is treated
- * as a bonus disc and trimmed. This handles deluxe editions that append an
- * entire second disc of live or acoustic material without obvious title labels.
- * Falls back to the full keyword-filtered list when `track_position` is
- * unavailable or the gap heuristic cannot fire (< 2 tracks remaining).
- *
- * @param tracks    Raw `DeezerTrack[]` from the album payload.
- * @param isDeluxe  Pass `true` when `looksLikeVariant(album.title)` is true.
- */
-export function filterTrackList(
-  tracks: DeezerTrack[],
-  isDeluxe: boolean,
-): DeezerTrack[] {
-  // ── Step 1: keyword filter ─────────────────────────────────────────────────
-  const core = tracks.filter(t => !isBonusTrack(t.title ?? ''));
-
-  if (!isDeluxe || core.length === tracks.length) {
-    // Nothing was removed, or this is not a variant — no further trimming.
-    return core;
-  }
-
-  // ── Step 2: position-gap trim (deluxe strict mode) ─────────────────────────
-  // Walk core[] in Deezer order. The first gap of > 1 in track_position marks
-  // the start of bonus material (e.g. disc 2 of a deluxe edition).
-  let cutoff = core.length;
-  let prevPos: number | null = null;
-
-  for (let i = 0; i < core.length; i++) {
-    const pos = core[i].track_position ?? null;
-    if (pos === null) {
-      // No position data — cannot trim reliably; keep everything.
-      cutoff = core.length;
-      break;
-    }
-    if (prevPos !== null && pos > prevPos + 1) {
-      cutoff = i;
-      break;
-    }
-    prevPos = pos;
-  }
-
-  return core.slice(0, cutoff);
-}
 
 // ---------- Categorization ----------
 
@@ -281,51 +212,52 @@ export function classifyAlbum(
   }
 }
 
-// ---------- De-duplication ----------
+// ---------- De-duplication (edition priority) ----------
 
 /**
- * Keep only the earliest-released variant of each normalized title.
- * Tiebreakers (when two variants share a release_date):
- *   1. Prefer the title that does NOT look like a reissue / variant
- *      (so "Album" wins over "Album (Deluxe)" if both are dated 2016).
- *   2. Fall back to lexical title order for full determinism.
+ * Collapse variants of the same album (same normalized title) to a single
+ * canonical entry using an *edition-priority* score:
+ *
+ *   +4  if the album is flagged Explicit (`is_explicit === true`)
+ *   +2  if the album is a Deluxe / Expanded / Remastered variant
+ *
+ * The higher-scoring edition wins. Ties are broken by earlier Deezer
+ * `release_date`, then by lexical title order for full determinism.
+ *
+ * Rationale:
+ *   • Explicit > Clean/Edited so statistics reflect the artist's real work.
+ *   • Deluxe > Standard so we retain unique studio bonus tracks; the
+ *     Deluxe-vs-Standard tracklist noise is stripped downstream by
+ *     `purifyTracks` in `src/lib/purify.ts`.
+ *
+ * Historical chronology is preserved independently via `original_year`
+ * (from Wikidata P577), so choosing the Deluxe edition here doesn't move
+ * the album on the timeline.
  */
-export function dedupePreferOldest<T extends DeezerAlbum>(albums: T[]): T[] {
+export function dedupeByEditionPriority<T extends DeezerAlbum>(albums: T[]): T[] {
   const byKey = new Map<string, T>();
 
-  const score = (album: T): { date: string; isVariant: boolean; title: string } => ({
-    date: album.release_date ?? '9999-12-31',
-    isVariant: looksLikeVariant(album.title ?? ''),
-    title: album.title ?? '',
-  });
+  const editionScore = (album: T): number =>
+    (album.is_explicit === true ? 4 : 0) + (looksLikeVariant(album.title ?? '') ? 2 : 0);
 
   for (const album of albums) {
     const key = normalizeAlbumTitle(album.title);
     const existing = byKey.get(key);
-    if (!existing) {
-      byKey.set(key, album);
-      continue;
-    }
+    if (!existing) { byKey.set(key, album); continue; }
 
-    const a = score(existing);
-    const b = score(album);
+    const s1 = editionScore(existing);
+    const s2 = editionScore(album);
+    if (s2 > s1) { byKey.set(key, album); continue; }
+    if (s2 < s1) continue;
 
-    // Prefer the older release_date.
-    if (b.date < a.date) {
-      byKey.set(key, album);
-      continue;
-    }
-    if (b.date > a.date) continue;
+    // Tie on edition score — prefer earlier Deezer release_date.
+    const d1 = existing.release_date ?? '9999-12-31';
+    const d2 = album.release_date ?? '9999-12-31';
+    if (d2 < d1) { byKey.set(key, album); continue; }
+    if (d2 > d1) continue;
 
-    // Same date — prefer the non-variant title (e.g. "Album" over "Album (Deluxe)").
-    if (a.isVariant && !b.isVariant) {
-      byKey.set(key, album);
-      continue;
-    }
-    if (!a.isVariant && b.isVariant) continue;
-
-    // Final tiebreak: lexical title order, so the result is stable.
-    if (b.title.localeCompare(a.title) < 0) byKey.set(key, album);
+    // Final tiebreak: lexical order for determinism.
+    if ((album.title ?? '').localeCompare(existing.title ?? '') < 0) byKey.set(key, album);
   }
 
   return Array.from(byKey.values());
@@ -392,12 +324,12 @@ export function buildDiscography(
     arr.map(a => ({ ...a, title: getCleanTitle(a.title) }));
 
   return {
-    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.studio))),
-    eps:            cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.ep))),
-    singles:        sortByReleaseDateAsc(dedupePreferOldest(buckets.single)),
-    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupePreferOldest(buckets.collaboration))),
-    live:           sortByReleaseDateAsc(dedupePreferOldest(buckets.live)),
-    compilations:   sortByReleaseDateAsc(dedupePreferOldest(buckets.compilation)),
+    studioAlbums:   cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.studio))),
+    eps:            cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.ep))),
+    singles:        sortByReleaseDateAsc(dedupeByEditionPriority(buckets.single)),
+    collaborations: cleanDisplay(sortByReleaseDateAsc(dedupeByEditionPriority(buckets.collaboration))),
+    live:           sortByReleaseDateAsc(dedupeByEditionPriority(buckets.live)),
+    compilations:   sortByReleaseDateAsc(dedupeByEditionPriority(buckets.compilation)),
   };
 }
 

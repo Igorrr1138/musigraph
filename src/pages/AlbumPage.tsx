@@ -15,9 +15,9 @@ import {
 } from '@/lib/deezer';
 import {
   resolveOriginalAlbumId,
-  filterTrackList,
   looksLikeVariant,
 } from '@/lib/discography';
+import { purifyTracks } from '@/lib/purify';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -471,11 +471,14 @@ const AlbumPage = () => {
       });
   }, [user, id]);
 
-  /* Filtered tracks (drop bonus/deluxe noise from the main list) */
+  /* Purified tracks (title sanitization, non-musical/short-track exclusion,
+     contextual duplicate filter for Deluxe/Expanded editions). */
   const tracks = useMemo<DeezerTrack[]>(() => {
     if (!album?.tracks?.data) return [];
-    const isDeluxe = looksLikeVariant(album.title ?? '');
-    return filterTrackList(album.tracks.data, isDeluxe);
+    const rt = (album.record_type ?? '').toLowerCase();
+    const isSingleOrEP = rt === 'single' || rt === 'ep';
+    const isDeluxeOrExpanded = looksLikeVariant(album.title ?? '');
+    return purifyTracks(album.tracks.data, { isSingleOrEP, isDeluxeOrExpanded });
   }, [album]);
 
   const ratedScores = useMemo(() => Object.values(trackRatings), [trackRatings]);
