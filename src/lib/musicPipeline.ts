@@ -122,13 +122,15 @@ export async function getArtistDiscography(
   void supabase
     .from('music_cache')
     .upsert(
-      {
-        artist_deezer_id: deezerId,
-        wikidata_qid: qid,
-        source: payload.source,
-        data: payload as unknown as Record<string, unknown>,
-        cached_at: new Date().toISOString(),
-      },
+      [
+        {
+          artist_deezer_id: deezerId,
+          wikidata_qid: qid,
+          source: payload.source,
+          data: payload as unknown as Record<string, unknown>,
+          cached_at: new Date().toISOString(),
+        },
+      ],
       { onConflict: 'artist_deezer_id' },
     )
     .then(({ error }) => {
