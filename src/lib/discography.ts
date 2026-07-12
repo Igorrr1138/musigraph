@@ -154,81 +154,12 @@ export function looksLikeVariant(title: string): boolean {
 }
 
 // ---------- Tracklist purification ----------
+//
+// The track-level cleaning contract (title sanitization, non-musical
+// exclusion, contextual duplicate filter, duration floor) now lives in
+// `src/lib/purify.ts`. Callers should import `purifyTracks` from there.
 
-/**
- * Track-title patterns that identify a bonus / non-core track:
- *   • Live recordings  : (Live), [Live], "Live at…", "Live from…"
- *   • Demos            : Demo
- *   • Rough mixes      : Rough Mix
- *   • Fan-club extras  : Outtake
- *   • Remixes          : (Remix), [Remix], "- Remix"
- *
- * Matching is case-insensitive and uses \b word-boundary guards so that
- * a track called "Alive" or "Deliver" is never accidentally filtered.
- */
-const BONUS_TRACK_PATTERNS: RegExp[] = [
-  /\blive\b/i,       // (Live), [Live], Live at…, Live from…
-  /\bdemo\b/i,
-  /\bremix\b/i,
-  /\brough\s+mix\b/i,
-  /\bouttake\b/i,
-];
 
-function isBonusTrack(title: string): boolean {
-  return BONUS_TRACK_PATTERNS.some(p => p.test(title));
-}
-
-/**
- * Return the "core" tracklist for an album, stripping bonus / live tracks.
- *
- * **Step 1 — keyword filter** (always applied): remove any track whose title
- * matches Live / Demo / Remix / Rough Mix / Outtake.
- *
- * **Step 2 — strict trim** (only when `isDeluxe` is true): walk the
- * keyword-filtered list in order. If `track_position` jumps by more than 1
- * between two consecutive tracks, everything from that gap onward is treated
- * as a bonus disc and trimmed. This handles deluxe editions that append an
- * entire second disc of live or acoustic material without obvious title labels.
- * Falls back to the full keyword-filtered list when `track_position` is
- * unavailable or the gap heuristic cannot fire (< 2 tracks remaining).
- *
- * @param tracks    Raw `DeezerTrack[]` from the album payload.
- * @param isDeluxe  Pass `true` when `looksLikeVariant(album.title)` is true.
- */
-export function filterTrackList(
-  tracks: DeezerTrack[],
-  isDeluxe: boolean,
-): DeezerTrack[] {
-  // ── Step 1: keyword filter ─────────────────────────────────────────────────
-  const core = tracks.filter(t => !isBonusTrack(t.title ?? ''));
-
-  if (!isDeluxe || core.length === tracks.length) {
-    // Nothing was removed, or this is not a variant — no further trimming.
-    return core;
-  }
-
-  // ── Step 2: position-gap trim (deluxe strict mode) ─────────────────────────
-  // Walk core[] in Deezer order. The first gap of > 1 in track_position marks
-  // the start of bonus material (e.g. disc 2 of a deluxe edition).
-  let cutoff = core.length;
-  let prevPos: number | null = null;
-
-  for (let i = 0; i < core.length; i++) {
-    const pos = core[i].track_position ?? null;
-    if (pos === null) {
-      // No position data — cannot trim reliably; keep everything.
-      cutoff = core.length;
-      break;
-    }
-    if (prevPos !== null && pos > prevPos + 1) {
-      cutoff = i;
-      break;
-    }
-    prevPos = pos;
-  }
-
-  return core.slice(0, cutoff);
-}
 
 // ---------- Categorization ----------
 
