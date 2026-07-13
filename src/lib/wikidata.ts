@@ -1,14 +1,14 @@
 /**
- * Wikidata SPARQL client — primary source for historical release chronology
- * (P577 "publication date") and artist genre hierarchy (P136 "genre").
+ * Wikidata SPARQL client — PRIMARY source of the discography skeleton.
  *
- * We resolve the artist QID first via the Deezer-ID property (P2722), then
- * fall back to the Wikidata search API (wbsearchentities). All requests are
- * bounded by a short timeout and any failure returns null/[] so the pipeline
- * can gracefully fall back to Deezer/Last.fm data.
+ * The pipeline in `musicPipeline.ts` drives album chronology, classification
+ * (album / EP / single), and genre from Wikidata; Deezer is used only to
+ * enrich each Wikidata release with cover art, IDs, and tracklists.
  *
- * Nothing here is persisted directly — the orchestrator in `musicPipeline.ts`
- * caches the merged payload in the `music_cache` Supabase table.
+ * We resolve the artist QID via the Deezer-ID property (P2722) first, then
+ * fall back to `wbsearchentities`. Every SPARQL request is bounded by a
+ * short timeout and any failure returns null/[] so the caller can degrade
+ * gracefully to a Deezer-only path.
  */
 
 const WD_SPARQL = 'https://query.wikidata.org/sparql';
@@ -40,10 +40,9 @@ async function sparql(query: string, timeoutMs = DEFAULT_TIMEOUT): Promise<Sparq
 }
 
 /**
- * Resolve the Wikidata QID for a Deezer artist. Primary path uses
- * `P2722` (Deezer artist ID). Fallback uses the search API filtered to items
- * whose description mentions a music-related occupation. Returns null when
- * both paths fail.
+ * Resolve the Wikidata QID for a Deezer artist. Primary path: `P2722`
+ * (Deezer artist ID). Fallback: search API filtered to music-related
+ * descriptions. Returns null when both paths fail.
  */
 export async function findArtistQid(
   deezerId: string,
@@ -68,55 +67,99 @@ export async function findArtistQid(
   }
 }
 
-export interface WikidataAlbum {
+export type WikidataRecordType = 'album' | 'ep' | 'single' | 'live' | 'compilation';
+
+export interface WikidataRelease {
   qid: string;
   title: string;
   /** ISO date (YYYY-MM-DD) — earliest known P577. */
   date?: string;
   year?: number;
+  /** Classification derived from P31 (subclass-aware). */
+  record_type: WikidataRecordType;
 }
 
+const P31_TO_TYPE: Record<string, WikidataRecordType> = {
+  Q482994: 'album',        // album
+  Q208569: 'album',        // studio album
+  Q222910: 'ep',           // extended play
+  Q134556: 'single',       // single
+  Q108352648: 'single',    // promotional single
+  Q1885014: 'live',        // live album
+  Q216337: 'live',         // concert film / live release
+  Q209939: 'compilation',  // compilation album
+  Q217199: 'compilation',  // greatest hits album
+};
+
 /**
- * Fetch every release the artist performed on (P175), constrained to items
- * that are transitively an "album" (Q482994) — this includes studio albums,
- * EPs, and live albums via P279 subclass chains. Returns the *earliest*
- * P577 date per album, which is the "historical" original release year.
+ * Fetch the artist's full release skeleton in a SINGLE SPARQL query:
+ * every release they performed on (P175) whose P31 (or a P279 ancestor)
+ * is one of the known release classes. Returns earliest P577 date and
+ * a derived record_type. Silent on error — caller decides fallback.
  */
-export async function fetchArtistAlbums(qid: string): Promise<WikidataAlbum[]> {
+export async function fetchArtistReleases(qid: string): Promise<WikidataRelease[]> {
+  const releaseUnion = Object.keys(P31_TO_TYPE).map((q) => `wd:${q}`).join(' ');
   const q = `
-    SELECT ?album ?albumLabel (MIN(?date) AS ?first) WHERE {
-      ?album wdt:P175 wd:${qid} ;
-             wdt:P31/wdt:P279* wd:Q482994 .
-      OPTIONAL { ?album wdt:P577 ?date . }
+    SELECT ?release ?releaseLabel ?type (MIN(?date) AS ?first) WHERE {
+      VALUES ?type { ${releaseUnion} }
+      ?release wdt:P175 wd:${qid} ;
+               wdt:P31/wdt:P279* ?type .
+      OPTIONAL { ?release wdt:P577 ?date . }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul,fr,de,es". }
-    } GROUP BY ?album ?albumLabel
+    } GROUP BY ?release ?releaseLabel ?type
   `;
   const r = await sparql(q);
   const rows = r?.results?.bindings ?? [];
-  const out: WikidataAlbum[] = [];
+
+  // A release can match multiple P31 rows (e.g. "album" + "live album").
+  // Merge by QID and prefer the more specific record_type.
+  const specificity: Record<WikidataRecordType, number> = {
+    live: 4, compilation: 4, ep: 3, single: 3, album: 1,
+  };
+  const merged = new Map<string, WikidataRelease>();
   for (const row of rows) {
-    const uri = row.album?.value ?? '';
-    const albumQid = uri.split('/').pop() ?? '';
-    const title = row.albumLabel?.value ?? '';
-    if (!albumQid || !title) continue;
+    const uri = row.release?.value ?? '';
+    const rQid = uri.split('/').pop() ?? '';
+    const title = row.releaseLabel?.value ?? '';
+    if (!rQid || !title) continue;
+
+    const typeQid = (row.type?.value ?? '').split('/').pop() ?? '';
+    const recordType = P31_TO_TYPE[typeQid] ?? 'album';
+
     const rawDate = row.first?.value;
     const date = rawDate?.slice(0, 10);
     const yearNum = date ? parseInt(date.slice(0, 4), 10) : NaN;
-    out.push({
-      qid: albumQid,
-      title,
-      date,
-      year: Number.isFinite(yearNum) ? yearNum : undefined,
-    });
+    const year = Number.isFinite(yearNum) ? yearNum : undefined;
+
+    const prev = merged.get(rQid);
+    if (!prev) {
+      merged.set(rQid, { qid: rQid, title, date, year, record_type: recordType });
+      continue;
+    }
+    if (specificity[recordType] > specificity[prev.record_type]) {
+      prev.record_type = recordType;
+    }
+    if (year && (!prev.year || year < prev.year)) {
+      prev.year = year;
+      prev.date = date;
+    }
   }
-  return out;
+
+  return Array.from(merged.values());
 }
 
 /**
- * Fetch the artist's direct P136 (genre) values. We deliberately do not walk
- * the full P279 subclass hierarchy here — the direct labels are already the
- * canonical parent genre (e.g. "heavy metal", "thrash metal"), and expanding
- * the hierarchy would blow the badge count into the dozens.
+ * @deprecated Kept as a thin alias for existing callers; the pipeline uses
+ * `fetchArtistReleases` which returns the full record-type-classified list.
+ */
+export async function fetchArtistAlbums(qid: string): Promise<WikidataRelease[]> {
+  return fetchArtistReleases(qid);
+}
+export type WikidataAlbum = WikidataRelease;
+
+/**
+ * Fetch the artist's direct P136 (genre) values. Direct labels only — we
+ * don't walk P279 subclass chains, they explode the count into dozens.
  */
 export async function fetchArtistGenres(qid: string): Promise<string[]> {
   const q = `
