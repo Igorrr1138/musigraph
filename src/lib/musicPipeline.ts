@@ -250,8 +250,9 @@ export async function getArtistDiscography(
     fetched_at: new Date().toISOString(),
   };
 
-  // 5. Persist (fire-and-forget — never block the UI on cache writes).
-  void supabase
+  // 5. Persist. On force refresh we await to guarantee the old row is
+  //    overwritten before returning; otherwise fire-and-forget.
+  const upsertPromise = supabase
     .from('music_cache')
     .upsert(
       [
@@ -268,6 +269,12 @@ export async function getArtistDiscography(
     .then(({ error }) => {
       if (error) console.warn('[music_cache] upsert error:', error);
     });
+
+  if (forceRefresh) {
+    await upsertPromise;
+  } else {
+    void upsertPromise;
+  }
 
   return payload;
 }
