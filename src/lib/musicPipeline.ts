@@ -227,11 +227,18 @@ export async function getArtistDiscography(
       else deezerByKey.set(key, [d]);
     }
 
-    mergedAlbums = wdReleases.map((rel) => {
-      const key = normalizeAlbumTitle(rel.title);
-      const best = pickBestEdition(deezerByKey.get(key) ?? []);
-      return mergeWikidataWithDeezer(rel, best);
-    });
+    mergedAlbums = wdReleases
+      .map((rel) => {
+        const key = normalizeAlbumTitle(rel.title);
+        const best = pickBestEdition(deezerByKey.get(key) ?? []);
+        // Drop metadata-only releases we can't back with streaming data —
+        // they'd render as blank, unclickable cards otherwise. `nb_tracks`
+        // may be undefined here (Deezer's album-list endpoint often omits
+        // it), so a Deezer match alone is a sufficient viability signal.
+        if (!best) return null;
+        return mergeWikidataWithDeezer(rel, best);
+      })
+      .filter((a): a is DeezerAlbum => a !== null);
     source = 'wikidata';
   } else {
     // GRACEFUL FALLBACK --------------------------------------------------
