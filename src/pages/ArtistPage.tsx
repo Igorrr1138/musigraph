@@ -436,6 +436,16 @@ const ArtistPage = () => {
                       <Music2 className="w-4 h-4" /> {artist.nb_fan.toLocaleString()} fans
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={handleForceRefresh}
+                    disabled={isRefreshing}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/40 hover:bg-secondary text-foreground text-xs px-3 py-1 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Re-fetch metadata from Wikidata and overwrite cache"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                    {isRefreshing ? "Syncing…" : "Sync Metadata"}
+                  </button>
                 </div>
               </motion.div>
             </div>
