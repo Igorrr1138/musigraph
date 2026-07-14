@@ -79,31 +79,50 @@ export interface WikidataRelease {
   record_type: WikidataRecordType;
 }
 
+/**
+ * STRICT allow-list of P31 (instance of) release classes we accept.
+ * No P279 subclass walking — that leaks bootlegs, tours, and demo tapes
+ * into the discography. If Wikidata models a release under a niche
+ * subclass we don't list, we prefer to miss it over polluting the UI.
+ */
 const P31_TO_TYPE: Record<string, WikidataRecordType> = {
   Q482994: 'album',        // album
-  Q208569: 'album',        // studio album
-  Q222910: 'ep',           // extended play
+  Q169930: 'ep',           // extended play (EP)
   Q134556: 'single',       // single
-  Q108352648: 'single',    // promotional single
-  Q1885014: 'live',        // live album
-  Q216337: 'live',         // concert film / live release
-  Q209939: 'compilation',  // compilation album
-  Q217199: 'compilation',  // greatest hits album
+  Q300994: 'compilation',  // compilation album
+  Q209939: 'live',         // live album
 };
 
 /**
- * Fetch the artist's full release skeleton in a SINGLE SPARQL query:
- * every release they performed on (P175) whose P31 (or a P279 ancestor)
- * is one of the known release classes. Returns earliest P577 date and
- * a derived record_type. Silent on error — caller decides fallback.
+ * P31 classes that DISQUALIFY a release even if it also matches an
+ * allowed class. Prevents concert tours ("Absolution Tour"), bootlegs,
+ * and fan-made releases from appearing on the artist page.
+ */
+const P31_EXCLUDE = [
+  'Q841201',   // concert tour
+  'Q893113',   // bootleg recording
+  'Q56816954', // concert residency
+  'Q182832',   // concert
+  'Q1445650',  // holiday
+];
+
+/**
+ * Fetch the artist's release skeleton in a SINGLE SPARQL query. Uses a
+ * strict P31 VALUES allow-list (no P279* walk) and a FILTER NOT EXISTS
+ * exclusion list. Silent on error — caller decides fallback.
  */
 export async function fetchArtistReleases(qid: string): Promise<WikidataRelease[]> {
   const releaseUnion = Object.keys(P31_TO_TYPE).map((q) => `wd:${q}`).join(' ');
+  const excludeUnion = P31_EXCLUDE.map((q) => `wd:${q}`).join(' ');
   const q = `
     SELECT ?release ?releaseLabel ?type (MIN(?date) AS ?first) WHERE {
       VALUES ?type { ${releaseUnion} }
       ?release wdt:P175 wd:${qid} ;
-               wdt:P31/wdt:P279* ?type .
+               wdt:P31 ?type .
+      FILTER NOT EXISTS {
+        ?release wdt:P31 ?bad .
+        VALUES ?bad { ${excludeUnion} }
+      }
       OPTIONAL { ?release wdt:P577 ?date . }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul,fr,de,es". }
     } GROUP BY ?release ?releaseLabel ?type
