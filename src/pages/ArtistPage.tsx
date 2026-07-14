@@ -106,10 +106,27 @@ const ArtistPage = () => {
 
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [otherTab, setOtherTab] = useState<OtherTab>("all");
   const [activeTab, setActiveTab] = useState<SecondaryTab>("discography");
   const discoRef = useRef<HTMLDivElement>(null);
+
+  const handleForceRefresh = async () => {
+    if (!id || isRefreshing) return;
+    setIsRefreshing(true);
+    setIsLoadingAlbums(true);
+    try {
+      const payload = await getArtistDiscography(id, artist?.name, { forceRefresh: true });
+      setAlbums(payload.albums);
+      setWikidataGenres(payload.wikidata_genres);
+    } catch (err) {
+      console.error("[ArtistPage] force refresh failed:", err);
+    } finally {
+      setIsLoadingAlbums(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
