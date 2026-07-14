@@ -147,17 +147,22 @@ function deezerOnlyPayload(albums: DeezerAlbum[]): DeezerAlbum[] {
 export async function getArtistDiscography(
   deezerId: string,
   artistName?: string,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<PurifiedDiscographyPayload> {
-  // 1. Warm-cache read.
-  const { data: cached } = await supabase
-    .from('music_cache')
-    .select('*')
-    .eq('artist_deezer_id', deezerId)
-    .maybeSingle<MusicCacheRow>();
+  const { forceRefresh = false } = options;
 
-  if (cached?.data) {
-    const age = Date.now() - new Date(cached.cached_at).getTime();
-    if (age < MUSIC_CACHE_TTL_MS) return cached.data;
+  // 1. Warm-cache read (skipped on force refresh).
+  if (!forceRefresh) {
+    const { data: cached } = await supabase
+      .from('music_cache')
+      .select('*')
+      .eq('artist_deezer_id', deezerId)
+      .maybeSingle<MusicCacheRow>();
+
+    if (cached?.data) {
+      const age = Date.now() - new Date(cached.cached_at).getTime();
+      if (age < MUSIC_CACHE_TTL_MS) return cached.data;
+    }
   }
 
   // 2. Resolve Wikidata QID first — cheap query, gates the SPARQL fan-out.
