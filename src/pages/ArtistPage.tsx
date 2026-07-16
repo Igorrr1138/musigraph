@@ -9,6 +9,7 @@ import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from 
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
 import { getArtistDiscography } from "@/lib/musicPipeline";
+import { getArtistBio, type ArtistBio } from "@/lib/bio";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
