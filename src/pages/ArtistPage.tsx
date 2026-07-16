@@ -145,6 +145,9 @@ const ArtistPage = () => {
     setArtist(null);
     setAlbums([]);
     setTags([]);
+    setWikidataQid(null);
+    setBio(null);
+    setBioAttempted(false);
     setOtherTab("all");
     setActiveTab("discography");
 
