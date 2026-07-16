@@ -125,6 +125,9 @@ const ArtistPage = () => {
       const payload = await getArtistDiscography(id, artist?.name, { forceRefresh: true });
       setAlbums(payload.albums);
       setWikidataGenres(payload.wikidata_genres);
+      setWikidataQid(payload.wikidata_qid);
+      setBio(null);
+      setBioAttempted(false);
     } catch (err) {
       console.error("[ArtistPage] force refresh failed:", err);
     } finally {
