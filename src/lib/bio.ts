@@ -1,10 +1,9 @@
 /**
- * Artist biography loader — Wikidata → Wikipedia (primary), Last.fm (fallback).
+ * Artist biography loader — Last.fm (primary), Wikidata → Wikipedia (fallback).
  *
- * 1. If we have a Wikidata QID, resolve the English Wikipedia sitelink via
- *    SPARQL and fetch the REST summary endpoint (short, plain-text extract).
- * 2. Otherwise, or if Wikipedia has no page, fall back to Last.fm's
- *    `artist.getInfo` bio.content (HTML — we strip tags).
+ * 1. Try Last.fm's `artist.getInfo` (bio.content, HTML — we strip tags).
+ * 2. If Last.fm has nothing usable AND we have a Wikidata QID, resolve the
+ *    English Wikipedia sitelink via SPARQL and fetch the REST summary.
  */
 
 const LASTFM_API_KEY = '3786d2446250a6394a81de4d0855df60';
