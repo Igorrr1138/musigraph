@@ -9,6 +9,7 @@ import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from 
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistTags } from "@/lib/lastfm";
 import { getArtistDiscography } from "@/lib/musicPipeline";
+import { getArtistBio, type ArtistBio } from "@/lib/bio";
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,10 @@ const ArtistPage = () => {
   const [wikidataGenres, setWikidataGenres] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [wikidataQid, setWikidataQid] = useState<string | null>(null);
+  const [bio, setBio] = useState<ArtistBio | null>(null);
+  const [isLoadingBio, setIsLoadingBio] = useState(false);
+  const [bioAttempted, setBioAttempted] = useState(false);
 
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
@@ -120,6 +125,9 @@ const ArtistPage = () => {
       const payload = await getArtistDiscography(id, artist?.name, { forceRefresh: true });
       setAlbums(payload.albums);
       setWikidataGenres(payload.wikidata_genres);
+      setWikidataQid(payload.wikidata_qid);
+      setBio(null);
+      setBioAttempted(false);
     } catch (err) {
       console.error("[ArtistPage] force refresh failed:", err);
     } finally {
@@ -137,6 +145,9 @@ const ArtistPage = () => {
     setArtist(null);
     setAlbums([]);
     setTags([]);
+    setWikidataQid(null);
+    setBio(null);
+    setBioAttempted(false);
     setOtherTab("all");
     setActiveTab("discography");
 
@@ -167,6 +178,7 @@ const ArtistPage = () => {
       if (cancelled) return;
       setAlbums(payload.albums);
       setWikidataGenres(payload.wikidata_genres);
+      setWikidataQid(payload.wikidata_qid);
       setIsLoadingAlbums(false);
     })();
 
@@ -198,6 +210,31 @@ const ArtistPage = () => {
       cancelled = true;
     };
   }, [user, artist]);
+
+  // Lazy-load the biography the first time the Bio tab is opened. Wikidata
+  // → Wikipedia is primary; Last.fm is the fallback (see `src/lib/bio.ts`).
+  useEffect(() => {
+    if (activeTab !== "bio" || !artist || bioAttempted || isLoadingBio) return;
+    let cancelled = false;
+    setIsLoadingBio(true);
+    getArtistBio(artist.name, wikidataQid)
+      .then((res) => {
+        if (cancelled) return;
+        setBio(res);
+      })
+      .catch((err) => {
+        console.warn("[ArtistPage] bio fetch failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingBio(false);
+        setBioAttempted(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, artist, wikidataQid, bioAttempted, isLoadingBio]);
+
 
   const artistImage = artist ? pickArtistImage(artist) : null;
 
@@ -593,9 +630,42 @@ const ArtistPage = () => {
             )}
 
             {activeTab === "bio" && (
-              <div className="py-20 text-center text-muted-foreground">
-                <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                Biography coming soon.
+              <div className="max-w-3xl">
+                {isLoadingBio ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-10/12" />
+                    <Skeleton className="h-4 w-9/12" />
+                    <Skeleton className="h-4 w-11/12" />
+                  </div>
+                ) : bio ? (
+                  <article>
+                    {bio.text.split(/\n{2,}/).map((para, i) => (
+                      <p key={i} className="text-base leading-relaxed text-foreground/90 mb-4">
+                        {para}
+                      </p>
+                    ))}
+                    {bio.url && (
+                      <p className="mt-6 text-xs text-muted-foreground">
+                        Source:{" "}
+                        <a
+                          href={bio.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-foreground"
+                        >
+                          {bio.source === "wikipedia" ? "Wikipedia" : "Last.fm"}
+                        </a>
+                      </p>
+                    )}
+                  </article>
+                ) : (
+                  <div className="py-20 text-center text-muted-foreground">
+                    <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    No biography available for this artist.
+                  </div>
+                )}
               </div>
             )}
 
