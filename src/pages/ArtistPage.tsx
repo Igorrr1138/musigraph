@@ -178,6 +178,7 @@ const ArtistPage = () => {
       if (cancelled) return;
       setAlbums(payload.albums);
       setWikidataGenres(payload.wikidata_genres);
+      setWikidataQid(payload.wikidata_qid);
       setIsLoadingAlbums(false);
     })();
 
