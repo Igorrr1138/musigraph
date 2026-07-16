@@ -211,6 +211,31 @@ const ArtistPage = () => {
     };
   }, [user, artist]);
 
+  // Lazy-load the biography the first time the Bio tab is opened. Wikidata
+  // → Wikipedia is primary; Last.fm is the fallback (see `src/lib/bio.ts`).
+  useEffect(() => {
+    if (activeTab !== "bio" || !artist || bioAttempted || isLoadingBio) return;
+    let cancelled = false;
+    setIsLoadingBio(true);
+    getArtistBio(artist.name, wikidataQid)
+      .then((res) => {
+        if (cancelled) return;
+        setBio(res);
+      })
+      .catch((err) => {
+        console.warn("[ArtistPage] bio fetch failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingBio(false);
+        setBioAttempted(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, artist, wikidataQid, bioAttempted, isLoadingBio]);
+
+
   const artistImage = artist ? pickArtistImage(artist) : null;
 
   const discography = useMemo(() => {
