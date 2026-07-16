@@ -104,6 +104,10 @@ const ArtistPage = () => {
   const [wikidataGenres, setWikidataGenres] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [wikidataQid, setWikidataQid] = useState<string | null>(null);
+  const [bio, setBio] = useState<ArtistBio | null>(null);
+  const [isLoadingBio, setIsLoadingBio] = useState(false);
+  const [bioAttempted, setBioAttempted] = useState(false);
 
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
