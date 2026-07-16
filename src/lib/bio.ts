@@ -83,9 +83,11 @@ export async function getArtistBio(
   artistName: string,
   qid: string | null,
 ): Promise<ArtistBio | null> {
+  const lf = await fetchLastfmBio(artistName);
+  if (lf && lf.text.length >= 40) return lf;
   if (qid) {
     const wp = await fetchWikipediaBio(qid);
     if (wp) return wp;
   }
-  return fetchLastfmBio(artistName);
+  return lf;
 }
