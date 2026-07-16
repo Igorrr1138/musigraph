@@ -214,7 +214,7 @@ const ArtistPage = () => {
   // Lazy-load the biography the first time the Bio tab is opened. Wikidata
   // → Wikipedia is primary; Last.fm is the fallback (see `src/lib/bio.ts`).
   useEffect(() => {
-    if (activeTab !== "bio" || !artist || bioAttempted || isLoadingBio) return;
+    if (activeTab !== "bio" || !artist || bioAttempted) return;
     let cancelled = false;
     setIsLoadingBio(true);
     getArtistBio(artist.name, wikidataQid)
@@ -233,7 +233,7 @@ const ArtistPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, artist, wikidataQid, bioAttempted, isLoadingBio]);
+  }, [activeTab, artist, wikidataQid, bioAttempted]);
 
 
   const artistImage = artist ? pickArtistImage(artist) : null;
