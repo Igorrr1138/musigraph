@@ -66,29 +66,60 @@ export const GENRE_DATABASE: Record<Exclude<GenreCategory, 'Various'>, string[]>
   ],
 };
 
-// Build a fast lookup: tag -> category. Longer/more-specific tags are inserted
-// first so that exact matches win (e.g. "death metal" beats "metal").
+/**
+ * Normalize a raw tag/genre string so cosmetic variations collapse together.
+ * Lowercases, replaces hyphens/underscores with spaces, and collapses
+ * runs of whitespace. E.g. "Nu-Metal", "nu metal", "nu_metal" -> "nu metal".
+ */
+export function normalizeString(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Common shorthand aliases that normalization alone can't fix (missing
+ * spaces, abbreviations). Keys AND values are already normalized form.
+ */
+const genreAliases: Record<string, string> = {
+  'prog rock': 'progressive rock',
+  'prog metal': 'progressive metal',
+  'hiphop': 'hip hop',
+  'synthpop': 'synth pop',
+  'postrock': 'post rock',
+  'postpunk': 'post punk',
+  'numetal': 'nu metal',
+  'dnb': 'drum and bass',
+  'rnb': 'r&b',
+  'r and b': 'r&b',
+  'idm': 'idm',
+};
+
+function normalizeTag(tag: string): string {
+  const n = normalizeString(tag);
+  return genreAliases[n] ?? n;
+}
+
+// Build a fast lookup: normalized tag -> category. Longer/more-specific tags
+// are inserted first so exact matches win (e.g. "death metal" beats "metal").
 const TAG_TO_CATEGORY: Map<string, GenreCategory> = (() => {
   const entries: Array<[string, GenreCategory]> = [];
   for (const [category, tags] of Object.entries(GENRE_DATABASE) as Array<[GenreCategory, string[]]>) {
-    for (const t of tags) entries.push([t.toLowerCase(), category]);
+    for (const t of tags) entries.push([normalizeTag(t), category]);
   }
-  // Sort by length desc so specific subgenres are matched first when iterating
   entries.sort((a, b) => b[0].length - a[0].length);
   return new Map(entries);
 })();
 
 function normalize(tag: string): string {
-  return tag.trim().toLowerCase();
+  return normalizeTag(tag);
 }
 
-/**
- * Canonical form for dedup: lowercase, hyphens/underscores -> spaces,
- * collapse whitespace. So "nu Metal", "Nu-metal" and "nu_metal" all
- * collapse to the same key "nu metal".
- */
+/** Canonical form for dedup — same as normalizeString. */
 function canonicalize(tag: string): string {
-  return normalize(tag).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return normalizeString(tag);
 }
 
 function escapeRegex(s: string): string {
