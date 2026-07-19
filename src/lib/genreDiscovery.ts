@@ -98,59 +98,27 @@ export async function getArtistsByGenre(
   const genre = genreFromSlug(slug);
   if (!genre) return [];
 
-  // ---- Step 1: cache hit on artists_cache.tags ----
-  const { data: cached, error: cacheErr } = await supabase
-    .from('artists_cache')
-    .select('deezer_id, name, image_url, country, life_span_begin, tags')
-    .contains('tags', [genre.key])
-    .limit(limit * 2);
+  // artists_cache was dropped in the MusicBrainz migration. Go straight to
+  // Last.fm for genre-top artist names, then resolve each to a MusicBrainz
+  // artist. No persistent cache for now.
+  const rows: CachedArtistRow[] = [];
 
-  if (cacheErr) {
-    console.warn('[genreDiscovery] cache read failed:', cacheErr);
-  }
-
-  const rows: CachedArtistRow[] = (cached ?? []) as CachedArtistRow[];
-
-  // ---- Step 2: top up from Last.fm if we're under target ----
-  if (rows.length < limit) {
-    const remoteNames = await fetchTopArtistNamesFromLastfm(genre, limit * 2);
-    const haveLower = new Set(rows.map(r => r.name.toLowerCase()));
-    const missing = remoteNames.filter(n => !haveLower.has(n.toLowerCase()));
-
-    const concurrency = 4;
-    for (let i = 0; i < missing.length && rows.length < limit * 2; i += concurrency) {
-      const slice = missing.slice(i, i + concurrency);
-      const resolved = await Promise.all(slice.map(name => searchArtists(name, 1)));
-      for (const list of resolved) {
-        const artist = list[0];
-        if (!artist) continue;
-        const imageUrl = artist.picture_xl ?? artist.picture_big ?? artist.picture_medium ?? null;
-        rows.push({
-          deezer_id: String(artist.id),
-          name: artist.name,
-          image_url: imageUrl,
-          country: null,
-          life_span_begin: null,
-          tags: [genre.key],
-        });
-        // Persist back to cache (best-effort, fire-and-forget).
-        void supabase
-          .from('artists_cache')
-          .upsert(
-            {
-              deezer_id: String(artist.id),
-              name: artist.name,
-              image_url: imageUrl,
-              tags: [genre.key],
-              tags_cached_at: new Date().toISOString(),
-              cached_at: new Date().toISOString(),
-            },
-            { onConflict: 'deezer_id' },
-          )
-          .then(({ error }) => {
-            if (error) console.warn('[genreDiscovery] cache upsert failed:', error);
-          });
-      }
+  const remoteNames = await fetchTopArtistNamesFromLastfm(genre, limit * 2);
+  const concurrency = 4;
+  for (let i = 0; i < remoteNames.length && rows.length < limit * 2; i += concurrency) {
+    const slice = remoteNames.slice(i, i + concurrency);
+    const resolved = await Promise.all(slice.map(name => searchArtists(name, 1)));
+    for (const list of resolved) {
+      const artist = list[0];
+      if (!artist) continue;
+      rows.push({
+        deezer_id: String(artist.id),
+        name: artist.name,
+        image_url: null,
+        country: null,
+        life_span_begin: null,
+        tags: [genre.key],
+      });
     }
   }
 
