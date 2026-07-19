@@ -642,7 +642,7 @@ const ArtistPage = () => {
                           rel="noopener noreferrer"
                           className="underline hover:text-foreground"
                         >
-                          {bio.source === "wikipedia" ? "Wikipedia" : "Last.fm"}
+                          Last.fm
                         </a>
                       </p>
                     )}
