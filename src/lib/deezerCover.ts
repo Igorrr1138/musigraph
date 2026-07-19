@@ -11,6 +11,7 @@
  * and the id are exposed.
  */
 import { pickArtistImage, pickAlbumCover, searchArtists, searchAlbums } from './deezer';
+import { normalizeAlbumTitle } from './discography';
 
 export interface CoverRef {
   deezerId: string;
