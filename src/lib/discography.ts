@@ -79,7 +79,10 @@ const STUDIO_NOISE_PATTERNS: RegExp[] = [
   /\btribute\b/i,
   /\bbest\s+of\b/i,
   /\bgreatest\s+hits\b/i,
-  /\bsessions?\b/i,
+  // Note: "sessions" removed — too many legitimate studio albums include it
+  // (e.g. "The Paramour Sessions"). MB primary-type already classifies real
+  // BBC/radio sessions as compilation/broadcast.
+
   /\bbbc\b/i,
   /\bradio\b/i,
   /\bremix(?:es|ed)?\b/i,
