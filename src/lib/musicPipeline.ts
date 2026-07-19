@@ -200,7 +200,21 @@ export async function getArtistDiscography(
       else deezerByKey.set(key, [d]);
     }
 
-    const matched = mbReleases
+    // Collapse MB release-groups sharing a normalized title (e.g. original
+    // + "Deluxe Box Set" reissue) to the earliest first-release-date. This
+    // guarantees `original_year` reflects the album's real debut, not a
+    // remaster/reissue year, before dedupeByEditionPriority runs downstream.
+    const mbByKey = new Map<string, MbRelease>();
+    for (const rel of mbReleases) {
+      const key = normalizeAlbumTitle(rel.title);
+      const prev = mbByKey.get(key);
+      if (!prev) { mbByKey.set(key, rel); continue; }
+      const prevDate = prev.date ?? '9999-12-31';
+      const relDate = rel.date ?? '9999-12-31';
+      if (relDate < prevDate) mbByKey.set(key, rel);
+    }
+
+    const matched = Array.from(mbByKey.values())
       .map((rel) => {
         const key = normalizeAlbumTitle(rel.title);
         const best = pickBestEdition(deezerByKey.get(key) ?? []);
