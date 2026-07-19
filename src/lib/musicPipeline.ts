@@ -1,19 +1,13 @@
 /**
- * Music-data purification pipeline — MUSICBRAINZ-FIRST.
+ * Music-data purification pipeline — MUSICBRAINZ-ONLY for release metadata.
  *
  * Flow:
  *   1. Warm cache (music_cache, TTL 30 d) — one Supabase read.
- *   2. Resolve the MB artist MBID (URL-relation → name search), then
- *      fan out release-groups + genres in parallel with the Deezer album
- *      list. MB is the source of truth; Deezer is only enrichment.
- *   3. If MB returned ≥ 1 release group: use it as the baseline
- *      discography. Match each MB release to a Deezer edition by
- *      normalized title, collapse duplicates with the edition-priority
- *      score, and mint a DeezerAlbum whose title + original_year come
- *      from MB but whose cover / IDs / record_type flags come from Deezer.
- *   4. Otherwise: graceful fallback to a pure Deezer discography with
- *      original_year filled from Deezer's own release_date.
- *   5. Persist the merged payload back into `music_cache` (fire-and-forget).
+ *   2. Resolve the MB artist MBID by name, then fetch release-groups + genres.
+ *   3. MB is the only source for title, release date, original year, and
+ *      record type. Deezer is used only to attach an existing app ID/cover
+ *      when a normalized title match exists.
+ *   4. Persist the MB-normalized payload back into `music_cache`.
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +27,7 @@ export interface PurifiedDiscographyPayload {
   albums: DeezerAlbum[];
   mbid: string | null;
   genres: string[];
-  source: 'musicbrainz' | 'deezer';
+  source: 'musicbrainz';
   fetched_at: string;
 }
 
@@ -74,59 +68,38 @@ function pickBestEdition(candidates: DeezerAlbum[]): DeezerAlbum | undefined {
 }
 
 /**
- * Merge an MB release with its matching Deezer edition. MB wins on
- * title + year + record_type; Deezer supplies IDs, cover art, and the
- * explicit flag.
+ * Merge an MB release with an optional matching Deezer edition. MB is the
+ * source of truth for title + year + record_type; Deezer may supply only
+ * the existing route ID, cover art, artist shape, and explicit flag.
  */
-function mergeMbWithDeezer(release: MbRelease, deezer: DeezerAlbum): DeezerAlbum {
+function mergeMbRelease(release: MbRelease, deezer?: DeezerAlbum): DeezerAlbum {
   const explicit =
-    typeof (deezer as { explicit_lyrics?: unknown }).explicit_lyrics === 'boolean'
+    typeof (deezer as { explicit_lyrics?: unknown } | undefined)?.explicit_lyrics === 'boolean'
       ? ((deezer as { explicit_lyrics?: boolean }).explicit_lyrics as boolean)
       : undefined;
 
   return {
-    id: deezer.id,
+    id: deezer?.id ?? release.mbid,
     title: release.title,
-    cover_small: deezer.cover_small,
-    cover_medium: deezer.cover_medium,
-    cover_big: deezer.cover_big,
-    cover_xl: deezer.cover_xl,
-    release_date: release.date ?? deezer.release_date,
+    cover_small: deezer?.cover_small,
+    cover_medium: deezer?.cover_medium,
+    cover_big: deezer?.cover_big,
+    cover_xl: deezer?.cover_xl,
+    release_date: release.date,
     record_type: MB_TO_DEEZER_RECORD_TYPE[release.record_type],
     original_year: release.year,
-    is_deluxe: looksLikeVariant(deezer.title ?? ''),
+    is_deluxe: looksLikeVariant(deezer?.title ?? release.title),
     is_explicit: explicit,
-    nb_tracks: deezer.nb_tracks,
-    artist: deezer.artist,
+    nb_tracks: deezer?.nb_tracks,
+    artist: deezer?.artist,
   };
-}
-
-/**
- * Deezer-only enrichment used ONLY when MusicBrainz has zero data on this
- * artist. Fills `original_year` from Deezer's own release_date and lets
- * downstream `buildDiscography` classify.
- */
-function deezerOnlyPayload(albums: DeezerAlbum[]): DeezerAlbum[] {
-  return albums.map((a) => {
-    const deezerYear = a.release_date ? parseInt(a.release_date.slice(0, 4), 10) : NaN;
-    const explicit =
-      typeof (a as { explicit_lyrics?: unknown }).explicit_lyrics === 'boolean'
-        ? ((a as { explicit_lyrics?: boolean }).explicit_lyrics as boolean)
-        : undefined;
-    return {
-      ...a,
-      original_year: Number.isFinite(deezerYear) ? deezerYear : undefined,
-      is_deluxe: looksLikeVariant(a.title ?? ''),
-      is_explicit: explicit,
-    };
-  });
 }
 
 /**
  * Fetch a purified, MusicBrainz-driven discography for an artist. Cheap
  * on warm cache (single Supabase read). Cold: one MB search, one MB
- * release-groups call, one MB artist detail (genres), one Deezer
- * paginated album list — fired concurrently with graceful degradation.
+ * release-groups call, one MB artist detail (genres), and one optional
+ * Deezer album-list call for covers/route IDs only.
  */
 export async function getArtistDiscography(
   deezerId: string,
@@ -142,7 +115,7 @@ export async function getArtistDiscography(
       .eq('artist_deezer_id', deezerId)
       .maybeSingle<MusicCacheRow>();
 
-    if (cached?.data) {
+    if (cached?.data && cached.data.source === 'musicbrainz') {
       const age = Date.now() - new Date(cached.cached_at).getTime();
       if (age < MUSIC_CACHE_TTL_MS) return cached.data;
     }
@@ -187,11 +160,11 @@ export async function getArtistDiscography(
     mbGenres = genres;
   }
 
-  let mergedAlbums: DeezerAlbum[];
-  let source: 'musicbrainz' | 'deezer';
+  let mergedAlbums: DeezerAlbum[] = [];
+  const source = 'musicbrainz' as const;
 
-  if (mbReleases.length > 0 && deezerAlbums.length > 0) {
-    // MUSICBRAINZ-FIRST PATH -------------------------------------------
+  if (mbReleases.length > 0) {
+    // MUSICBRAINZ-ONLY METADATA PATH -----------------------------------
     const deezerByKey = new Map<string, DeezerAlbum[]>();
     for (const d of deezerAlbums) {
       const key = normalizeAlbumTitle(d.title);
@@ -218,26 +191,11 @@ export async function getArtistDiscography(
       .map((rel) => {
         const key = normalizeAlbumTitle(rel.title);
         const best = pickBestEdition(deezerByKey.get(key) ?? []);
-        if (!best) return null;
-        return mergeMbWithDeezer(rel, best);
+        return mergeMbRelease(rel, best);
       })
-      .filter((a): a is DeezerAlbum => a !== null);
+      .filter((a) => Number.isFinite(Number(a.original_year)));
 
-    // Guard: if MB title-matching failed for every release (different
-    // artist resolved, transliteration mismatch, etc.), fall back to the
-    // full Deezer discography rather than showing an empty page.
-    if (matched.length > 0) {
-      mergedAlbums = matched;
-      source = 'musicbrainz';
-    } else {
-      console.warn('[musicPipeline] MB returned', mbReleases.length,
-        'releases but none matched Deezer titles — falling back to Deezer.');
-      mergedAlbums = deezerOnlyPayload(deezerAlbums);
-      source = 'deezer';
-    }
-  } else {
-    mergedAlbums = deezerOnlyPayload(deezerAlbums);
-    source = 'deezer';
+    mergedAlbums = matched;
   }
 
   const payload: PurifiedDiscographyPayload = {
