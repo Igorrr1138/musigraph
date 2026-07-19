@@ -51,6 +51,7 @@ const App = () => (
               <Route path="/genre" element={<GenrePage />} />
               <Route path="/genre/:slug" element={<GenrePage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+              <Route path="/debug/discography" element={<DebugDiscographyPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PlaybackBar />
