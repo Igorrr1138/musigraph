@@ -113,6 +113,7 @@ const ArtistPage = () => {
 
   const [otherTab, setOtherTab] = useState<OtherTab>("all");
   const [activeTab, setActiveTab] = useState<SecondaryTab>("discography");
+  const [albumSortAsc, setAlbumSortAsc] = useState(true);
   const discoRef = useRef<HTMLDivElement>(null);
 
   const handleForceRefresh = async () => {
