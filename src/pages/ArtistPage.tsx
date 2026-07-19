@@ -101,10 +101,9 @@ const ArtistPage = () => {
 
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
-  const [wikidataGenres, setWikidataGenres] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [mbGenres, setMbGenres] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [wikidataQid, setWikidataQid] = useState<string | null>(null);
+  const [mbid, setMbid] = useState<string | null>(null);
   const [bio, setBio] = useState<ArtistBio | null>(null);
   const [isLoadingBio, setIsLoadingBio] = useState(false);
   const [bioAttempted, setBioAttempted] = useState(false);
