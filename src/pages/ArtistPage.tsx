@@ -561,7 +561,7 @@ const ArtistPage = () => {
                   </div>
                 ) : hasAnyRelease ? (
                   <>
-                    {renderSection("Albums", discography.studioAlbums, 0)}
+                    {renderSection("Albums", albumSortAsc ? discography.studioAlbums : [...discography.studioAlbums].reverse(), 0, true)}
                     {renderSection("LP", discography.eps, studioCount)}
 
                     {otherTotal > 0 && (
