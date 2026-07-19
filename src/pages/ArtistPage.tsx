@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw } from "lucide-react";
+import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
@@ -113,6 +113,7 @@ const ArtistPage = () => {
 
   const [otherTab, setOtherTab] = useState<OtherTab>("all");
   const [activeTab, setActiveTab] = useState<SecondaryTab>("discography");
+  const [albumSortAsc, setAlbumSortAsc] = useState(true);
   const discoRef = useRef<HTMLDivElement>(null);
 
   const handleForceRefresh = async () => {
@@ -328,12 +329,30 @@ const ArtistPage = () => {
     );
   }
 
-  const renderSection = (title: string, items: ClassifiedAlbum[], startIndex: number) =>
+  const renderSection = (
+    title: string,
+    items: ClassifiedAlbum[],
+    startIndex: number,
+    sortable = false
+  ) =>
     items.length > 0 && (
       <section className="mb-12">
-        <h3 className="text-xl md:text-2xl font-semibold mb-6">
-          {title} <span className="text-muted-foreground font-normal">({items.length})</span>
-        </h3>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h3 className="text-xl md:text-2xl font-semibold">
+            {title} <span className="text-muted-foreground font-normal">({items.length})</span>
+          </h3>
+          {sortable && (
+            <button
+              type="button"
+              onClick={() => setAlbumSortAsc((prev) => !prev)}
+              aria-label={albumSortAsc ? "Sort descending" : "Sort ascending"}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {albumSortAsc ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
+              {albumSortAsc ? "Ascent" : "Descent"}
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-6">
           {items.map((album, index) => {
             const ratingForCard = ratings[String(album.id)];
@@ -542,7 +561,7 @@ const ArtistPage = () => {
                   </div>
                 ) : hasAnyRelease ? (
                   <>
-                    {renderSection("Albums", discography.studioAlbums, 0)}
+                    {renderSection("Albums", albumSortAsc ? discography.studioAlbums : [...discography.studioAlbums].reverse(), 0, true)}
                     {renderSection("LP", discography.eps, studioCount)}
 
                     {otherTotal > 0 && (
