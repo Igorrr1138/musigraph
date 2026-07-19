@@ -1,0 +1,1 @@
+DELETE FROM public.music_cache WHERE jsonb_array_length(COALESCE(data->'albums','[]'::jsonb)) = 0;
