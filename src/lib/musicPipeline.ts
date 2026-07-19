@@ -5,8 +5,8 @@
  *   1. Warm cache (music_cache, TTL 30 d) — one Supabase read.
  *   2. Resolve the MB artist MBID by name, then fetch release-groups + genres.
  *   3. MB is the only source for title, release date, original year, and
- *      record type. Deezer is used only to attach an existing app ID/cover
- *      when a normalized title match exists.
+ *      record type. Deezer can attach an existing app ID/cover, but MB
+ *      releases are never dropped when Deezer has no match.
  *   4. Persist the MB-normalized payload back into `music_cache`.
  */
 
@@ -18,6 +18,7 @@ import {
   findArtistMbid,
   fetchArtistReleases,
   fetchArtistGenres,
+  coverArtArchiveReleaseGroupUrl,
   type MbRelease,
   type MbRecordType,
 } from './musicbrainz';
@@ -73,27 +74,34 @@ function pickBestEdition(candidates: DeezerAlbum[]): DeezerAlbum | undefined {
  * source of truth for title + year + record_type; Deezer may supply only
  * the existing route ID, cover art, artist shape, and explicit flag.
  */
-function mergeMbRelease(release: MbRelease, deezer?: DeezerAlbum): DeezerAlbum {
+function mergeMbRelease(
+  release: MbRelease,
+  deezer?: DeezerAlbum,
+  fallbackArtist?: { id: string; name?: string },
+): DeezerAlbum {
   const maybeDeezer = deezer as (DeezerAlbum & { explicit_lyrics?: unknown }) | undefined;
   const explicit =
     typeof maybeDeezer?.explicit_lyrics === 'boolean'
       ? maybeDeezer.explicit_lyrics
       : undefined;
 
+  const mbCover = coverArtArchiveReleaseGroupUrl(release.mbid, 500);
+
   return {
     id: deezer?.id ?? release.mbid,
+    mbid: release.mbid,
     title: release.title,
-    cover_small: deezer?.cover_small,
-    cover_medium: deezer?.cover_medium,
-    cover_big: deezer?.cover_big,
-    cover_xl: deezer?.cover_xl,
+    cover_small: deezer?.cover_small ?? mbCover,
+    cover_medium: deezer?.cover_medium ?? mbCover,
+    cover_big: deezer?.cover_big ?? mbCover,
+    cover_xl: deezer?.cover_xl ?? mbCover,
     release_date: release.date,
     record_type: MB_TO_DEEZER_RECORD_TYPE[release.record_type],
     original_year: release.year,
     is_deluxe: looksLikeVariant(deezer?.title ?? release.title),
     is_explicit: explicit,
     nb_tracks: deezer?.nb_tracks,
-    artist: deezer?.artist,
+    artist: deezer?.artist ?? (fallbackArtist?.name ? { id: fallbackArtist.id, name: fallbackArtist.name } : undefined),
   };
 }
 
@@ -191,15 +199,15 @@ export async function getArtistDiscography(
 
     const resolvedArtistName =
       artistName ?? deezerAlbums.find((a) => a.artist?.name)?.artist?.name;
+    const fallbackArtist = resolvedArtistName ? { id: deezerId, name: resolvedArtistName } : undefined;
 
     // First pass — synchronous merge with whatever Deezer already gave us.
     const matched = Array.from(mbByKey.values())
       .map((rel) => {
         const key = normalizeAlbumTitle(rel.title);
         const best = pickBestEdition(deezerByKey.get(key) ?? []);
-        return { rel, merged: mergeMbRelease(rel, best), hasDeezer: Boolean(best) };
-      })
-      .filter((entry) => Number.isFinite(Number(entry.merged.original_year)));
+        return { rel, merged: mergeMbRelease(rel, best, fallbackArtist), hasDeezer: Boolean(best) };
+      });
 
     // Second pass — for MB releases without a Deezer edition in the artist's
     // album list, do a targeted Deezer *cover-only* lookup by "title artist".
@@ -226,9 +234,9 @@ export async function getArtistDiscography(
       });
     }
 
-    // Drop releases we could not resolve to a real Deezer album — otherwise
-    // the card renders with no cover and /album/<mbid> 404s ("Album not found").
-    mergedAlbums = matched.filter((e) => e.hasDeezer).map((e) => e.merged);
+    // Keep every official MB release-group. If no Deezer ID exists, the MBID
+    // becomes the route id and AlbumPage loads the tracklist directly from MB.
+    mergedAlbums = matched.map((e) => e.merged);
   }
 
 

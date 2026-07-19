@@ -3,8 +3,7 @@
  *
  * The pipeline in `musicPipeline.ts` uses MB for: artist resolution,
  * chronology (first-release-date on release-groups), classification
- * (primary + secondary types), and genres/tags. Deezer is only used to
- * enrich each MB release group with cover art, IDs, and tracklists.
+ * (primary + secondary types), genres/tags, and MBID-backed album pages.
  *
  * Resolution strategy:
  *   1. Search by the artist's display name and prefer an exact normalized
@@ -13,15 +12,19 @@
  *
  * All requests carry a descriptive User-Agent (MB policy) and are bounded
  * by a short timeout. Every helper returns null / [] on failure so the
- * caller can degrade to a Deezer-only path.
+ * caller can degrade safely.
  */
 
+import type { DeezerAlbum, DeezerTrack } from './deezer';
+
 const MB_BASE = 'https://musicbrainz.org/ws/2';
+const CAA_BASE = 'https://coverartarchive.org';
 const MB_HEADERS: HeadersInit = {
   Accept: 'application/json',
   'User-Agent': 'SoundVault/1.0 ( https://musigraph.lovable.app )',
 };
 const DEFAULT_TIMEOUT = 8_000;
+const MBID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T | null> {
   const ctrl = new AbortController();
@@ -43,6 +46,17 @@ async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T 
 /** Escape a value for the Lucene-style MB query string. */
 function lucene(s: string): string {
   return s.replace(/([+\-!(){}[\]^"~*?:\\/])/g, '\\$1');
+}
+
+export function isMusicBrainzId(value: string | undefined | null): boolean {
+  return Boolean(value && MBID_RE.test(value));
+}
+
+export function coverArtArchiveReleaseGroupUrl(
+  releaseGroupMbid: string,
+  size: 250 | 500 | 1200 = 500,
+): string {
+  return `${CAA_BASE}/release-group/${releaseGroupMbid}/front-${size}`;
 }
 
 interface MbArtistSearchResponse {
@@ -109,6 +123,43 @@ interface MbReleaseGroupsResponse {
   }>;
 }
 
+interface MbReleaseGroupDetailResponse {
+  id: string;
+  title: string;
+  'first-release-date'?: string;
+  'primary-type'?: string | null;
+  'secondary-types'?: string[];
+  'artist-credit'?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
+  releases?: Array<{
+    id: string;
+    title?: string;
+    date?: string;
+    status?: string;
+    country?: string;
+  }>;
+}
+
+interface MbReleaseDetailResponse {
+  id: string;
+  title: string;
+  date?: string;
+  'artist-credit'?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
+  media?: Array<{
+    tracks?: Array<{
+      id?: string;
+      title?: string;
+      position?: number | string;
+      length?: number;
+      recording?: {
+        id?: string;
+        title?: string;
+        length?: number;
+        'artist-credit'?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
+      };
+    }>;
+  }>;
+}
+
 /** Map an MB (primary, secondary[]) pair to our internal record_type. */
 function classifyReleaseGroup(
   primary: string | null | undefined,
@@ -170,6 +221,92 @@ export async function fetchArtistReleases(mbid: string): Promise<MbRelease[]> {
   }
 
   return out;
+}
+
+function mbRecordTypeToAppType(recordType: MbRecordType): string {
+  return recordType === 'compilation' ? 'compile' : recordType;
+}
+
+function scoreReleaseForAlbumPage(release: { date?: string; status?: string; country?: string }): number {
+  const official = release.status?.toLowerCase() === 'official' ? 100 : 0;
+  const worldwide = release.country === 'XW' ? 12 : 0;
+  const priorityCountry = ['US', 'GB', 'XE'].includes(release.country ?? '') ? 6 : 0;
+  const hasDate = release.date ? 2 : 0;
+  return official + worldwide + priorityCountry + hasDate;
+}
+
+function pickRepresentativeRelease(releases: MbReleaseGroupDetailResponse['releases'] = []) {
+  return [...releases]
+    .filter((release) => release.id)
+    .sort((a, b) => {
+      const score = scoreReleaseForAlbumPage(b) - scoreReleaseForAlbumPage(a);
+      if (score !== 0) return score;
+      const da = a.date ?? '9999-12-31';
+      const db = b.date ?? '9999-12-31';
+      return da.localeCompare(db);
+    })[0];
+}
+
+export async function fetchReleaseGroupAlbum(
+  releaseGroupMbid: string,
+  fallback: { artistId?: string; artistName?: string } = {},
+): Promise<DeezerAlbum | null> {
+  if (!isMusicBrainzId(releaseGroupMbid)) return null;
+
+  const group = await mbFetch<MbReleaseGroupDetailResponse>(
+    `/release-group/${releaseGroupMbid}?inc=artists+releases`,
+    10_000,
+  );
+  if (!group?.id || !group.title) return null;
+
+  const recordType = classifyReleaseGroup(group['primary-type'], group['secondary-types']) ?? 'album';
+  const representative = pickRepresentativeRelease(group.releases);
+  const release = representative?.id
+    ? await mbFetch<MbReleaseDetailResponse>(`/release/${representative.id}?inc=artists+recordings+media`, 10_000)
+    : null;
+
+  const date = group['first-release-date'] || release?.date || representative?.date || undefined;
+  const yearNum = date ? parseInt(date.slice(0, 4), 10) : NaN;
+  const artistName = fallback.artistName ?? artistCreditName(group['artist-credit']) ?? artistCreditName(release?.['artist-credit']);
+  const artistMbid = artistCreditMbid(group['artist-credit']) ?? artistCreditMbid(release?.['artist-credit']);
+  const coverUrl = coverArtArchiveReleaseGroupUrl(releaseGroupMbid, 500);
+
+  let position = 0;
+  const tracks: DeezerTrack[] = (release?.media ?? []).flatMap((medium) =>
+    (medium.tracks ?? []).map((track) => {
+      position += 1;
+      const recording = track.recording;
+      const durationMs = track.length ?? recording?.length ?? 0;
+      return {
+        id: recording?.id ?? track.id ?? `${releaseGroupMbid}-${position}`,
+        title: recording?.title ?? track.title ?? `Track ${position}`,
+        duration: durationMs ? Math.round(durationMs / 1000) : 0,
+        track_position: typeof track.position === 'number' ? track.position : position,
+        artist: artistName
+          ? { id: fallback.artistId ?? artistMbid ?? '', name: artistName }
+          : undefined,
+        album: { id: releaseGroupMbid, title: group.title, cover_xl: coverUrl },
+      };
+    }),
+  );
+
+  return {
+    id: releaseGroupMbid,
+    mbid: releaseGroupMbid,
+    title: group.title,
+    cover_small: coverUrl,
+    cover_medium: coverUrl,
+    cover_big: coverUrl,
+    cover_xl: coverUrl,
+    release_date: date,
+    record_type: mbRecordTypeToAppType(recordType),
+    original_year: Number.isFinite(yearNum) ? yearNum : undefined,
+    nb_tracks: tracks.length || undefined,
+    artist: artistName
+      ? { id: fallback.artistId ?? artistMbid ?? '', name: artistName }
+      : undefined,
+    tracks: { data: tracks },
+  };
 }
 
 interface MbArtistDetailResponse {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Disc3, ImageIcon, Loader2, PlayCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -17,6 +17,7 @@ import {
   resolveOriginalAlbumId,
   looksLikeVariant,
 } from '@/lib/discography';
+import { fetchReleaseGroupAlbum, isMusicBrainzId } from '@/lib/musicbrainz';
 import { purifyTracks } from '@/lib/purify';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -414,6 +415,7 @@ function AlbumReviewCard({ albumDeezerId }: { albumDeezerId: string }) {
 
 const AlbumPage = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const { playTrack: playYT, currentTrack: ytCurrentTrack } = useYouTubePlayer();
@@ -426,19 +428,41 @@ const AlbumPage = () => {
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [savingTrack, setSavingTrack] = useState<number | null>(null);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  const routeArtistId = searchParams.get('artistId') ?? undefined;
+  const routeArtistName = searchParams.get('artistName') ?? undefined;
 
   /* Album fetch */
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     setIsLoading(true);
     setCoverError(false);
-    getAlbum(id)
-      .then(setAlbum)
-      .finally(() => setIsLoading(false));
-  }, [id]);
+    const load = async () => {
+      const data = isMusicBrainzId(id)
+        ? await fetchReleaseGroupAlbum(id, { artistId: routeArtistId, artistName: routeArtistName })
+        : await getAlbum(id);
+      if (cancelled) return;
+      setAlbum(data);
+      setIsLoading(false);
+    };
+    load().catch((err) => {
+      console.error('[AlbumPage] album fetch failed:', err);
+      if (!cancelled) {
+        setAlbum(null);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, routeArtistId, routeArtistName]);
 
   /* Resolve original release id (de-dupe Deluxe/Remasters) */
   useEffect(() => {
+    if (!album?.artist?.id || isMusicBrainzId(String(album.id))) {
+      setOriginalAlbumId(album?.id != null ? String(album.id) : null);
+      return;
+    }
     if (!album?.artist?.id) {
       setOriginalAlbumId(null);
       return;
