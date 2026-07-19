@@ -240,25 +240,25 @@ export type Database = {
           artist_deezer_id: string
           cached_at: string
           data: Json
+          mbid: string | null
           source: string
           updated_at: string
-          wikidata_qid: string | null
         }
         Insert: {
           artist_deezer_id: string
           cached_at?: string
           data: Json
+          mbid?: string | null
           source?: string
           updated_at?: string
-          wikidata_qid?: string | null
         }
         Update: {
           artist_deezer_id?: string
           cached_at?: string
           data?: Json
+          mbid?: string | null
           source?: string
           updated_at?: string
-          wikidata_qid?: string | null
         }
         Relationships: []
       }
