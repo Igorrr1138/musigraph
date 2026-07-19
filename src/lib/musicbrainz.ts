@@ -193,3 +193,143 @@ export async function fetchArtistGenres(mbid: string): Promise<string[]> {
   }
   return out;
 }
+
+// ---------- Search (MB-only, source-of-truth for search results) ----------
+
+export interface MbArtistSearchResult {
+  mbid: string;
+  name: string;
+  disambiguation?: string;
+  country?: string;
+  type?: string;
+  tags: string[];
+}
+
+export interface MbReleaseGroupSearchResult {
+  mbid: string;
+  title: string;
+  year?: number;
+  primaryType?: string;
+  artistName?: string;
+  artistMbid?: string;
+}
+
+export interface MbRecordingSearchResult {
+  mbid: string;
+  title: string;
+  lengthMs?: number;
+  artistName?: string;
+  artistMbid?: string;
+  releaseTitle?: string;
+  releaseMbid?: string;
+}
+
+interface MbArtistSearchDetailed {
+  artists?: Array<{
+    id: string;
+    name?: string;
+    disambiguation?: string;
+    country?: string;
+    type?: string;
+    tags?: Array<{ name: string; count?: number }>;
+  }>;
+}
+
+interface MbReleaseGroupSearchResponse {
+  'release-groups'?: Array<{
+    id: string;
+    title: string;
+    'first-release-date'?: string;
+    'primary-type'?: string;
+    'artist-credit'?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
+  }>;
+}
+
+interface MbRecordingSearchResponse {
+  recordings?: Array<{
+    id: string;
+    title: string;
+    length?: number;
+    'artist-credit'?: Array<{ name?: string; artist?: { id?: string; name?: string } }>;
+    releases?: Array<{ id: string; title: string }>;
+  }>;
+}
+
+function artistCreditName(
+  credit?: Array<{ name?: string; artist?: { name?: string } }>,
+): string | undefined {
+  if (!credit || credit.length === 0) return undefined;
+  return credit.map((c) => c.name ?? c.artist?.name ?? '').filter(Boolean).join(', ') || undefined;
+}
+
+function artistCreditMbid(
+  credit?: Array<{ artist?: { id?: string } }>,
+): string | undefined {
+  return credit?.[0]?.artist?.id ?? undefined;
+}
+
+export async function searchArtistsMB(query: string, limit = 12): Promise<MbArtistSearchResult[]> {
+  const q = encodeURIComponent(`artist:${lucene(query)}`);
+  const r = await mbFetch<MbArtistSearchDetailed>(`/artist/?query=${q}&limit=${limit}`);
+  const artists = r?.artists ?? [];
+  return artists
+    .filter((a) => a.id && a.name)
+    .map((a) => ({
+      mbid: a.id,
+      name: a.name as string,
+      disambiguation: a.disambiguation || undefined,
+      country: a.country || undefined,
+      type: a.type || undefined,
+      tags: (a.tags ?? [])
+        .filter((t) => t?.name)
+        .sort((x, y) => (y.count ?? 0) - (x.count ?? 0))
+        .slice(0, 4)
+        .map((t) => t.name.toLowerCase()),
+    }));
+}
+
+export async function searchReleaseGroupsMB(
+  query: string,
+  limit = 12,
+): Promise<MbReleaseGroupSearchResult[]> {
+  // Restrict to primary types we actually surface as albums/EPs.
+  const q = encodeURIComponent(`${lucene(query)} AND (primarytype:album OR primarytype:ep)`);
+  const r = await mbFetch<MbReleaseGroupSearchResponse>(
+    `/release-group/?query=${q}&limit=${limit}`,
+  );
+  const groups = r?.['release-groups'] ?? [];
+  return groups
+    .filter((g) => g.id && g.title)
+    .map((g) => {
+      const date = g['first-release-date'];
+      const year = date ? parseInt(date.slice(0, 4), 10) : NaN;
+      return {
+        mbid: g.id,
+        title: g.title,
+        year: Number.isFinite(year) ? year : undefined,
+        primaryType: g['primary-type'] || undefined,
+        artistName: artistCreditName(g['artist-credit']),
+        artistMbid: artistCreditMbid(g['artist-credit']),
+      };
+    });
+}
+
+export async function searchRecordingsMB(
+  query: string,
+  limit = 20,
+): Promise<MbRecordingSearchResult[]> {
+  const q = encodeURIComponent(lucene(query));
+  const r = await mbFetch<MbRecordingSearchResponse>(`/recording/?query=${q}&limit=${limit}`);
+  const recs = r?.recordings ?? [];
+  return recs
+    .filter((rec) => rec.id && rec.title)
+    .map((rec) => ({
+      mbid: rec.id,
+      title: rec.title,
+      lengthMs: typeof rec.length === 'number' ? rec.length : undefined,
+      artistName: artistCreditName(rec['artist-credit']),
+      artistMbid: artistCreditMbid(rec['artist-credit']),
+      releaseTitle: rec.releases?.[0]?.title,
+      releaseMbid: rec.releases?.[0]?.id,
+    }));
+}
