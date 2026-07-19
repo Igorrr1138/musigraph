@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Disc3, User, Music2, ListMusic, Calendar, Users, MapPin, Loader2 } from 'lucide-react';
+import { Disc3, User, Music2, Users, Loader2, Calendar } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
-import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
 import {
-  searchArtists,
-  searchAlbums,
-  searchTracks,
-  pickArtistImage,
-  pickAlbumCover,
-  formatDuration,
-  type DeezerArtist,
-  type DeezerAlbum,
-  type DeezerTrack,
-} from '@/lib/deezer';
+  searchArtistsMB,
+  searchReleaseGroupsMB,
+  searchRecordingsMB,
+  type MbArtistSearchResult,
+  type MbReleaseGroupSearchResult,
+  type MbRecordingSearchResult,
+} from '@/lib/musicbrainz';
+import { lookupArtistCover, lookupAlbumCover, type CoverRef } from '@/lib/deezerCover';
 import { cn } from '@/lib/utils';
 
 type Tab = 'all' | 'artists' | 'albums' | 'songs';
@@ -25,15 +22,23 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
   { id: 'songs', label: 'Songs', icon: Music2 },
 ];
 
+function formatMs(ms?: number): string {
+  if (!ms || !Number.isFinite(ms)) return '';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
 export default function SearchPage() {
   const [params] = useSearchParams();
   const query = (params.get('q') ?? '').trim();
 
   const [tab, setTab] = useState<Tab>('all');
   const [loading, setLoading] = useState(false);
-  const [artists, setArtists] = useState<DeezerArtist[]>([]);
-  const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
-  const [tracks, setTracks] = useState<DeezerTrack[]>([]);
+  const [artists, setArtists] = useState<MbArtistSearchResult[]>([]);
+  const [albums, setAlbums] = useState<MbReleaseGroupSearchResult[]>([]);
+  const [tracks, setTracks] = useState<MbRecordingSearchResult[]>([]);
 
   useEffect(() => {
     if (!query) {
@@ -43,13 +48,13 @@ export default function SearchPage() {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      searchArtists(query, 12),
-      searchAlbums(query, 12),
-      searchTracks(query, 20),
+      searchArtistsMB(query, 12),
+      searchReleaseGroupsMB(query, 12),
+      searchRecordingsMB(query, 20),
     ]).then(([a, al, tr]) => {
       if (cancelled) return;
       setArtists(a); setAlbums(al); setTracks(tr);
-    }).finally(() => !cancelled && setLoading(false));
+    }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [query]);
 
@@ -61,17 +66,15 @@ export default function SearchPage() {
       <Header />
 
       <main className="container mx-auto px-6 pt-28 pb-32 max-w-7xl">
-        {/* Heading */}
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
             Search result for:
           </p>
           <h1 className="font-boldonse text-5xl md:text-6xl tracking-wide">
-            “{query || '—'}”
+            &ldquo;{query || '—'}&rdquo;
           </h1>
         </div>
 
-        {/* Tabs */}
         <div className="border-b border-border/40 mb-6">
           <div className="flex items-center gap-2 overflow-x-auto">
             {TABS.map(t => {
@@ -112,11 +115,10 @@ export default function SearchPage() {
             ? "grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
             : "grid-cols-1"
         )}>
-          {/* LEFT — Top result (sticky) */}
           {(tab === 'all' || tab === 'artists') && (
             <aside className="lg:sticky lg:top-24 self-start">
               {topArtist ? (
-                <TopResultCard artist={topArtist} albumCount={albums.length} trackCount={tracks.length} />
+                <TopResultCard artist={topArtist} trackCount={tracks.length} albumCount={albums.length} />
               ) : (
                 <div className="rounded-2xl border border-dashed border-border/40 p-6 text-sm text-muted-foreground">
                   No top result.
@@ -125,13 +127,12 @@ export default function SearchPage() {
             </aside>
           )}
 
-            {/* RIGHT — Content */}
             <div className="space-y-14 min-w-0">
               {(tab === 'all' || tab === 'songs') && (
                 <Section title="Songs" onSeeAll={tracks.length > 6 && tab === 'all' ? () => setTab('songs') : undefined}>
                   <ul className="divide-y divide-border/30">
                     {(tab === 'all' ? tracks.slice(0, 7) : tracks).map((t) => (
-                      <SongRow key={t.id} track={t} />
+                      <SongRow key={t.mbid} track={t} />
                     ))}
                     {tracks.length === 0 && <EmptyRow label="No songs found." />}
                   </ul>
@@ -142,7 +143,7 @@ export default function SearchPage() {
                 <Section title="Artists" onSeeAll={artists.length > 3 && tab === 'all' ? () => setTab('artists') : undefined}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {(tab === 'all' ? artists.slice(1, 4) : artists).map((a) => (
-                      <ArtistResultCard key={a.id} artist={a} />
+                      <ArtistResultCard key={a.mbid} artist={a} />
                     ))}
                     {artists.length === 0 && <EmptyRow label="No artists found." />}
                   </div>
@@ -153,7 +154,7 @@ export default function SearchPage() {
               <Section title="Albums" onSeeAll={albums.length > 4 && tab === 'all' ? () => setTab('albums') : undefined}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   {(tab === 'all' ? albums.slice(0, 4) : albums).map((al) => (
-                    <AlbumResultCard key={al.id} album={al} />
+                    <AlbumResultCard key={al.mbid} album={al} />
                   ))}
                     {albums.length === 0 && <EmptyRow label="No albums found." />}
                   </div>
@@ -168,6 +169,26 @@ export default function SearchPage() {
 }
 
 /* ---------- Subcomponents ---------- */
+
+function useArtistCover(name: string) {
+  const [ref, setRef] = useState<CoverRef | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    lookupArtistCover(name).then((r) => { if (!cancelled) setRef(r); });
+    return () => { cancelled = true; };
+  }, [name]);
+  return ref;
+}
+
+function useAlbumCover(title: string, artist?: string) {
+  const [ref, setRef] = useState<CoverRef | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    lookupAlbumCover(title, artist).then((r) => { if (!cancelled) setRef(r); });
+    return () => { cancelled = true; };
+  }, [title, artist]);
+  return ref;
+}
 
 function Section({
   title,
@@ -199,24 +220,25 @@ function Section({
 
 function TopResultCard({
   artist,
-  albumCount,
   trackCount,
+  albumCount,
 }: {
-  artist: DeezerArtist;
-  albumCount: number;
+  artist: MbArtistSearchResult;
   trackCount: number;
+  albumCount: number;
 }) {
-  const img = pickArtistImage(artist);
+  const cover = useArtistCover(artist.name);
+  const to = cover ? `/artist/${cover.deezerId}` : '#';
   return (
     <div>
       <h2 className="font-boldonse text-2xl mb-5 tracking-wide">Top result</h2>
       <Link
-        to={`/artist/${artist.id}`}
+        to={to}
         className="block rounded-3xl border border-border/50 bg-card/40 p-5 hover:border-primary/50 transition-colors"
       >
         <div className="aspect-square w-full rounded-2xl overflow-hidden bg-secondary mb-5 relative">
-          {img ? (
-            <img src={img} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
+          {cover?.coverUrl ? (
+            <img src={cover.coverUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <User className="w-16 h-16 text-muted-foreground" />
@@ -226,16 +248,15 @@ function TopResultCard({
             Artist
           </span>
         </div>
-        <h3 className="font-boldonse text-3xl mb-3 line-clamp-2">{artist.name}</h3>
+        <h3 className="font-boldonse text-3xl mb-2 line-clamp-2">{artist.name}</h3>
+        {artist.disambiguation && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{artist.disambiguation}</p>
+        )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          {typeof artist.nb_album === 'number' && artist.nb_album > 0 && (
+          {artist.country && <span>{artist.country}</span>}
+          {albumCount > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <Disc3 className="w-3.5 h-3.5" /> {artist.nb_album} Albums
-            </span>
-          )}
-          {typeof artist.nb_fan === 'number' && artist.nb_fan > 0 && (
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5" /> {artist.nb_fan.toLocaleString()} fans
+              <Disc3 className="w-3.5 h-3.5" /> {albumCount} albums
             </span>
           )}
           {trackCount > 0 && (
@@ -244,67 +265,68 @@ function TopResultCard({
             </span>
           )}
         </div>
+        {artist.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-4">
+            {artist.tags.map((tag) => (
+              <span key={tag} className="px-2 py-0.5 rounded-full bg-secondary text-[10px] uppercase tracking-wider text-muted-foreground">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </Link>
     </div>
   );
 }
 
-function SongRow({ track }: { track: DeezerTrack }) {
-  const cover = track.album?.cover_xl ?? null;
+function SongRow({ track }: { track: MbRecordingSearchResult }) {
+  const cover = useAlbumCover(track.releaseTitle ?? track.title, track.artistName);
+  const albumHref = cover ? `/album/${cover.deezerId}` : '#';
   return (
     <li className="flex items-center gap-4 py-3 group">
       <Link
-        to={track.album?.id ? `/album/${track.album.id}` : '#'}
+        to={albumHref}
         className="w-11 h-11 rounded-lg bg-secondary overflow-hidden flex items-center justify-center shrink-0"
       >
-        {cover ? (
-          <img src={cover} alt="" className="w-full h-full object-cover" loading="lazy" />
+        {cover?.coverUrl ? (
+          <img src={cover.coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <Music2 className="w-5 h-5 text-muted-foreground" />
         )}
       </Link>
       <div className="min-w-0 flex-1">
         <p className="font-semibold truncate group-hover:text-primary transition-colors">{track.title}</p>
-        {track.artist?.name && (
-          <Link
-            to={`/artist/${track.artist.id}`}
-            className="text-xs text-muted-foreground hover:text-foreground truncate block"
-          >
-            {track.artist.name}
-          </Link>
+        {track.artistName && (
+          <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
         )}
       </div>
-      <Link
-        to={track.album?.id ? `/album/${track.album.id}` : '#'}
-        className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px] hover:text-foreground"
-      >
-        {track.album?.title}
-      </Link>
+      {track.releaseTitle && (
+        <Link
+          to={albumHref}
+          className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px] hover:text-foreground"
+        >
+          {track.releaseTitle}
+        </Link>
+      )}
       <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">
-        {formatDuration(track.duration)}
+        {formatMs(track.lengthMs)}
       </span>
-      <AddToPlaylistButton
-        track={track}
-        artistName={track.artist?.name}
-        albumTitle={track.album?.title}
-        albumDeezerId={track.album?.id ? String(track.album.id) : undefined}
-        coverUrl={cover}
-      />
     </li>
   );
 }
 
-function ArtistResultCard({ artist }: { artist: DeezerArtist }) {
-  const img = pickArtistImage(artist);
+function ArtistResultCard({ artist }: { artist: MbArtistSearchResult }) {
+  const cover = useArtistCover(artist.name);
+  const to = cover ? `/artist/${cover.deezerId}` : '#';
   return (
     <Link
-      to={`/artist/${artist.id}`}
+      to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3">
-        {img ? (
+        {cover?.coverUrl ? (
           <img
-            src={img}
+            src={cover.coverUrl}
             alt={artist.name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -318,22 +340,25 @@ function ArtistResultCard({ artist }: { artist: DeezerArtist }) {
       <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
         {artist.name}
       </h3>
-      <p className="text-xs text-muted-foreground mt-0.5">Artist</p>
+      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+        {artist.disambiguation || (artist.country ? `Artist · ${artist.country}` : 'Artist')}
+      </p>
     </Link>
   );
 }
 
-function AlbumResultCard({ album }: { album: DeezerAlbum }) {
-  const cover = pickAlbumCover(album);
+function AlbumResultCard({ album }: { album: MbReleaseGroupSearchResult }) {
+  const cover = useAlbumCover(album.title, album.artistName);
+  const to = cover ? `/album/${cover.deezerId}` : '#';
   return (
     <Link
-      to={`/album/${album.id}`}
+      to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3 relative">
-        {cover ? (
+        {cover?.coverUrl ? (
           <img
-            src={cover}
+            src={cover.coverUrl}
             alt={album.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -344,19 +369,19 @@ function AlbumResultCard({ album }: { album: DeezerAlbum }) {
           </div>
         )}
         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-[10px] uppercase tracking-wider">
-          Album
+          {album.primaryType ?? 'Album'}
         </span>
       </div>
       <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
         {album.title}
       </h3>
-      {album.artist?.name && (
-        <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{album.artist.name}</p>
+      {album.artistName && (
+        <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{album.artistName}</p>
       )}
-      {album.release_date && (
+      {album.year && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
           <Calendar className="w-3 h-3" />
-          {album.release_date.split('-')[0]}
+          {album.year}
         </div>
       )}
     </Link>
