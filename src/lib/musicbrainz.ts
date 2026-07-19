@@ -7,10 +7,9 @@
  * enrich each MB release group with cover art, IDs, and tracklists.
  *
  * Resolution strategy:
- *   1. Try MB URL-relation search on the Deezer artist URL
- *      (`url:"deezer.com/artist/<ID>"`) — exact 1:1 match when someone has
- *      linked the artist on MB.
- *   2. Fall back to `artist/?query=artist:"Name"` and pick the top score.
+ *   1. Search by the artist's display name and prefer an exact normalized
+ *      name match.
+ *   2. Fall back to the strongest high-confidence name result.
  *
  * All requests carry a descriptive User-Agent (MB policy) and are bounded
  * by a short timeout. Every helper returns null / [] on failure so the
@@ -50,32 +49,43 @@ interface MbArtistSearchResponse {
   artists?: Array<{ id: string; score?: number; name?: string }>;
 }
 
+function normalizeArtistName(value: string | undefined): string {
+  return (value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 /**
- * Resolve the MusicBrainz artist MBID for a Deezer artist. Primary path:
- * URL relation to the Deezer artist page. Fallback: name search.
+ * Resolve the MusicBrainz artist MBID by artist name.
+ *
+ * Do not trust URL-relation search here: MB's Lucene search can return
+ * unrelated artists named "URL"/"Url" with very high scores, which poisons
+ * the discography cache and forces the UI back to wrong provider dates.
  */
 export async function findArtistMbid(
-  deezerId: string,
+  _deezerId: string,
   artistName?: string,
 ): Promise<string | null> {
-  // Path 1 — URL relation.
-  const url = `https://www.deezer.com/artist/${deezerId}`;
-  const q1 = encodeURIComponent(`url:"${lucene(url)}"`);
-  const r1 = await mbFetch<MbArtistSearchResponse>(
-    `/artist/?query=${q1}&limit=1`,
-    5000,
-  );
-  const hit1 = r1?.artists?.[0];
-  if (hit1?.id && (hit1.score ?? 0) >= 90) return hit1.id;
+  if (!artistName) return null;
 
-  // Path 2 — name search.
-  if (!artistName) return hit1?.id ?? null;
-  const q2 = encodeURIComponent(`artist:"${lucene(artistName)}"`);
-  const r2 = await mbFetch<MbArtistSearchResponse>(
-    `/artist/?query=${q2}&limit=5`,
+  const wanted = normalizeArtistName(artistName);
+  if (!wanted) return null;
+
+  const q = encodeURIComponent(`artist:"${lucene(artistName)}"`);
+  const r = await mbFetch<MbArtistSearchResponse>(
+    `/artist/?query=${q}&limit=10`,
   );
-  const best = r2?.artists?.[0];
-  return best?.id ?? hit1?.id ?? null;
+  const hits = r?.artists ?? [];
+  const exact = hits.find((hit) => hit.id && normalizeArtistName(hit.name) === wanted);
+  if (exact?.id) return exact.id;
+
+  const best = hits.find((hit) => hit.id && (hit.score ?? 0) >= 80);
+  return best?.id ?? null;
 }
 
 export type MbRecordType = 'album' | 'ep' | 'single' | 'live' | 'compilation';
