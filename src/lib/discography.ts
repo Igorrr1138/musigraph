@@ -180,7 +180,7 @@ export interface ClassifiedAlbum extends DeezerAlbum {
  * Classify a single Deezer album into a discography bucket.
  *
  * Order of precedence is deliberate:
- *   1. Live (title-based) — Deezer has no live `record_type`.
+ *   1. Live (MusicBrainz `record_type: 'live'` or title-based).
  *   2. Compilation — by Deezer's `record_type: 'compile'` OR by title
  *      (greatest hits / soundtrack / tribute / etc.).
  *   3. Collaboration — album's primary artist differs from the page artist.
@@ -198,7 +198,7 @@ export function classifyAlbum(
   const albumArtistId = album.artist?.id != null ? String(album.artist.id) : null;
   const ownArtistId = String(artistId);
 
-  if (isLiveAlbum(album)) return 'live';
+  if (recordType === 'live' || isLiveAlbum(album)) return 'live';
 
   if (recordType === 'compile' || isCompilationAlbum(album)) return 'compilation';
 

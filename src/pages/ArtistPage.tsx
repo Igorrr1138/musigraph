@@ -150,21 +150,19 @@ const ArtistPage = () => {
     setOtherTab("all");
     setActiveTab("discography");
 
-    let resolvedArtistName: string | null = null;
-
-    getArtist(id).then((data) => {
-      if (cancelled) return;
-      setArtist(data);
-      setIsLoadingArtist(false);
-      resolvedArtistName = data?.name ?? null;
-    });
-
-    // MusicBrainz-primary chronology + genres, Deezer as the data layer,
-    // result cached in Supabase `music_cache` for 30 days.
+    // MusicBrainz-only release metadata. Deezer remains only for the artist
+    // shell/imagery because this route is keyed by the existing Deezer ID.
     (async () => {
+      const data = await getArtist(id);
+      if (cancelled) return;
+      if (data) {
+        setArtist(data);
+      }
+      setIsLoadingArtist(false);
+
       const payload = await getArtistDiscography(
         id,
-        resolvedArtistName ?? undefined,
+        data?.name ?? undefined,
       );
       if (cancelled) return;
       setAlbums(payload.albums);
