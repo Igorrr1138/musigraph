@@ -157,8 +157,8 @@ const ArtistPage = () => {
       if (cancelled) return;
       if (data) {
         setArtist(data);
-        setIsLoadingArtist(false);
       }
+      setIsLoadingArtist(false);
 
       const payload = await getArtistDiscography(
         id,
