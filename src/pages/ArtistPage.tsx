@@ -7,7 +7,6 @@ import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
-import { getArtistTags } from "@/lib/lastfm";
 import { getArtistDiscography } from "@/lib/musicPipeline";
 import { getArtistBio, type ArtistBio } from "@/lib/bio";
 import { resolveGenres } from "@/lib/genreMap";
@@ -465,7 +464,7 @@ const ArtistPage = () => {
                     onClick={handleForceRefresh}
                     disabled={isRefreshing}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/40 hover:bg-secondary text-foreground text-xs px-3 py-1 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Re-fetch metadata from Wikidata and overwrite cache"
+                    title="Re-fetch metadata from MusicBrainz and overwrite cache"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
                     {isRefreshing ? "Syncing…" : "Sync Metadata"}
