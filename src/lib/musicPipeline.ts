@@ -45,7 +45,7 @@ const MB_TO_DEEZER_RECORD_TYPE: Record<MbRecordType, string> = {
   album: 'album',
   ep: 'ep',
   single: 'single',
-  live: 'album',      // buildDiscography reclassifies via title heuristics
+  live: 'live',
   compilation: 'compile',
 };
 
