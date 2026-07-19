@@ -123,8 +123,8 @@ const ArtistPage = () => {
     try {
       const payload = await getArtistDiscography(id, artist?.name, { forceRefresh: true });
       setAlbums(payload.albums);
-      setWikidataGenres(payload.wikidata_genres);
-      setWikidataQid(payload.wikidata_qid);
+      setMbGenres(payload.genres);
+      setMbid(payload.mbid);
       setBio(null);
       setBioAttempted(false);
     } catch (err) {
@@ -144,7 +144,7 @@ const ArtistPage = () => {
     setArtist(null);
     setAlbums([]);
     setTags([]);
-    setWikidataQid(null);
+    setMbid(null);
     setBio(null);
     setBioAttempted(false);
     setOtherTab("all");
@@ -176,8 +176,8 @@ const ArtistPage = () => {
       );
       if (cancelled) return;
       setAlbums(payload.albums);
-      setWikidataGenres(payload.wikidata_genres);
-      setWikidataQid(payload.wikidata_qid);
+      setMbGenres(payload.genres);
+      setMbid(payload.mbid);
       setIsLoadingAlbums(false);
     })();
 
@@ -216,7 +216,7 @@ const ArtistPage = () => {
     if (activeTab !== "bio" || !artist || bioAttempted) return;
     let cancelled = false;
     setIsLoadingBio(true);
-    getArtistBio(artist.name, wikidataQid)
+    getArtistBio(artist.name, mbid)
       .then((res) => {
         if (cancelled) return;
         setBio(res);
@@ -232,7 +232,7 @@ const ArtistPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, artist, wikidataQid, bioAttempted]);
+  }, [activeTab, artist, mbid, bioAttempted]);
 
 
   const artistImage = artist ? pickArtistImage(artist) : null;
@@ -383,7 +383,7 @@ const ArtistPage = () => {
 
   // Wikidata P136 is our primary genre source; Last.fm tags are the fallback.
   const genres = resolveGenres(
-    wikidataGenres.length > 0 ? wikidataGenres : tags,
+    mbGenres.length > 0 ? mbGenres : tags,
     5,
     artist.name,
   );
