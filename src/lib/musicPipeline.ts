@@ -190,7 +190,7 @@ export async function getArtistDiscography(
   let mergedAlbums: DeezerAlbum[];
   let source: 'musicbrainz' | 'deezer';
 
-  if (mbReleases.length > 0) {
+  if (mbReleases.length > 0 && deezerAlbums.length > 0) {
     // MUSICBRAINZ-FIRST PATH -------------------------------------------
     const deezerByKey = new Map<string, DeezerAlbum[]>();
     for (const d of deezerAlbums) {
@@ -200,17 +200,27 @@ export async function getArtistDiscography(
       else deezerByKey.set(key, [d]);
     }
 
-    mergedAlbums = mbReleases
+    const matched = mbReleases
       .map((rel) => {
         const key = normalizeAlbumTitle(rel.title);
         const best = pickBestEdition(deezerByKey.get(key) ?? []);
-        // Drop MB releases we can't back with a Deezer edition — they'd
-        // render as blank, unclickable cards otherwise.
         if (!best) return null;
         return mergeMbWithDeezer(rel, best);
       })
       .filter((a): a is DeezerAlbum => a !== null);
-    source = 'musicbrainz';
+
+    // Guard: if MB title-matching failed for every release (different
+    // artist resolved, transliteration mismatch, etc.), fall back to the
+    // full Deezer discography rather than showing an empty page.
+    if (matched.length > 0) {
+      mergedAlbums = matched;
+      source = 'musicbrainz';
+    } else {
+      console.warn('[musicPipeline] MB returned', mbReleases.length,
+        'releases but none matched Deezer titles — falling back to Deezer.');
+      mergedAlbums = deezerOnlyPayload(deezerAlbums);
+      source = 'deezer';
+    }
   } else {
     mergedAlbums = deezerOnlyPayload(deezerAlbums);
     source = 'deezer';
