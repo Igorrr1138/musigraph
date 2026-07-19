@@ -62,19 +62,10 @@ export function PlaybackBar() {
     return () => { cancelled = true; };
   }, [user, currentTrack, currentAlbumMbid]);
 
-  // Fetch artist deezer id for clickable artist link
+  // albums_cache was dropped in the MusicBrainz migration; artist linkage
+  // now comes from the currently-playing track payload directly.
   useEffect(() => {
-    if (!currentAlbumMbid) { setArtistDeezerId(null); return; }
-    let cancelled = false;
-    supabase
-      .from('albums_cache')
-      .select('artist_deezer_id')
-      .eq('deezer_id', currentAlbumMbid)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setArtistDeezerId(data?.artist_deezer_id ?? null);
-      });
-    return () => { cancelled = true; };
+    setArtistDeezerId(null);
   }, [currentAlbumMbid]);
 
   const computeRatingFromEvent = useCallback((clientX: number): number => {

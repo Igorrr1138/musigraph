@@ -1,19 +1,18 @@
 /**
- * Deezer *cover-lookup only* helper.
+ * Cover-lookup helper — MusicBrainz + Cover Art Archive only.
  *
- * The rest of the search pipeline is MusicBrainz-driven. Deezer is used
- * strictly to find an artwork URL (and the corresponding Deezer numeric
- * ID used by internal routing to /artist/:id and /album/:id, since the
- * downstream artist/album pages still key on Deezer IDs).
- *
- * We NEVER read Deezer's metadata fields (release_date, record_type,
- * nb_album, nb_fan, titles, etc.) from here. Only the cover image URL
- * and the id are exposed.
+ * Filename kept for import compatibility during the Deezer removal. The
+ * `deezerId` field on `CoverRef` now carries a MusicBrainz MBID.
  */
-import { pickArtistImage, pickAlbumCover, searchArtists, searchAlbums } from './deezer';
+import {
+  searchArtistsMB,
+  searchReleaseGroupsMB,
+  coverArtArchiveReleaseGroupUrl,
+} from './musicbrainz';
 import { normalizeAlbumTitle } from './discography';
 
 export interface CoverRef {
+  /** Retained field name for compatibility — holds a MusicBrainz MBID. */
   deezerId: string;
   coverUrl: string | null;
 }
@@ -31,14 +30,10 @@ export async function lookupArtistCover(name: string): Promise<CoverRef | null> 
   if (artistCache.has(key)) return artistCache.get(key) ?? null;
 
   try {
-    const results = await searchArtists(name, 5);
-    const hit =
-      results.find((r) => norm(r.name) === key) ??
-      results[0] ??
-      null;
-    const ref: CoverRef | null = hit
-      ? { deezerId: String(hit.id), coverUrl: pickArtistImage(hit) }
-      : null;
+    const results = await searchArtistsMB(name, 5);
+    const hit = results.find((r) => norm(r.name) === key) ?? results[0] ?? null;
+    // MusicBrainz has no artist images — coverUrl is always null here.
+    const ref: CoverRef | null = hit ? { deezerId: hit.mbid, coverUrl: null } : null;
     artistCache.set(key, ref);
     return ref;
   } catch {
@@ -57,22 +52,20 @@ export async function lookupAlbumCover(
 
   const targetTitle = normalizeAlbumTitle(title);
   const targetArtist = norm(artist ?? '');
-  const query = artist ? `${title} ${artist}` : title;
+  const query = artist ? `${title} AND artist:${artist}` : title;
+
   try {
-    const results = await searchAlbums(query, 10);
-    // Prefer entries whose normalized (variant-stripped) title matches AND
-    // whose artist matches. Do not accept an artist-only match: it can attach
-    // a wrong Deezer album id and create broken album pages.
+    const results = await searchReleaseGroupsMB(query, 10);
     const hit =
       results.find(
         (r) =>
           normalizeAlbumTitle(r.title) === targetTitle &&
-          (!targetArtist || norm(r.artist?.name ?? '') === targetArtist),
+          (!targetArtist || norm(r.artistName ?? '') === targetArtist),
       ) ??
       results.find((r) => normalizeAlbumTitle(r.title) === targetTitle) ??
       null;
     const ref: CoverRef | null = hit
-      ? { deezerId: String(hit.id), coverUrl: pickAlbumCover(hit) }
+      ? { deezerId: hit.mbid, coverUrl: coverArtArchiveReleaseGroupUrl(hit.mbid, 500) }
       : null;
     albumCache.set(key, ref);
     return ref;
