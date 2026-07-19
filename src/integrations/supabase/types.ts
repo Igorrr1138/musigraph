@@ -83,104 +83,6 @@ export type Database = {
         }
         Relationships: []
       }
-      albums_cache: {
-        Row: {
-          artist_deezer_id: string | null
-          artist_mbid: string | null
-          artist_name: string | null
-          cached_at: string
-          cover_url: string | null
-          deezer_id: string | null
-          id: string
-          mbid: string | null
-          release_date: string | null
-          title: string
-          track_count: number | null
-        }
-        Insert: {
-          artist_deezer_id?: string | null
-          artist_mbid?: string | null
-          artist_name?: string | null
-          cached_at?: string
-          cover_url?: string | null
-          deezer_id?: string | null
-          id?: string
-          mbid?: string | null
-          release_date?: string | null
-          title: string
-          track_count?: number | null
-        }
-        Update: {
-          artist_deezer_id?: string | null
-          artist_mbid?: string | null
-          artist_name?: string | null
-          cached_at?: string
-          cover_url?: string | null
-          deezer_id?: string | null
-          id?: string
-          mbid?: string | null
-          release_date?: string | null
-          title?: string
-          track_count?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "albums_cache_artist_mbid_fkey"
-            columns: ["artist_mbid"]
-            isOneToOne: false
-            referencedRelation: "artists_cache"
-            referencedColumns: ["mbid"]
-          },
-        ]
-      }
-      artists_cache: {
-        Row: {
-          cached_at: string
-          country: string | null
-          deezer_id: string | null
-          description: string | null
-          disambiguation: string | null
-          id: string
-          image_url: string | null
-          life_span_begin: string | null
-          life_span_end: string | null
-          mbid: string | null
-          name: string
-          tags: string[] | null
-          tags_cached_at: string | null
-        }
-        Insert: {
-          cached_at?: string
-          country?: string | null
-          deezer_id?: string | null
-          description?: string | null
-          disambiguation?: string | null
-          id?: string
-          image_url?: string | null
-          life_span_begin?: string | null
-          life_span_end?: string | null
-          mbid?: string | null
-          name: string
-          tags?: string[] | null
-          tags_cached_at?: string | null
-        }
-        Update: {
-          cached_at?: string
-          country?: string | null
-          deezer_id?: string | null
-          description?: string | null
-          disambiguation?: string | null
-          id?: string
-          image_url?: string | null
-          life_span_begin?: string | null
-          life_span_end?: string | null
-          mbid?: string | null
-          name?: string
-          tags?: string[] | null
-          tags_cached_at?: string | null
-        }
-        Relationships: []
-      }
       criteria_preferences: {
         Row: {
           created_at: string
@@ -202,36 +104,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           visible_criteria?: string[]
-        }
-        Relationships: []
-      }
-      isrc_mapping: {
-        Row: {
-          apple_music_id: string | null
-          created_at: string
-          isrc: string
-          musicbrainz_id: string | null
-          spotify_id: string | null
-          updated_at: string
-          youtube_video_id: string | null
-        }
-        Insert: {
-          apple_music_id?: string | null
-          created_at?: string
-          isrc: string
-          musicbrainz_id?: string | null
-          spotify_id?: string | null
-          updated_at?: string
-          youtube_video_id?: string | null
-        }
-        Update: {
-          apple_music_id?: string | null
-          created_at?: string
-          isrc?: string
-          musicbrainz_id?: string | null
-          spotify_id?: string | null
-          updated_at?: string
-          youtube_video_id?: string | null
         }
         Relationships: []
       }
@@ -578,53 +450,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      tracks_cache: {
-        Row: {
-          album_deezer_id: string | null
-          album_mbid: string | null
-          cached_at: string
-          deezer_id: string | null
-          duration_ms: number | null
-          id: string
-          isrc: string | null
-          mbid: string | null
-          position: number | null
-          title: string
-        }
-        Insert: {
-          album_deezer_id?: string | null
-          album_mbid?: string | null
-          cached_at?: string
-          deezer_id?: string | null
-          duration_ms?: number | null
-          id?: string
-          isrc?: string | null
-          mbid?: string | null
-          position?: number | null
-          title: string
-        }
-        Update: {
-          album_deezer_id?: string | null
-          album_mbid?: string | null
-          cached_at?: string
-          deezer_id?: string | null
-          duration_ms?: number | null
-          id?: string
-          isrc?: string | null
-          mbid?: string | null
-          position?: number | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tracks_cache_album_mbid_fkey"
-            columns: ["album_mbid"]
-            isOneToOne: false
-            referencedRelation: "albums_cache"
-            referencedColumns: ["mbid"]
-          },
-        ]
       }
     }
     Views: {
