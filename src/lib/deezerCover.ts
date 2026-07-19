@@ -55,16 +55,24 @@ export async function lookupAlbumCover(
   if (!key) return null;
   if (albumCache.has(key)) return albumCache.get(key) ?? null;
 
+  const targetTitle = normalizeAlbumTitle(title);
+  const targetArtist = norm(artist ?? '');
   const query = artist ? `${title} ${artist}` : title;
   try {
-    const results = await searchAlbums(query, 5);
+    const results = await searchAlbums(query, 10);
+    // Prefer entries whose normalized (variant-stripped) title matches AND
+    // whose artist matches. Fall back progressively so reissues, remasters,
+    // and deluxe editions still resolve to a real Deezer album id + cover.
     const hit =
       results.find(
         (r) =>
-          norm(r.title) === norm(title) &&
-          (!artist || norm(r.artist?.name ?? '') === norm(artist)),
+          normalizeAlbumTitle(r.title) === targetTitle &&
+          (!targetArtist || norm(r.artist?.name ?? '') === targetArtist),
       ) ??
-      results[0] ??
+      results.find((r) => normalizeAlbumTitle(r.title) === targetTitle) ??
+      results.find(
+        (r) => !targetArtist || norm(r.artist?.name ?? '') === targetArtist,
+      ) ??
       null;
     const ref: CoverRef | null = hit
       ? { deezerId: String(hit.id), coverUrl: pickAlbumCover(hit) }
