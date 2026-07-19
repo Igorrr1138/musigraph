@@ -143,7 +143,7 @@ const ArtistPage = () => {
     setIsLoadingAlbums(true);
     setArtist(null);
     setAlbums([]);
-    setTags([]);
+    setMbGenres([]);
     setMbid(null);
     setBio(null);
     setBioAttempted(false);
@@ -157,18 +157,10 @@ const ArtistPage = () => {
       setArtist(data);
       setIsLoadingArtist(false);
       resolvedArtistName = data?.name ?? null;
-
-      if (data?.name) {
-        getArtistTags(id, data.name).then((t) => {
-          if (!cancelled) setTags(t);
-        });
-      }
     });
 
-    // New pipeline: Wikidata-primary chronology + genres, Deezer as data layer,
-    // result cached in Supabase `music_cache` for 30 days. Fully awaited here
-    // because the payload arrives from the cache in a single query on warm
-    // hits — cold hits fan out Wikidata calls internally.
+    // MusicBrainz-primary chronology + genres, Deezer as the data layer,
+    // result cached in Supabase `music_cache` for 30 days.
     (async () => {
       const payload = await getArtistDiscography(
         id,
