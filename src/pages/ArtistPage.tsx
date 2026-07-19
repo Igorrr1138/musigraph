@@ -7,7 +7,6 @@ import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
-import { getArtistTags } from "@/lib/lastfm";
 import { getArtistDiscography } from "@/lib/musicPipeline";
 import { getArtistBio, type ArtistBio } from "@/lib/bio";
 import { resolveGenres } from "@/lib/genreMap";
@@ -101,10 +100,9 @@ const ArtistPage = () => {
 
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
-  const [wikidataGenres, setWikidataGenres] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [mbGenres, setMbGenres] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [wikidataQid, setWikidataQid] = useState<string | null>(null);
+  const [mbid, setMbid] = useState<string | null>(null);
   const [bio, setBio] = useState<ArtistBio | null>(null);
   const [isLoadingBio, setIsLoadingBio] = useState(false);
   const [bioAttempted, setBioAttempted] = useState(false);
@@ -124,8 +122,8 @@ const ArtistPage = () => {
     try {
       const payload = await getArtistDiscography(id, artist?.name, { forceRefresh: true });
       setAlbums(payload.albums);
-      setWikidataGenres(payload.wikidata_genres);
-      setWikidataQid(payload.wikidata_qid);
+      setMbGenres(payload.genres);
+      setMbid(payload.mbid);
       setBio(null);
       setBioAttempted(false);
     } catch (err) {
@@ -144,8 +142,8 @@ const ArtistPage = () => {
     setIsLoadingAlbums(true);
     setArtist(null);
     setAlbums([]);
-    setTags([]);
-    setWikidataQid(null);
+    setMbGenres([]);
+    setMbid(null);
     setBio(null);
     setBioAttempted(false);
     setOtherTab("all");
@@ -158,18 +156,10 @@ const ArtistPage = () => {
       setArtist(data);
       setIsLoadingArtist(false);
       resolvedArtistName = data?.name ?? null;
-
-      if (data?.name) {
-        getArtistTags(id, data.name).then((t) => {
-          if (!cancelled) setTags(t);
-        });
-      }
     });
 
-    // New pipeline: Wikidata-primary chronology + genres, Deezer as data layer,
-    // result cached in Supabase `music_cache` for 30 days. Fully awaited here
-    // because the payload arrives from the cache in a single query on warm
-    // hits — cold hits fan out Wikidata calls internally.
+    // MusicBrainz-primary chronology + genres, Deezer as the data layer,
+    // result cached in Supabase `music_cache` for 30 days.
     (async () => {
       const payload = await getArtistDiscography(
         id,
@@ -177,8 +167,8 @@ const ArtistPage = () => {
       );
       if (cancelled) return;
       setAlbums(payload.albums);
-      setWikidataGenres(payload.wikidata_genres);
-      setWikidataQid(payload.wikidata_qid);
+      setMbGenres(payload.genres);
+      setMbid(payload.mbid);
       setIsLoadingAlbums(false);
     })();
 
@@ -211,13 +201,13 @@ const ArtistPage = () => {
     };
   }, [user, artist]);
 
-  // Lazy-load the biography the first time the Bio tab is opened. Wikidata
-  // → Wikipedia is primary; Last.fm is the fallback (see `src/lib/bio.ts`).
+  // Lazy-load the biography the first time the Bio tab is opened.
+  // Last.fm is our only bio source.
   useEffect(() => {
     if (activeTab !== "bio" || !artist || bioAttempted) return;
     let cancelled = false;
     setIsLoadingBio(true);
-    getArtistBio(artist.name, wikidataQid)
+    getArtistBio(artist.name)
       .then((res) => {
         if (cancelled) return;
         setBio(res);
@@ -233,7 +223,7 @@ const ArtistPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, artist, wikidataQid, bioAttempted]);
+  }, [activeTab, artist, bioAttempted]);
 
 
   const artistImage = artist ? pickArtistImage(artist) : null;
@@ -382,12 +372,8 @@ const ArtistPage = () => {
     { id: "similar", label: "Similar Artists" },
   ];
 
-  // Wikidata P136 is our primary genre source; Last.fm tags are the fallback.
-  const genres = resolveGenres(
-    wikidataGenres.length > 0 ? wikidataGenres : tags,
-    5,
-    artist.name,
-  );
+  // MusicBrainz genres/tags — our only genre source now.
+  const genres = resolveGenres(mbGenres, 5, artist.name);
   const artistType = (artist.type ?? "artist").toLowerCase() === "artist" ? "Artist" : "Group";
 
   return (
@@ -478,7 +464,7 @@ const ArtistPage = () => {
                     onClick={handleForceRefresh}
                     disabled={isRefreshing}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/40 hover:bg-secondary text-foreground text-xs px-3 py-1 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Re-fetch metadata from Wikidata and overwrite cache"
+                    title="Re-fetch metadata from MusicBrainz and overwrite cache"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
                     {isRefreshing ? "Syncing…" : "Sync Metadata"}
@@ -655,7 +641,7 @@ const ArtistPage = () => {
                           rel="noopener noreferrer"
                           className="underline hover:text-foreground"
                         >
-                          {bio.source === "wikipedia" ? "Wikipedia" : "Last.fm"}
+                          Last.fm
                         </a>
                       </p>
                     )}

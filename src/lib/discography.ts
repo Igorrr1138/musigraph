@@ -231,7 +231,7 @@ export function classifyAlbum(
  *     `purifyTracks` in `src/lib/purify.ts`.
  *
  * Historical chronology is preserved independently via `original_year`
- * (from Wikidata P577), so choosing the Deluxe edition here doesn't move
+ * (from MusicBrainz first-release-date), so choosing the Deluxe edition here doesn't move
  * the album on the timeline.
  */
 export function dedupeByEditionPriority<T extends DeezerAlbum>(albums: T[]): T[] {

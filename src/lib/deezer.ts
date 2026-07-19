@@ -3,7 +3,7 @@
  *
  * Deezer is the DATA LAYER of the purification pipeline: it supplies album
  * lists, tracklists, covers, and artist visuals. Historical release
- * chronology and genre hierarchy come from Wikidata (see `wikidata.ts`) and
+ * chronology and genre hierarchy come from MusicBrainz (see `musicbrainz.ts`) and
  * are merged onto these payloads by `musicPipeline.ts`. This module no
  * longer performs any Last.fm date correction of its own.
  */
@@ -37,7 +37,7 @@ export interface DeezerAlbum {
   cover_xl?: string;
   release_date?: string;
   record_type?: string;
-  /** Original release year (from Wikidata P577 primary, Deezer year fallback). */
+  /** Original release year (Deezer year fallback). */
   original_year?: number;
   /** Set by the pipeline: title carries Deluxe/Expanded/Remastered markers. */
   is_deluxe?: boolean;
@@ -254,7 +254,7 @@ async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | nul
 /**
  * Fetch all albums for an artist from Deezer. Raw data only — chronological
  * corrections, dedup, and genre enrichment all happen downstream in
- * `musicPipeline.ts` using Wikidata as the primary source.
+ * `musicPipeline.ts` using MusicBrainz as the primary source.
  */
 export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
   try {
