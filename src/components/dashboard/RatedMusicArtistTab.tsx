@@ -82,35 +82,15 @@ export function RatedMusicArtistTab({ artistName }: { artistName: string }) {
         if (error) throw error;
 
         const rows = ratingsRows ?? [];
-        const deezerIds = rows
-          .map((r) => r.album_deezer_id)
-          .filter((v): v is string => Boolean(v));
-
-        let releaseMap = new Map<string, string | null>();
-        if (deezerIds.length > 0) {
-          const { data: cacheRows } = await supabase
-            .from('albums_cache')
-            .select('deezer_id, release_date')
-            .in('deezer_id', deezerIds);
-          if (cacheRows) {
-            releaseMap = new Map(
-              cacheRows
-                .filter(
-                  (row): row is { deezer_id: string; release_date: string | null } =>
-                    Boolean(row.deezer_id),
-                )
-                .map((row) => [row.deezer_id, row.release_date]),
-            );
-          }
-        }
-
+        // albums_cache was dropped in the MusicBrainz migration; release_date
+        // enrichment will move to MB in a follow-up pass.
         const enriched: AlbumRating[] = rows.map((r) => ({
           album_deezer_id: r.album_deezer_id ?? '',
           album_title: r.album_title,
           rating: r.rating,
           rated_at: r.rated_at,
           cover_url: r.cover_url,
-          release_date: releaseMap.get(r.album_deezer_id ?? '') ?? null,
+          release_date: null,
         }));
 
         enriched.sort((a, b) => {

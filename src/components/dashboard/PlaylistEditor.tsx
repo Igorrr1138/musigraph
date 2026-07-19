@@ -69,31 +69,11 @@ export function PlaylistEditor() {
           .gte('rating', 8)
           .order('rated_at', { ascending: false });
 
-        const albumIds = Array.from(
-          new Set((rs ?? []).map((r) => r.album_deezer_id).filter(Boolean) as string[]),
-        );
+        // Cache tables (albums_cache/tracks_cache) were removed during the
+        // MusicBrainz migration. Auto-playlist rows now render with only the
+        // fields present on the rating rows themselves.
         const albumMap = new Map<string, { cover: string | null; artist: string | null; title: string | null }>();
-        if (albumIds.length) {
-          const { data: albums } = await supabase
-            .from('albums_cache')
-            .select('deezer_id,cover_url,artist_name,title')
-            .in('deezer_id', albumIds);
-          (albums ?? []).forEach((a) =>
-            albumMap.set(a.deezer_id!, { cover: a.cover_url, artist: a.artist_name, title: a.title }),
-          );
-        }
-
-        const trackIds = (rs ?? []).map((r) => r.track_deezer_id).filter(Boolean) as string[];
         const durMap = new Map<string, number | null>();
-        if (trackIds.length) {
-          const { data: tc } = await supabase
-            .from('tracks_cache')
-            .select('deezer_id,duration_ms')
-            .in('deezer_id', trackIds);
-          (tc ?? []).forEach((t) =>
-            durMap.set(t.deezer_id!, t.duration_ms ? Math.round(t.duration_ms / 1000) : null),
-          );
-        }
 
         setTracks(
           (rs ?? []).map((r, idx) => {

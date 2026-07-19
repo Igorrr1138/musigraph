@@ -1,20 +1,24 @@
 /**
- * Deezer API client (browser-side via JSONP to bypass CORS).
+ * Music data facade — MusicBrainz + Cover Art Archive only.
  *
- * Deezer is the DATA LAYER of the purification pipeline: it supplies album
- * lists, tracklists, covers, and artist visuals. Historical release
- * chronology and genre hierarchy come from MusicBrainz (see `musicbrainz.ts`) and
- * are merged onto these payloads by `musicPipeline.ts`. This module no
- * longer performs any Last.fm date correction of its own.
+ * The filename is retained for import compatibility during the Deezer
+ * removal; every call in here now hits musicbrainz.org / coverartarchive.org.
+ * All entity IDs are MusicBrainz MBIDs (UUID strings). No deezer.com traffic.
+ *
+ * (This file will be renamed in a follow-up pass; keeping the exported
+ * names/types stable lets the rest of the app compile unchanged.)
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import {
+  searchArtistsMB,
+  searchReleaseGroupsMB,
+  searchRecordingsMB,
+  fetchArtistReleases,
+  fetchReleaseGroupAlbum,
+  coverArtArchiveReleaseGroupUrl,
+} from './musicbrainz';
 
-const DEEZER_BASE = 'https://api.deezer.com';
-const JSONP_TIMEOUT_MS = 10_000;
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-// ---------- Types (subset of the Deezer payload we actually use) ----------
+// ---------- Types (shape preserved for downstream compatibility) ----------
 
 export interface DeezerArtist {
   id: number | string;
@@ -30,7 +34,6 @@ export interface DeezerArtist {
 
 export interface DeezerAlbum {
   id: number | string;
-  /** MusicBrainz release-group MBID when this album is sourced from MusicBrainz. */
   mbid?: string | null;
   title: string;
   cover_small?: string;
@@ -39,11 +42,8 @@ export interface DeezerAlbum {
   cover_xl?: string;
   release_date?: string;
   record_type?: string;
-  /** Original release year (Deezer year fallback). */
   original_year?: number;
-  /** Set by the pipeline: title carries Deluxe/Expanded/Remastered markers. */
   is_deluxe?: boolean;
-  /** From Deezer's `explicit_lyrics` when available. */
   is_explicit?: boolean;
   nb_tracks?: number;
   artist?: DeezerArtist;
@@ -55,7 +55,7 @@ export interface DeezerTrack {
   id: number | string;
   title: string;
   title_short?: string;
-  duration: number; // seconds
+  duration: number;
   track_position?: number;
   disk_number?: number;
   preview?: string;
@@ -64,230 +64,188 @@ export interface DeezerTrack {
   album?: { id: number | string; title: string; cover_xl?: string };
 }
 
-interface DeezerListResponse<T> {
-  data?: T[];
-  total?: number;
-  next?: string;
-  error?: { type: string; message: string; code: number };
-}
-
-// ---------- JSONP transport ----------
-
-let jsonpCounter = 0;
-
-function deezerJsonp<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return Promise.reject(new Error('Deezer JSONP requires a browser environment'));
-  }
-
-  return new Promise<T>((resolve, reject) => {
-    jsonpCounter += 1;
-    const callbackName = `deezerCb_${Date.now()}_${jsonpCounter}_${Math.random().toString(36).slice(2)}`;
-    const w = window as unknown as Record<string, unknown>;
-    const script = document.createElement('script');
-
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      try { delete w[callbackName]; } catch { /* noop */ }
-      script.remove();
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error(`Deezer request timed out: ${path}`));
-    }, JSONP_TIMEOUT_MS);
-
-    w[callbackName] = (data: T) => {
-      cleanup();
-      resolve(data);
-    };
-
-    const qs = new URLSearchParams({
-      ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
-      output: 'jsonp',
-      callback: callbackName,
-    }).toString();
-
-    script.src = `${DEEZER_BASE}${path}?${qs}`;
-    script.async = true;
-    script.onerror = () => {
-      cleanup();
-      reject(new Error(`Deezer request failed: ${path}`));
-    };
-
-    document.body.appendChild(script);
-  });
-}
-
-async function deezerPaginatedList<T>(path: string, limit = 100): Promise<T[]> {
-  const pageSize = Math.min(limit, 100);
-  const items: T[] = [];
-  let index = 0;
-
-  while (items.length < limit) {
-    const data = await deezerJsonp<DeezerListResponse<T>>(path, { limit: pageSize, index });
-    const batch = data.data ?? [];
-    items.push(...batch);
-
-    if (batch.length === 0 || !data.next) break;
-    index += batch.length;
-  }
-
-  return items.slice(0, limit);
-}
-
 // ---------- Image helpers ----------
 
-const DEEZER_EMPTY_IMAGE_HASH = 'd41d8cd98f00b204e9800998ecf8427e';
-
 export function isUsableImage(url: string | undefined | null): boolean {
-  return Boolean(url && !url.includes(DEEZER_EMPTY_IMAGE_HASH));
+  return Boolean(url);
 }
 
-export function pickArtistImage(artist: DeezerArtist | undefined | null): string | null {
-  if (!artist) return null;
-  const candidates = [artist.picture_xl, artist.picture_big, artist.picture_medium, artist.picture_small];
-  return candidates.find(isUsableImage) ?? null;
+/** MusicBrainz exposes no artist images — always null. */
+export function pickArtistImage(_artist: DeezerArtist | undefined | null): string | null {
+  return null;
 }
 
 export function pickAlbumCover(album: { cover_xl?: string; cover_big?: string; cover_medium?: string; cover_small?: string } | undefined | null): string | null {
   if (!album) return null;
-  const candidates = [album.cover_xl, album.cover_big, album.cover_medium, album.cover_small];
-  return candidates.find(isUsableImage) ?? null;
+  return album.cover_xl ?? album.cover_big ?? album.cover_medium ?? album.cover_small ?? null;
 }
 
-// ---------- Search ----------
+// ---------- Search (delegates to MusicBrainz) ----------
 
 export async function searchArtists(query: string, limit = 12): Promise<DeezerArtist[]> {
   try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerArtist>>('/search/artist', { q: query, limit });
-    return data.data ?? [];
+    const results = await searchArtistsMB(query, limit);
+    return results.map((a) => ({ id: a.mbid, name: a.name, type: 'artist' }));
   } catch (err) {
-    console.error('[Deezer] searchArtists failed:', err);
+    console.error('[music] searchArtists failed:', err);
     return [];
   }
 }
 
 export async function searchAlbums(query: string, limit = 12): Promise<DeezerAlbum[]> {
   try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerAlbum>>('/search/album', { q: query, limit });
-    return data.data ?? [];
+    const results = await searchReleaseGroupsMB(query, limit);
+    return results.map((g) => {
+      const cover = coverArtArchiveReleaseGroupUrl(g.mbid, 500);
+      return {
+        id: g.mbid,
+        mbid: g.mbid,
+        title: g.title,
+        cover_small: cover,
+        cover_medium: cover,
+        cover_big: cover,
+        cover_xl: cover,
+        release_date: g.year ? String(g.year) : undefined,
+        original_year: g.year,
+        record_type: (g.primaryType ?? 'album').toLowerCase(),
+        artist: g.artistName
+          ? { id: g.artistMbid ?? '', name: g.artistName }
+          : undefined,
+      };
+    });
   } catch (err) {
-    console.error('[Deezer] searchAlbums failed:', err);
+    console.error('[music] searchAlbums failed:', err);
     return [];
   }
 }
 
 export async function searchTracks(query: string, limit = 12): Promise<DeezerTrack[]> {
   try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerTrack>>('/search/track', { q: query, limit });
-    return data.data ?? [];
+    const results = await searchRecordingsMB(query, limit);
+    return results.map((r) => ({
+      id: r.mbid,
+      title: r.title,
+      duration: r.lengthMs ? Math.round(r.lengthMs / 1000) : 0,
+      artist: r.artistName ? { id: r.artistMbid ?? '', name: r.artistName } : undefined,
+      album: r.releaseMbid
+        ? {
+            id: r.releaseMbid,
+            title: r.releaseTitle ?? '',
+            cover_xl: coverArtArchiveReleaseGroupUrl(r.releaseMbid, 500),
+          }
+        : undefined,
+    }));
   } catch (err) {
-    console.error('[Deezer] searchTracks failed:', err);
+    console.error('[music] searchTracks failed:', err);
     return [];
   }
 }
 
-export async function getRelatedArtists(deezerId: string, limit = 8): Promise<DeezerArtist[]> {
+// ---------- Entity getters (MusicBrainz-backed) ----------
+
+export async function getArtist(mbid: string): Promise<DeezerArtist | null> {
   try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerArtist>>(`/artist/${deezerId}/related`, { limit });
-    return data.data ?? [];
+    const r = await fetch(
+      `https://musicbrainz.org/ws/2/artist/${mbid}?fmt=json`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as { id?: string; name?: string };
+    if (!j?.id || !j.name) return null;
+    return { id: j.id, name: j.name, type: 'artist' };
   } catch (err) {
-    console.error('[Deezer] getRelatedArtists failed:', err);
-    return [];
-  }
-}
-
-export async function getArtistTopTracks(deezerId: string, limit = 10): Promise<DeezerTrack[]> {
-  try {
-    const data = await deezerJsonp<DeezerListResponse<DeezerTrack>>(`/artist/${deezerId}/top`, { limit });
-    return data.data ?? [];
-  } catch (err) {
-    console.error('[Deezer] getArtistTopTracks failed:', err);
-    return [];
-  }
-}
-
-
-// ---------- Entity getters with cache ----------
-
-export async function getArtist(deezerId: string): Promise<DeezerArtist | null> {
-  const { data: cached } = await supabase
-    .from('artists_cache')
-    .select('*')
-    .eq('deezer_id', deezerId)
-    .maybeSingle();
-
-  if (cached) {
-    const age = Date.now() - new Date(cached.cached_at).getTime();
-    if (age > CACHE_TTL_MS) void fetchAndCacheArtist(deezerId);
-    return {
-      id: deezerId,
-      name: cached.name,
-      picture_xl: cached.image_url ?? undefined,
-      picture_big: cached.image_url ?? undefined,
-    };
-  }
-
-  return fetchAndCacheArtist(deezerId);
-}
-
-async function fetchAndCacheArtist(deezerId: string): Promise<DeezerArtist | null> {
-  try {
-    const artist = await deezerJsonp<DeezerArtist & { error?: unknown }>(`/artist/${deezerId}`);
-    if ((artist as { error?: unknown }).error) return null;
-
-    void supabase.from('artists_cache').upsert({
-      deezer_id: String(artist.id),
-      name: artist.name,
-      image_url: pickArtistImage(artist),
-      cached_at: new Date().toISOString(),
-    }, { onConflict: 'deezer_id' }).then(({ error }) => {
-      if (error) console.warn('[Deezer] artist cache upsert error:', error);
-    });
-
-    return artist;
-  } catch (err) {
-    console.error('[Deezer] getArtist failed:', err);
+    console.error('[music] getArtist failed:', err);
     return null;
   }
 }
 
 /**
- * Fetch all albums for an artist from Deezer. Raw data only — chronological
- * corrections, dedup, and genre enrichment all happen downstream in
- * `musicPipeline.ts` using MusicBrainz as the primary source.
+ * MusicBrainz has no popularity signal. Returns a sample of recordings by
+ * the artist as a stand-in for "top tracks".
  */
-export async function getArtistAlbums(deezerId: string, limit = 100): Promise<DeezerAlbum[]> {
+export async function getArtistTopTracks(mbid: string, limit = 10): Promise<DeezerTrack[]> {
   try {
-    return await deezerPaginatedList<DeezerAlbum>(`/artist/${deezerId}/albums`, limit);
+    const results = await searchRecordingsMB(`arid:${mbid}`, limit);
+    return results.map((r) => ({
+      id: r.mbid,
+      title: r.title,
+      duration: r.lengthMs ? Math.round(r.lengthMs / 1000) : 0,
+      artist: r.artistName ? { id: r.artistMbid ?? mbid, name: r.artistName } : undefined,
+      album: r.releaseMbid
+        ? {
+            id: r.releaseMbid,
+            title: r.releaseTitle ?? '',
+            cover_xl: coverArtArchiveReleaseGroupUrl(r.releaseMbid, 500),
+          }
+        : undefined,
+    }));
   } catch (err) {
-    console.error('[Deezer] getArtistAlbums failed:', err);
+    console.error('[music] getArtistTopTracks failed:', err);
     return [];
   }
 }
 
-export async function getAlbum(deezerId: string): Promise<DeezerAlbum | null> {
+/**
+ * "Related artists" via MB artist-artist relations (associated acts, band
+ * members, etc.). Sparse compared to the previous curated list, but stays
+ * within MusicBrainz.
+ */
+export async function getRelatedArtists(mbid: string, limit = 8): Promise<DeezerArtist[]> {
   try {
-    const album = await deezerJsonp<DeezerAlbum & { error?: unknown }>(`/album/${deezerId}`);
-    if ((album as { error?: unknown }).error) return null;
-
-    void supabase.from('albums_cache').upsert({
-      deezer_id: String(album.id),
-      title: album.title,
-      cover_url: pickAlbumCover(album),
-      release_date: album.release_date ?? null,
-      artist_name: album.artist?.name ?? null,
-      artist_deezer_id: album.artist?.id ? String(album.artist.id) : null,
-      track_count: album.nb_tracks ?? null,
-      cached_at: new Date().toISOString(),
-    }, { onConflict: 'deezer_id' }).then(({ error }) => {
-      if (error) console.warn('[Deezer] album cache upsert error:', error);
-    });
-
-    return album;
+    const r = await fetch(
+      `https://musicbrainz.org/ws/2/artist/${mbid}?inc=artist-rels&fmt=json`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!r.ok) return [];
+    const j = (await r.json()) as {
+      relations?: Array<{ artist?: { id?: string; name?: string } }>;
+    };
+    const seen = new Set<string>();
+    const out: DeezerArtist[] = [];
+    for (const rel of j.relations ?? []) {
+      const id = rel.artist?.id;
+      const name = rel.artist?.name;
+      if (!id || !name || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, name, type: 'artist' });
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch (err) {
-    console.error('[Deezer] getAlbum failed:', err);
+    console.error('[music] getRelatedArtists failed:', err);
+    return [];
+  }
+}
+
+export async function getArtistAlbums(mbid: string, limit = 200): Promise<DeezerAlbum[]> {
+  try {
+    const releases = await fetchArtistReleases(mbid);
+    return releases.slice(0, limit).map((rel) => {
+      const cover = coverArtArchiveReleaseGroupUrl(rel.mbid, 500);
+      return {
+        id: rel.mbid,
+        mbid: rel.mbid,
+        title: rel.title,
+        cover_small: cover,
+        cover_medium: cover,
+        cover_big: cover,
+        cover_xl: cover,
+        release_date: rel.date,
+        original_year: rel.year,
+        record_type: rel.record_type === 'compilation' ? 'compile' : rel.record_type,
+      };
+    });
+  } catch (err) {
+    console.error('[music] getArtistAlbums failed:', err);
+    return [];
+  }
+}
+
+export async function getAlbum(mbid: string): Promise<DeezerAlbum | null> {
+  try {
+    return await fetchReleaseGroupAlbum(mbid);
+  } catch (err) {
+    console.error('[music] getAlbum failed:', err);
     return null;
   }
 }
@@ -301,16 +259,13 @@ export function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/**
- * Map Deezer record_type -> human-friendly category bucket used by the
- * discography organizer. Deezer values: "album", "ep", "single", "compile".
- */
 export function deezerRecordCategory(recordType?: string): 'Album' | 'EP' | 'Single' | 'Compilation' | 'Other' {
   switch ((recordType ?? '').toLowerCase()) {
     case 'album': return 'Album';
     case 'ep': return 'EP';
     case 'single': return 'Single';
-    case 'compile': return 'Compilation';
+    case 'compile':
+    case 'compilation': return 'Compilation';
     default: return 'Other';
   }
 }

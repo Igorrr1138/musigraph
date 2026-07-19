@@ -116,44 +116,10 @@ export function MyStatsTab() {
       setAlbums(albumList);
       setTracks((t ?? []) as TrackRating[]);
 
-      // Build genre breakdown from rated artists' cached tags
-      const artistIds = Array.from(
-        new Set(albumList.map(r => r.artist_deezer_id).filter((x): x is string => !!x)),
-      );
-      if (artistIds.length) {
-        const { data: artistRows } = await supabase
-          .from('artists_cache')
-          .select('deezer_id,tags')
-          .in('deezer_id', artistIds);
-        const tagToAlbums = new Map<string, number>();
-        const artistTagMap = new Map<string, string[]>();
-        (artistRows ?? []).forEach(row => {
-          if (row.deezer_id) artistTagMap.set(row.deezer_id, (row.tags ?? []) as string[]);
-        });
-        let total = 0;
-        for (const album of albumList) {
-          const tags = album.artist_deezer_id ? artistTagMap.get(album.artist_deezer_id) : null;
-          if (!tags?.length) continue;
-          const cats = new Set<string>();
-          for (const tag of tags.slice(0, 6)) {
-            const cat = categoryForTag(tag);
-            if (cat && cat !== 'Various') cats.add(cat);
-          }
-          if (!cats.size) continue;
-          const weight = 1 / cats.size;
-          for (const c of cats) {
-            tagToAlbums.set(c, (tagToAlbums.get(c) ?? 0) + weight);
-            total += weight;
-          }
-        }
-        const slices: GenreSlice[] = Array.from(tagToAlbums.entries())
-          .map(([name, value]) => ({ name, value, percent: total ? (value / total) * 100 : 0 }))
-          .sort((x, y) => y.value - x.value)
-          .slice(0, 12);
-        if (!cancelled) setGenres(slices);
-      } else {
-        setGenres([]);
-      }
+      // Genre breakdown from cached artist tags is disabled during the
+      // MusicBrainz migration (artists_cache was dropped). Will be
+      // reintroduced via MB genres in a follow-up pass.
+      setGenres([]);
       setLoading(false);
     })();
     return () => {
