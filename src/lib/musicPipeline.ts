@@ -12,6 +12,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getArtistAlbums, type DeezerAlbum } from './deezer';
+import { lookupAlbumCover } from './deezerCover';
 import { normalizeAlbumTitle, looksLikeVariant } from './discography';
 import {
   findArtistMbid,
