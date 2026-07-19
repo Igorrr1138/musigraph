@@ -61,8 +61,8 @@ export async function lookupAlbumCover(
   try {
     const results = await searchAlbums(query, 10);
     // Prefer entries whose normalized (variant-stripped) title matches AND
-    // whose artist matches. Fall back progressively so reissues, remasters,
-    // and deluxe editions still resolve to a real Deezer album id + cover.
+    // whose artist matches. Do not accept an artist-only match: it can attach
+    // a wrong Deezer album id and create broken album pages.
     const hit =
       results.find(
         (r) =>
@@ -70,9 +70,6 @@ export async function lookupAlbumCover(
           (!targetArtist || norm(r.artist?.name ?? '') === targetArtist),
       ) ??
       results.find((r) => normalizeAlbumTitle(r.title) === targetTitle) ??
-      results.find(
-        (r) => !targetArtist || norm(r.artist?.name ?? '') === targetArtist,
-      ) ??
       null;
     const ref: CoverRef | null = hit
       ? { deezerId: String(hit.id), coverUrl: pickAlbumCover(hit) }

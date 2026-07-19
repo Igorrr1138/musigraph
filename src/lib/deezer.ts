@@ -30,6 +30,8 @@ export interface DeezerArtist {
 
 export interface DeezerAlbum {
   id: number | string;
+  /** MusicBrainz release-group MBID when this album is sourced from MusicBrainz. */
+  mbid?: string | null;
   title: string;
   cover_small?: string;
   cover_medium?: string;

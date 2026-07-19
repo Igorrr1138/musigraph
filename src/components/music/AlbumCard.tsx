@@ -15,6 +15,12 @@ export function AlbumCard({ album, index = 0, rating, showRating }: AlbumCardPro
   const [imageError, setImageError] = useState(false);
   const coverUrl = pickAlbumCover(album);
   const artistName = album.artist?.name;
+  const artistId = album.artist?.id != null ? String(album.artist.id) : undefined;
+  const albumUrlSearch = new URLSearchParams({
+    ...(artistId ? { artistId } : {}),
+    ...(artistName ? { artistName } : {}),
+  }).toString();
+  const albumUrl = albumUrlSearch ? `/album/${album.id}?${albumUrlSearch}` : `/album/${album.id}`;
   const recordType = album.record_type ? album.record_type[0].toUpperCase() + album.record_type.slice(1) : undefined;
 
   return (
@@ -24,7 +30,7 @@ export function AlbumCard({ album, index = 0, rating, showRating }: AlbumCardPro
       transition={{ duration: 0.4, delay: index * 0.05 }}
     >
       <Link
-        to={`/album/${album.id}`}
+        to={albumUrl}
         className="block group"
       >
         <div className="album-card">
