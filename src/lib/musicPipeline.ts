@@ -215,6 +215,7 @@ export async function getArtistDiscography(
       chunk.forEach((entry, idx) => {
         const ref = refs[idx];
         if (!ref) return;
+        entry.hasDeezer = true;
         entry.merged.id = ref.deezerId;
         if (ref.coverUrl) {
           entry.merged.cover_xl = ref.coverUrl;
@@ -225,7 +226,9 @@ export async function getArtistDiscography(
       });
     }
 
-    mergedAlbums = matched.map((e) => e.merged);
+    // Drop releases we could not resolve to a real Deezer album — otherwise
+    // the card renders with no cover and /album/<mbid> 404s ("Album not found").
+    mergedAlbums = matched.filter((e) => e.hasDeezer).map((e) => e.merged);
   }
 
 
