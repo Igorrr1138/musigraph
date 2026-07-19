@@ -73,9 +73,10 @@ function pickBestEdition(candidates: DeezerAlbum[]): DeezerAlbum | undefined {
  * the existing route ID, cover art, artist shape, and explicit flag.
  */
 function mergeMbRelease(release: MbRelease, deezer?: DeezerAlbum): DeezerAlbum {
+  const maybeDeezer = deezer as (DeezerAlbum & { explicit_lyrics?: unknown }) | undefined;
   const explicit =
-    typeof (deezer as { explicit_lyrics?: unknown } | undefined)?.explicit_lyrics === 'boolean'
-      ? ((deezer as { explicit_lyrics?: boolean }).explicit_lyrics as boolean)
+    typeof maybeDeezer?.explicit_lyrics === 'boolean'
+      ? maybeDeezer.explicit_lyrics
       : undefined;
 
   return {
