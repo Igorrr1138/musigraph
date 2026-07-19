@@ -189,16 +189,45 @@ export async function getArtistDiscography(
       if (relDate < prevDate) mbByKey.set(key, rel);
     }
 
+    const resolvedArtistName =
+      artistName ?? deezerAlbums.find((a) => a.artist?.name)?.artist?.name;
+
+    // First pass — synchronous merge with whatever Deezer already gave us.
     const matched = Array.from(mbByKey.values())
       .map((rel) => {
         const key = normalizeAlbumTitle(rel.title);
         const best = pickBestEdition(deezerByKey.get(key) ?? []);
-        return mergeMbRelease(rel, best);
+        return { rel, merged: mergeMbRelease(rel, best), hasDeezer: Boolean(best) };
       })
-      .filter((a) => Number.isFinite(Number(a.original_year)));
+      .filter((entry) => Number.isFinite(Number(entry.merged.original_year)));
 
-    mergedAlbums = matched;
+    // Second pass — for MB releases without a Deezer edition in the artist's
+    // album list, do a targeted Deezer *cover-only* lookup by "title artist".
+    // This gives the entry (a) a real Deezer id so /album/:id resolves, and
+    // (b) cover art. Cap concurrency at 4 to stay polite with the JSONP layer.
+    const needsLookup = matched.filter((e) => !e.hasDeezer);
+    const CONCURRENCY = 4;
+    for (let i = 0; i < needsLookup.length; i += CONCURRENCY) {
+      const chunk = needsLookup.slice(i, i + CONCURRENCY);
+      const refs = await Promise.all(
+        chunk.map((e) => lookupAlbumCover(e.rel.title, resolvedArtistName).catch(() => null)),
+      );
+      chunk.forEach((entry, idx) => {
+        const ref = refs[idx];
+        if (!ref) return;
+        entry.merged.id = ref.deezerId;
+        if (ref.coverUrl) {
+          entry.merged.cover_xl = ref.coverUrl;
+          entry.merged.cover_big = ref.coverUrl;
+          entry.merged.cover_medium = ref.coverUrl;
+          entry.merged.cover_small = ref.coverUrl;
+        }
+      });
+    }
+
+    mergedAlbums = matched.map((e) => e.merged);
   }
+
 
   const payload: PurifiedDiscographyPayload = {
     albums: mergedAlbums,
