@@ -150,12 +150,6 @@ const ArtistPage = () => {
     setOtherTab("all");
     setActiveTab("discography");
 
-    getArtist(id).then((data) => {
-      if (cancelled) return;
-      setArtist(data);
-      setIsLoadingArtist(false);
-    });
-
     // MusicBrainz-only release metadata. Deezer remains only for the artist
     // shell/imagery because this route is keyed by the existing Deezer ID.
     (async () => {
