@@ -227,6 +227,36 @@ const ArtistPage = () => {
     };
   }, [activeTab, artist, bioAttempted]);
 
+  // Lazy-load popular songs from MusicBrainz when the tab is opened.
+  useEffect(() => {
+    if (activeTab !== "popular" || !mbid || popularAttempted) return;
+    let cancelled = false;
+    setIsLoadingPopular(true);
+    getArtistTopTracks(mbid, 20)
+      .then((tracks) => {
+        if (cancelled) return;
+        setPopularTracks(tracks);
+      })
+      .catch((err) => {
+        console.warn("[ArtistPage] popular tracks fetch failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingPopular(false);
+        setPopularAttempted(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, mbid, popularAttempted]);
+
+  // Reset popular tracks when the artist changes.
+  useEffect(() => {
+    setPopularTracks([]);
+    setPopularAttempted(false);
+  }, [id]);
+
+
 
   const artistImage = artist ? pickArtistImage(artist) : null;
 
