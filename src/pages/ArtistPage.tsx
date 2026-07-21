@@ -659,9 +659,64 @@ const ArtistPage = () => {
             )}
 
             {activeTab === "popular" && (
-              <div className="py-20 text-center text-muted-foreground">
-                <Music2 className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                Popular songs coming soon.
+              <div className="max-w-3xl">
+                {isLoadingPopular ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-14 w-full" />
+                    ))}
+                  </div>
+                ) : popularTracks.length > 0 ? (
+                  <ol className="divide-y divide-border/50 rounded-lg border border-border/50 bg-card/30 backdrop-blur-sm">
+                    {popularTracks.map((track, idx) => {
+                      const albumId = track.album?.id;
+                      const cover = track.album?.cover_xl;
+                      return (
+                        <li
+                          key={`${track.id}-${idx}`}
+                          className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors"
+                        >
+                          <span className="w-6 text-sm text-muted-foreground tabular-nums">{idx + 1}</span>
+                          {cover ? (
+                            <img
+                              src={cover}
+                              alt=""
+                              loading="lazy"
+                              className="w-11 h-11 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded bg-muted flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{track.title}</p>
+                            {track.album?.title && (
+                              albumId ? (
+                                <Link
+                                  to={`/album/${albumId}`}
+                                  className="text-xs text-muted-foreground truncate hover:text-primary transition-colors"
+                                >
+                                  {track.album.title}
+                                </Link>
+                              ) : (
+                                <p className="text-xs text-muted-foreground truncate">{track.album.title}</p>
+                              )
+                            )}
+                          </div>
+                          {track.duration > 0 && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {formatDuration(track.duration)}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : (
+                  <div className="py-20 text-center text-muted-foreground">
+                    <Music2 className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    No popular songs found.
+                  </div>
+                )}
               </div>
             )}
 
