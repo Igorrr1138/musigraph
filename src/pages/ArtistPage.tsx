@@ -5,7 +5,7 @@ import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, 
 
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
-import { getArtist, pickArtistImage, type DeezerArtist, type DeezerAlbum } from "@/lib/deezer";
+import { getArtist, getArtistTopTracks, formatDuration, pickArtistImage, type DeezerArtist, type DeezerAlbum, type DeezerTrack } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistDiscography } from "@/lib/musicPipeline";
 import { getArtistBio, type ArtistBio } from "@/lib/bio";
