@@ -106,6 +106,9 @@ const ArtistPage = () => {
   const [bio, setBio] = useState<ArtistBio | null>(null);
   const [isLoadingBio, setIsLoadingBio] = useState(false);
   const [bioAttempted, setBioAttempted] = useState(false);
+  const [popularTracks, setPopularTracks] = useState<DeezerTrack[]>([]);
+  const [isLoadingPopular, setIsLoadingPopular] = useState(false);
+  const [popularAttempted, setPopularAttempted] = useState(false);
 
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
