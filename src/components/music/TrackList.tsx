@@ -53,6 +53,13 @@ export function TrackList({ tracks, albumDeezerId, artistName, albumTitle, onAlb
   }, [user, albumDeezerId]);
 
   useEffect(() => {
+    return onTrackRating(({ albumId, trackPosition, rating }) => {
+      if (albumId !== albumDeezerId) return;
+      setTrackRatings(prev => (prev[trackPosition] === rating ? prev : { ...prev, [trackPosition]: rating }));
+    });
+  }, [albumDeezerId]);
+
+  useEffect(() => {
     const ratedValues = Object.values(trackRatings);
     if (ratedValues.length > 0) {
       const avg = ratedValues.reduce((a, b) => a + b, 0) / ratedValues.length;
