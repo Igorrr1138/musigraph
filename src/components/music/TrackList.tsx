@@ -81,6 +81,7 @@ export function TrackList({ tracks, albumDeezerId, artistName, albumTitle, onAlb
 
     setTrackRatings(prev => ({ ...prev, [position]: rating }));
     setSavingTrack(position);
+    emitTrackRating({ albumId: albumDeezerId, trackPosition: position, rating });
 
     supabase
       .from('track_ratings')
