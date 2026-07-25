@@ -5,11 +5,34 @@ type VoiceState = 'off' | 'passive' | 'active';
 const WORD_TO_NUM: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5,
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  // Common misrecognitions for "ten"
-  then: 10, tin: 10, tan: 10, hen: 10,
+  // Common misrecognitions
+  won: 1, want: 1,
+  to: 2, too: 2, tu: 2,
+  tree: 3, free: 3, thee: 3,
+  for: 4, fore: 4, foure: 4,
+  faive: 5, fife: 5,
+  sex: 6, sik: 6, sics: 6,
+  sevin: 7,
+  ate: 8, eit: 8,
+  nain: 9, nyne: 9,
+  then: 10, tin: 10, tan: 10, hen: 10, tenn: 10,
   '1': 1, '2': 2, '3': 3, '4': 4, '5': 5,
   '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
 };
+
+function extractRating(transcript: string): number | null {
+  // Strip punctuation, normalize whitespace
+  const cleaned = transcript.toLowerCase().replace(/[.,!?;:"'()]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Direct numeric match anywhere in string (handles "10", "give it a 7", etc.)
+  const numMatch = cleaned.match(/\b(10|[1-9])\b/);
+  if (numMatch) return parseInt(numMatch[1], 10);
+  const words = cleaned.split(/\s+/);
+  for (const word of words) {
+    const num = WORD_TO_NUM[word];
+    if (num) return num;
+  }
+  return null;
+}
 
 function playBeep(freq: number = 880, duration: number = 150) {
   try {
@@ -131,26 +154,21 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
     recognition.onresult = (event: any) => {
       const last = event.results[event.results.length - 1];
-      const transcript = last[0].transcript.toLowerCase().trim();
-      console.log('[Voice] Transcript:', transcript, '| State:', voiceStateRef.current);
+      const transcript = String(last[0].transcript || '').toLowerCase().trim();
+      console.log('[Voice] Transcript:', transcript, '| final:', last.isFinal, '| State:', voiceStateRef.current);
 
       if (voiceStateRef.current === 'passive') {
-        if (transcript.includes('wake up')) {
+        if (transcript.includes('wake up') || transcript.includes('wakeup')) {
           activate();
         }
       } else if (voiceStateRef.current === 'active') {
-        // Only process final results for rating
-        if (!last.isFinal) return;
-        const words = transcript.split(/\s+/);
-        for (const word of words) {
-          const num = WORD_TO_NUM[word];
-          if (num) {
-            console.log('[Voice] Rating detected:', num);
-            onRatingDetectedRef.current(num);
-            playConfirmation();
-            deactivate();
-            return;
-          }
+        // Try both interim and final; interim gives faster feedback.
+        const num = extractRating(transcript);
+        if (num) {
+          console.log('[Voice] Rating detected:', num);
+          onRatingDetectedRef.current(num);
+          playConfirmation();
+          deactivate();
         }
       }
     };
