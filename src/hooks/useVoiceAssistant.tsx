@@ -154,26 +154,21 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
     recognition.onresult = (event: any) => {
       const last = event.results[event.results.length - 1];
-      const transcript = last[0].transcript.toLowerCase().trim();
-      console.log('[Voice] Transcript:', transcript, '| State:', voiceStateRef.current);
+      const transcript = String(last[0].transcript || '').toLowerCase().trim();
+      console.log('[Voice] Transcript:', transcript, '| final:', last.isFinal, '| State:', voiceStateRef.current);
 
       if (voiceStateRef.current === 'passive') {
-        if (transcript.includes('wake up')) {
+        if (transcript.includes('wake up') || transcript.includes('wakeup')) {
           activate();
         }
       } else if (voiceStateRef.current === 'active') {
-        // Only process final results for rating
-        if (!last.isFinal) return;
-        const words = transcript.split(/\s+/);
-        for (const word of words) {
-          const num = WORD_TO_NUM[word];
-          if (num) {
-            console.log('[Voice] Rating detected:', num);
-            onRatingDetectedRef.current(num);
-            playConfirmation();
-            deactivate();
-            return;
-          }
+        // Try both interim and final; interim gives faster feedback.
+        const num = extractRating(transcript);
+        if (num) {
+          console.log('[Voice] Rating detected:', num);
+          onRatingDetectedRef.current(num);
+          playConfirmation();
+          deactivate();
         }
       }
     };
