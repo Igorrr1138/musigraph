@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
+import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 interface TrackListProps {
   tracks: DeezerTrack[];
