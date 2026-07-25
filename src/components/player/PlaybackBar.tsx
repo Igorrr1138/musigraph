@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
+import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
@@ -62,6 +63,15 @@ export function PlaybackBar() {
     return () => { cancelled = true; };
   }, [user, currentTrack, currentAlbumMbid]);
 
+  useEffect(() => {
+    return onTrackRating(({ albumId, trackPosition, rating: r }) => {
+      if (!currentTrack || !currentAlbumMbid) return;
+      if (albumId === currentAlbumMbid && trackPosition === currentTrack.position) {
+        setRating(prev => (prev === r ? prev : r));
+      }
+    });
+  }, [currentTrack, currentAlbumMbid]);
+
   // albums_cache was dropped in the MusicBrainz migration; artist linkage
   // now comes from the currently-playing track payload directly.
   useEffect(() => {
@@ -84,6 +94,7 @@ export function PlaybackBar() {
     if (!currentTrack || !currentAlbumMbid) return;
     const prev = rating;
     setRating(value);
+    emitTrackRating({ albumId: currentAlbumMbid, trackPosition: currentTrack.position, rating: value });
     const { error } = await supabase
       .from('track_ratings')
       .upsert({

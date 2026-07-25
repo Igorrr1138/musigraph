@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
+import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 interface TrackListProps {
   tracks: DeezerTrack[];
@@ -52,6 +53,13 @@ export function TrackList({ tracks, albumDeezerId, artistName, albumTitle, onAlb
   }, [user, albumDeezerId]);
 
   useEffect(() => {
+    return onTrackRating(({ albumId, trackPosition, rating }) => {
+      if (albumId !== albumDeezerId) return;
+      setTrackRatings(prev => (prev[trackPosition] === rating ? prev : { ...prev, [trackPosition]: rating }));
+    });
+  }, [albumDeezerId]);
+
+  useEffect(() => {
     const ratedValues = Object.values(trackRatings);
     if (ratedValues.length > 0) {
       const avg = ratedValues.reduce((a, b) => a + b, 0) / ratedValues.length;
@@ -73,6 +81,7 @@ export function TrackList({ tracks, albumDeezerId, artistName, albumTitle, onAlb
 
     setTrackRatings(prev => ({ ...prev, [position]: rating }));
     setSavingTrack(position);
+    emitTrackRating({ albumId: albumDeezerId, trackPosition: position, rating });
 
     supabase
       .from('track_ratings')
