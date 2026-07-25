@@ -21,18 +21,17 @@ const WORD_TO_NUM: Record<string, number> = {
 };
 
 function extractRating(transcript: string): number | null {
-  // Strip punctuation, normalize whitespace
+  // Only accept a single word/digit utterance like "seven" or "10".
   const cleaned = transcript.toLowerCase().replace(/[.,!?;:"'()]/g, ' ').replace(/\s+/g, ' ').trim();
-  // Direct numeric match anywhere in string (handles "10", "give it a 7", etc.)
-  const numMatch = cleaned.match(/\b(10|[1-9])\b/);
-  if (numMatch) return parseInt(numMatch[1], 10);
+  if (!cleaned) return null;
   const words = cleaned.split(/\s+/);
-  for (const word of words) {
-    const num = WORD_TO_NUM[word];
-    if (num) return num;
-  }
-  return null;
+  if (words.length !== 1) return null;
+  const only = words[0];
+  if (/^(10|[1-9])$/.test(only)) return parseInt(only, 10);
+  const num = WORD_TO_NUM[only];
+  return num ?? null;
 }
+
 
 function playBeep(freq: number = 880, duration: number = 150) {
   try {
