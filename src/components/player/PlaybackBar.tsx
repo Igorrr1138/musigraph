@@ -63,6 +63,15 @@ export function PlaybackBar() {
     return () => { cancelled = true; };
   }, [user, currentTrack, currentAlbumMbid]);
 
+  useEffect(() => {
+    return onTrackRating(({ albumId, trackPosition, rating: r }) => {
+      if (!currentTrack || !currentAlbumMbid) return;
+      if (albumId === currentAlbumMbid && trackPosition === currentTrack.position) {
+        setRating(prev => (prev === r ? prev : r));
+      }
+    });
+  }, [currentTrack, currentAlbumMbid]);
+
   // albums_cache was dropped in the MusicBrainz migration; artist linkage
   // now comes from the currently-playing track payload directly.
   useEffect(() => {
