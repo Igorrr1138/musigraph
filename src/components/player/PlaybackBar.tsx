@@ -94,6 +94,7 @@ export function PlaybackBar() {
     if (!currentTrack || !currentAlbumMbid) return;
     const prev = rating;
     setRating(value);
+    emitTrackRating({ albumId: currentAlbumMbid, trackPosition: currentTrack.position, rating: value });
     const { error } = await supabase
       .from('track_ratings')
       .upsert({
