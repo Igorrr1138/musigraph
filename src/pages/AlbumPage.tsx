@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 const MOOD_TAGS = [
   'Joy / Uplift',
@@ -495,6 +496,14 @@ const AlbumPage = () => {
       });
   }, [user, id]);
 
+  useEffect(() => {
+    if (!id) return;
+    return onTrackRating(({ albumId, trackPosition, rating }) => {
+      if (albumId !== id) return;
+      setTrackRatings((prev) => (prev[trackPosition] === rating ? prev : { ...prev, [trackPosition]: rating }));
+    });
+  }, [id]);
+
   /* Purified tracks (title sanitization, non-musical/short-track exclusion,
      contextual duplicate filter for Deluxe/Expanded editions). */
   const tracks = useMemo<DeezerTrack[]>(() => {
@@ -555,6 +564,7 @@ const AlbumPage = () => {
       }
       setTrackRatings((prev) => ({ ...prev, [position]: rating }));
       setSavingTrack(position);
+      emitTrackRating({ albumId: id, trackPosition: position, rating });
       supabase
         .from('track_ratings')
         .upsert(
