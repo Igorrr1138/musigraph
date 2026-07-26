@@ -496,6 +496,14 @@ const AlbumPage = () => {
       });
   }, [user, id]);
 
+  useEffect(() => {
+    if (!id) return;
+    return onTrackRating(({ albumId, trackPosition, rating }) => {
+      if (albumId !== id) return;
+      setTrackRatings((prev) => (prev[trackPosition] === rating ? prev : { ...prev, [trackPosition]: rating }));
+    });
+  }, [id]);
+
   /* Purified tracks (title sanitization, non-musical/short-track exclusion,
      contextual duplicate filter for Deluxe/Expanded editions). */
   const tracks = useMemo<DeezerTrack[]>(() => {
