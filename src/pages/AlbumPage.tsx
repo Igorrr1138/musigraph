@@ -564,6 +564,7 @@ const AlbumPage = () => {
       }
       setTrackRatings((prev) => ({ ...prev, [position]: rating }));
       setSavingTrack(position);
+      emitTrackRating({ albumId: id, trackPosition: position, rating });
       supabase
         .from('track_ratings')
         .upsert(
