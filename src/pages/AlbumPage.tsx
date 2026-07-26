@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 const MOOD_TAGS = [
   'Joy / Uplift',
