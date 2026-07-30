@@ -4,7 +4,7 @@ import {
   Play, Pause, SkipForward, SkipBack,
   Volume2, VolumeX, Volume1,
   Shuffle, Repeat, Repeat1,
-  Mic, MicOff, Image as ImageIcon,
+  Mic, MicOff, Image as ImageIcon, Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
