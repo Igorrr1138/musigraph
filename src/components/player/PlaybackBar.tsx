@@ -130,6 +130,21 @@ export function PlaybackBar() {
     hasActiveTrack: !!currentTrack,
   });
 
+  // Close vertical volume popover on outside click
+  useEffect(() => {
+    if (!isVolumeOpen) return;
+    const handleDown = (e: MouseEvent) => {
+      if (
+        volumeContainerRef.current &&
+        !volumeContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsVolumeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDown);
+    return () => document.removeEventListener('mousedown', handleDown);
+  }, [isVolumeOpen]);
+
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
     if (volume < 50) return <Volume1 className="w-4 h-4" />;
