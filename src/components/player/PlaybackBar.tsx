@@ -4,7 +4,7 @@ import {
   Play, Pause, SkipForward, SkipBack,
   Volume2, VolumeX, Volume1,
   Shuffle, Repeat, Repeat1,
-  Mic, MicOff, Image as ImageIcon,
+  Mic, MicOff, Image as ImageIcon, Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -42,7 +42,10 @@ export function PlaybackBar() {
   const preDuckVolumeRef = useRef<number | null>(null);
   const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [cursorY, setCursorY] = useState<number | null>(null);
   const ratingBarRef = useRef<HTMLDivElement | null>(null);
+  const ratingContainerRef = useRef<HTMLDivElement | null>(null);
   const volumeContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch user's rating for the current track
@@ -80,12 +83,12 @@ export function PlaybackBar() {
     setArtistDeezerId(null);
   }, [currentAlbumMbid]);
 
-  const computeRatingFromEvent = useCallback((clientX: number): number => {
+  const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    return Math.max(1, Math.min(10, Math.round(ratio * 10)));
+    const ratio = Math.min(1, Math.max(0, (rect.bottom - clientY) / rect.height));
+    return Math.max(1, Math.min(10, Math.round(ratio * 10) || 1));
   }, []);
 
   const saveRating = useCallback(async (value: number) => {
@@ -144,6 +147,23 @@ export function PlaybackBar() {
     document.addEventListener('mousedown', handleDown);
     return () => document.removeEventListener('mousedown', handleDown);
   }, [isVolumeOpen]);
+
+  // Close vertical rating popover on outside click
+  useEffect(() => {
+    if (!isRatingOpen) return;
+    const handleDown = (e: MouseEvent) => {
+      if (
+        ratingContainerRef.current &&
+        !ratingContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsRatingOpen(false);
+        setHoverRating(null);
+        setCursorY(null);
+      }
+    };
+    document.addEventListener('mousedown', handleDown);
+    return () => document.removeEventListener('mousedown', handleDown);
+  }, [isRatingOpen]);
 
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
@@ -249,35 +269,63 @@ export function PlaybackBar() {
 
         {/* RIGHT: rating + voice + volume */}
         <div className="flex items-center justify-end gap-4">
-          {/* Rating bar — click/drag to rate 1–10 */}
-          <div className="flex items-center gap-2">
-            <div
-              ref={ratingBarRef}
-              role="slider"
-              aria-label="Rate this track"
-              aria-valuemin={1}
-              aria-valuemax={10}
-              aria-valuenow={rating ?? 0}
-              tabIndex={0}
-              onClick={(e) => saveRating(computeRatingFromEvent(e.clientX))}
-              onMouseMove={(e) => setHoverRating(computeRatingFromEvent(e.clientX))}
-              onMouseLeave={() => setHoverRating(null)}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowRight') saveRating(Math.min(10, (rating ?? 0) + 1));
-                else if (e.key === 'ArrowLeft') saveRating(Math.max(1, (rating ?? 1) - 1));
-              }}
-              className="relative w-24 h-2 rounded-full bg-muted overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/40"
-              title={user ? `Click to rate (${rating ?? '–'}/10)` : 'Sign in to rate'}
+          {/* Rating — star icon toggles a vertical 1–10 scale */}
+          <div ref={ratingContainerRef} className="relative flex items-center justify-center">
+            <button
+              onClick={() => setIsRatingOpen((v) => !v)}
+              className={cn(
+                'flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full',
+                isRatingOpen && 'text-primary bg-primary/10'
+              )}
+              aria-label={isRatingOpen ? 'Hide rating scale' : 'Rate this track'}
+              aria-expanded={isRatingOpen}
+              title={user ? `Rate this track (${rating ?? '–'}/10)` : 'Sign in to rate'}
             >
-              <div
-                className="absolute inset-y-0 left-0 bg-foreground rounded-full transition-all duration-150"
-                style={{ width: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`, opacity: hoverRating !== null ? 0.6 : 1 }}
-              />
-            </div>
-            <span className="text-sm font-semibold tabular-nums w-4 text-right">
-              {hoverRating ?? rating ?? '–'}
-            </span>
+              <Star className={cn('w-4 h-4', rating ? 'fill-primary text-primary' : '')} />
+              <span className="text-sm font-semibold tabular-nums">{rating ?? '–'}</span>
+            </button>
+
+            {isRatingOpen && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 rounded-2xl bg-card/95 border border-border/60 backdrop-blur-xl shadow-[0_-8px_30px_-10px_hsl(var(--primary)/0.2)] z-50 flex flex-col items-center gap-2 min-w-[44px]">
+                <div
+                  ref={ratingBarRef}
+                  role="slider"
+                  aria-label="Rate this track"
+                  aria-valuemin={1}
+                  aria-valuemax={10}
+                  aria-valuenow={rating ?? 0}
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  onClick={(e) => saveRating(computeRatingFromEvent(e.clientY))}
+                  onMouseMove={(e) => {
+                    setHoverRating(computeRatingFromEvent(e.clientY));
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setCursorY(e.clientY - rect.top);
+                  }}
+                  onMouseLeave={() => { setHoverRating(null); setCursorY(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') saveRating(Math.min(10, (rating ?? 0) + 1));
+                    else if (e.key === 'ArrowDown') saveRating(Math.max(1, (rating ?? 1) - 1));
+                  }}
+                  className="relative h-28 w-1.5 rounded-full bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <div
+                    className="absolute inset-x-0 bottom-0 bg-foreground rounded-full transition-all duration-150"
+                    style={{ height: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`, opacity: hoverRating !== null ? 0.6 : 1 }}
+                  />
+                  {hoverRating !== null && cursorY !== null && (
+                    <span
+                      className="pointer-events-none absolute left-4 -translate-y-1/2 rounded-md border border-border/60 bg-background/95 px-1.5 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+                      style={{ top: cursorY }}
+                    >
+                      {hoverRating}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
 
 
           {/* Voice control */}
