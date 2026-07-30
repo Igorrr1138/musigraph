@@ -41,7 +41,9 @@ export function PlaybackBar() {
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const preDuckVolumeRef = useRef<number | null>(null);
   const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const ratingBarRef = useRef<HTMLDivElement | null>(null);
+  const volumeContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch user's rating for the current track
   useEffect(() => {
