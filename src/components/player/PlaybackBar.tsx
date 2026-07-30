@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
+import { findArtistMbid } from '@/lib/musicbrainz';
 import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 function formatTime(seconds: number): string {
@@ -40,7 +41,7 @@ export function PlaybackBar() {
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const preDuckVolumeRef = useRef<number | null>(null);
-  const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
+  const [artistMbid, setArtistMbid] = useState<string | null>(null);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
@@ -77,11 +78,17 @@ export function PlaybackBar() {
     });
   }, [currentTrack, currentAlbumMbid]);
 
-  // albums_cache was dropped in the MusicBrainz migration; artist linkage
-  // now comes from the currently-playing track payload directly.
+  // Resolve the artist MBID from MusicBrainz so the playback bar can link
+  // back to the artist and album pages.
   useEffect(() => {
-    setArtistDeezerId(null);
-  }, [currentAlbumMbid]);
+    setArtistMbid(null);
+    if (!artistName) return;
+    let cancelled = false;
+    findArtistMbid('', artistName).then((mbid) => {
+      if (!cancelled) setArtistMbid(mbid);
+    });
+    return () => { cancelled = true; };
+  }, [artistName, currentAlbumMbid]);
 
   const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
@@ -192,19 +199,38 @@ export function PlaybackBar() {
             <p className="text-sm font-semibold truncate leading-tight">
               {cleanTrackTitle(currentTrack.title)}
             </p>
-            {artistName && (
-              artistDeezerId ? (
-                <Link
-                  to={`/artist/${artistDeezerId}`}
-                  className="text-xs text-muted-foreground truncate leading-tight mt-0.5 block hover:text-foreground hover:underline transition-colors"
-                >
-                  {artistName}
-                </Link>
-              ) : (
-                <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                  {artistName}
-                </p>
-              )
+            {(artistName || albumTitle) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 min-w-0">
+                {artistName && artistMbid ? (
+                  <Link
+                    to={`/artist/${artistMbid}`}
+                    title={artistName}
+                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
+                  >
+                    {artistName}
+                  </Link>
+                ) : artistName ? (
+                  <span className="truncate min-w-0 flex-[1_1_0%]" title={artistName}>
+                    {artistName}
+                  </span>
+                ) : null}
+                {artistName && albumTitle ? (
+                  <span className="flex-shrink-0 opacity-60">•</span>
+                ) : null}
+                {albumTitle && currentAlbumMbid ? (
+                  <Link
+                    to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ''}&artistName=${encodeURIComponent(artistName ?? '')}`}
+                    title={albumTitle}
+                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
+                  >
+                    {albumTitle}
+                  </Link>
+                ) : albumTitle ? (
+                  <span className="truncate min-w-0 flex-[1_1_0%]" title={albumTitle}>
+                    {albumTitle}
+                  </span>
+                ) : null}
+              </div>
             )}
           </div>
           <AddToPlaylistButton
