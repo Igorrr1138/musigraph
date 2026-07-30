@@ -296,21 +296,31 @@ export function PlaybackBar() {
           </button>
 
           {/* Volume */}
-          <div className="flex items-center gap-1.5 w-28">
+          <div ref={volumeContainerRef} className="relative flex items-center justify-center">
             <button
-              onClick={() => setVolume(volume === 0 ? 80 : 0)}
-              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label="Mute"
+              onClick={() => setIsVolumeOpen((v) => !v)}
+              className={cn(
+                "text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-2 rounded-full",
+                isVolumeOpen && "text-primary bg-primary/10"
+              )}
+              aria-label={isVolumeOpen ? 'Hide volume' : 'Show volume'}
+              aria-expanded={isVolumeOpen}
             >
               {volumeIcon}
             </button>
-            <Slider
-              value={[volume]}
-              max={100}
-              step={1}
-              onValueChange={([v]) => setVolume(v)}
-              className="w-full [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:border-foreground"
-            />
+
+            {isVolumeOpen && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 rounded-2xl bg-card/95 border border-border/60 backdrop-blur-xl shadow-[0_-8px_30px_-10px_hsl(var(--primary)/0.2)] z-50 flex flex-col items-center gap-2 min-w-[44px]">
+                <Slider
+                  orientation="vertical"
+                  value={[volume]}
+                  max={100}
+                  step={1}
+                  onValueChange={([v]) => setVolume(v)}
+                  className="h-28 w-5 [&_[data-radix-slider-track]]:w-1.5 [&_[data-radix-slider-track]]:bg-muted [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:border-foreground"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
