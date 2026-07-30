@@ -42,7 +42,10 @@ export function PlaybackBar() {
   const preDuckVolumeRef = useRef<number | null>(null);
   const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [cursorY, setCursorY] = useState<number | null>(null);
   const ratingBarRef = useRef<HTMLDivElement | null>(null);
+  const ratingContainerRef = useRef<HTMLDivElement | null>(null);
   const volumeContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch user's rating for the current track
