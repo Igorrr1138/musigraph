@@ -78,11 +78,17 @@ export function PlaybackBar() {
     });
   }, [currentTrack, currentAlbumMbid]);
 
-  // albums_cache was dropped in the MusicBrainz migration; artist linkage
-  // now comes from the currently-playing track payload directly.
+  // Resolve the artist MBID from MusicBrainz so the playback bar can link
+  // back to the artist and album pages.
   useEffect(() => {
-    setArtistDeezerId(null);
-  }, [currentAlbumMbid]);
+    setArtistMbid(null);
+    if (!artistName) return;
+    let cancelled = false;
+    findArtistMbid('', artistName).then((mbid) => {
+      if (!cancelled) setArtistMbid(mbid);
+    });
+    return () => { cancelled = true; };
+  }, [artistName, currentAlbumMbid]);
 
   const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
