@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
+import { findArtistMbid } from '@/lib/musicbrainz';
 import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 function formatTime(seconds: number): string {
