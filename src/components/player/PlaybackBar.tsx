@@ -83,12 +83,12 @@ export function PlaybackBar() {
     setArtistDeezerId(null);
   }, [currentAlbumMbid]);
 
-  const computeRatingFromEvent = useCallback((clientX: number): number => {
+  const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    return Math.max(1, Math.min(10, Math.round(ratio * 10)));
+    const ratio = Math.min(1, Math.max(0, (rect.bottom - clientY) / rect.height));
+    return Math.max(1, Math.min(10, Math.round(ratio * 10) || 1));
   }, []);
 
   const saveRating = useCallback(async (value: number) => {
