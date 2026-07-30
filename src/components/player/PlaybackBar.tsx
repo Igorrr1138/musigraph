@@ -199,19 +199,38 @@ export function PlaybackBar() {
             <p className="text-sm font-semibold truncate leading-tight">
               {cleanTrackTitle(currentTrack.title)}
             </p>
-            {artistName && (
-              artistDeezerId ? (
-                <Link
-                  to={`/artist/${artistDeezerId}`}
-                  className="text-xs text-muted-foreground truncate leading-tight mt-0.5 block hover:text-foreground hover:underline transition-colors"
-                >
-                  {artistName}
-                </Link>
-              ) : (
-                <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                  {artistName}
-                </p>
-              )
+            {(artistName || albumTitle) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 min-w-0">
+                {artistName && artistMbid ? (
+                  <Link
+                    to={`/artist/${artistMbid}`}
+                    title={artistName}
+                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
+                  >
+                    {artistName}
+                  </Link>
+                ) : artistName ? (
+                  <span className="truncate min-w-0 flex-[1_1_0%]" title={artistName}>
+                    {artistName}
+                  </span>
+                ) : null}
+                {artistName && albumTitle ? (
+                  <span className="flex-shrink-0 opacity-60">•</span>
+                ) : null}
+                {albumTitle && currentAlbumMbid ? (
+                  <Link
+                    to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ''}&artistName=${encodeURIComponent(artistName ?? '')}`}
+                    title={albumTitle}
+                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
+                  >
+                    {albumTitle}
+                  </Link>
+                ) : albumTitle ? (
+                  <span className="truncate min-w-0 flex-[1_1_0%]" title={albumTitle}>
+                    {albumTitle}
+                  </span>
+                ) : null}
+              </div>
             )}
           </div>
           <AddToPlaylistButton
