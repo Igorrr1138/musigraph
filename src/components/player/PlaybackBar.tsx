@@ -41,7 +41,7 @@ export function PlaybackBar() {
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const preDuckVolumeRef = useRef<number | null>(null);
-  const [artistDeezerId, setArtistDeezerId] = useState<string | null>(null);
+  const [artistMbid, setArtistMbid] = useState<string | null>(null);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
