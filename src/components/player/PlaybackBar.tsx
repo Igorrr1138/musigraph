@@ -148,6 +148,23 @@ export function PlaybackBar() {
     return () => document.removeEventListener('mousedown', handleDown);
   }, [isVolumeOpen]);
 
+  // Close vertical rating popover on outside click
+  useEffect(() => {
+    if (!isRatingOpen) return;
+    const handleDown = (e: MouseEvent) => {
+      if (
+        ratingContainerRef.current &&
+        !ratingContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsRatingOpen(false);
+        setHoverRating(null);
+        setCursorY(null);
+      }
+    };
+    document.addEventListener('mousedown', handleDown);
+    return () => document.removeEventListener('mousedown', handleDown);
+  }, [isRatingOpen]);
+
   const volumeIcon = useMemo(() => {
     if (volume === 0) return <VolumeX className="w-4 h-4" />;
     if (volume < 50) return <Volume1 className="w-4 h-4" />;
