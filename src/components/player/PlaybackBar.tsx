@@ -379,14 +379,14 @@ export function PlaybackBar() {
           {/* Voice control */}
           <button
             onClick={toggleVoice}
-            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            className="relative flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Toggle voice control"
           >
             <div className="flex items-center gap-1.5">
               {voiceOn ? <Mic className={cn("w-4 h-4", voiceState === 'active' ? 'text-primary animate-pulse' : 'text-primary')} /> : <MicOff className="w-4 h-4" />}
               <span className="text-xs font-medium">{voiceOn ? (voiceState === 'active' ? 'Listening…' : 'On') : 'Off'}</span>
             </div>
-            <span className="text-[10px] leading-none hidden md:inline">
+            <span className="absolute top-[calc(100%+2px)] left-1/2 -translate-x-1/2 text-[10px] leading-none whitespace-nowrap hidden md:inline">
               {voiceOn ? 'Say "wake up" then 1–10' : 'Voice control'}
             </span>
           </button>
