@@ -1,40 +1,61 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Play, Pause, SkipForward, SkipBack,
-  Volume2, VolumeX, Volume1,
-  Shuffle, Repeat, Repeat1,
-  Mic, MicOff, Image as ImageIcon, Star,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
-import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
-import { cn } from '@/lib/utils';
-import { cleanTrackTitle } from '@/lib/cleanMetadata';
-import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import type { DeezerTrack } from '@/lib/deezer';
-import { findArtistMbid, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
-import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Volume2,
+  VolumeX,
+  Volume1,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Mic,
+  MicOff,
+  Image as ImageIcon,
+  Star,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
+import { cn } from "@/lib/utils";
+import { cleanTrackTitle } from "@/lib/cleanMetadata";
+import { AddToPlaylistButton } from "@/components/music/AddToPlaylistButton";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import type { DeezerTrack } from "@/lib/deezer";
+import { findArtistMbid, coverArtArchiveReleaseGroupUrl } from "@/lib/musicbrainz";
+import { emitTrackRating, onTrackRating } from "@/lib/ratingEvents";
 
 function formatTime(seconds: number): string {
-  if (!seconds || !isFinite(seconds)) return '0:00';
+  if (!seconds || !isFinite(seconds)) return "0:00";
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 export function PlaybackBar() {
   const {
-    isPlaying, currentTrack, currentAlbumMbid, artistName, albumTitle,
-    togglePlay, nextTrack, prevTrack,
-    volume, setVolume,
-    currentTime, duration, seekTo,
-    shuffle, toggleShuffle,
-    repeat, cycleRepeat,
+    isPlaying,
+    currentTrack,
+    currentAlbumMbid,
+    artistName,
+    albumTitle,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    volume,
+    setVolume,
+    currentTime,
+    duration,
+    seekTo,
+    shuffle,
+    toggleShuffle,
+    repeat,
+    cycleRepeat,
   } = useYouTubePlayer();
 
   const { user } = useAuth();
@@ -59,23 +80,25 @@ export function PlaybackBar() {
     }
     let cancelled = false;
     supabase
-      .from('track_ratings')
-      .select('rating')
-      .eq('user_id', user.id)
-      .eq('album_deezer_id', currentAlbumMbid)
-      .eq('track_position', currentTrack.position)
+      .from("track_ratings")
+      .select("rating")
+      .eq("user_id", user.id)
+      .eq("album_deezer_id", currentAlbumMbid)
+      .eq("track_position", currentTrack.position)
       .maybeSingle()
       .then(({ data }) => {
         if (!cancelled) setRating(data?.rating ?? null);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, currentTrack, currentAlbumMbid]);
 
   useEffect(() => {
     return onTrackRating(({ albumId, trackPosition, rating: r }) => {
       if (!currentTrack || !currentAlbumMbid) return;
       if (albumId === currentAlbumMbid && trackPosition === currentTrack.position) {
-        setRating(prev => (prev === r ? prev : r));
+        setRating((prev) => (prev === r ? prev : r));
       }
     });
   }, [currentTrack, currentAlbumMbid]);
@@ -86,10 +109,12 @@ export function PlaybackBar() {
     setArtistMbid(null);
     if (!artistName) return;
     let cancelled = false;
-    findArtistMbid('', artistName).then((mbid) => {
+    findArtistMbid("", artistName).then((mbid) => {
       if (!cancelled) setArtistMbid(mbid);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [artistName, currentAlbumMbid]);
 
   // Derive the album cover from the current release-group MBID.
@@ -110,36 +135,46 @@ export function PlaybackBar() {
     return Math.max(1, Math.min(10, Math.round(ratio * 10) || 1));
   }, []);
 
-  const saveRating = useCallback(async (value: number) => {
-    if (!user) {
-      toast({ title: 'Sign in to rate tracks', variant: 'destructive' });
-      return;
-    }
-    if (!currentTrack || !currentAlbumMbid) return;
-    const prev = rating;
-    setRating(value);
-    emitTrackRating({ albumId: currentAlbumMbid, trackPosition: currentTrack.position, rating: value });
-    const { error } = await supabase
-      .from('track_ratings')
-      .upsert({
-        user_id: user.id,
-        album_deezer_id: currentAlbumMbid,
-        track_deezer_id: currentTrack.id ? String(currentTrack.id) : null,
-        track_position: currentTrack.position,
-        track_title: currentTrack.title,
-        rating: value,
-        rated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,album_deezer_id,track_position' });
-    if (error) {
-      setRating(prev);
-      toast({ title: 'Could not save rating', description: error.message, variant: 'destructive' });
-    }
-  }, [user, currentTrack, currentAlbumMbid, rating]);
+  const saveRating = useCallback(
+    async (value: number) => {
+      if (!user) {
+        toast({ title: "Sign in to rate tracks", variant: "destructive" });
+        return;
+      }
+      if (!currentTrack || !currentAlbumMbid) return;
+      const prev = rating;
+      setRating(value);
+      emitTrackRating({ albumId: currentAlbumMbid, trackPosition: currentTrack.position, rating: value });
+      const { error } = await supabase.from("track_ratings").upsert(
+        {
+          user_id: user.id,
+          album_deezer_id: currentAlbumMbid,
+          track_deezer_id: currentTrack.id ? String(currentTrack.id) : null,
+          track_position: currentTrack.position,
+          track_title: currentTrack.title,
+          rating: value,
+          rated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,album_deezer_id,track_position" },
+      );
+      if (error) {
+        setRating(prev);
+        toast({ title: "Could not save rating", description: error.message, variant: "destructive" });
+      }
+    },
+    [user, currentTrack, currentAlbumMbid, rating],
+  );
 
   const handleSeek = useCallback(([val]: number[]) => seekTo(val), [seekTo]);
 
-  const { enabled: voiceOn, voiceState, toggle: toggleVoice } = useVoiceAssistant({
-    onRatingDetected: (r) => { void saveRating(r); },
+  const {
+    enabled: voiceOn,
+    voiceState,
+    toggle: toggleVoice,
+  } = useVoiceAssistant({
+    onRatingDetected: (r) => {
+      void saveRating(r);
+    },
     onDuckVolume: (ducked) => {
       if (ducked) {
         if (preDuckVolumeRef.current === null) preDuckVolumeRef.current = volume;
@@ -156,32 +191,26 @@ export function PlaybackBar() {
   useEffect(() => {
     if (!isVolumeOpen) return;
     const handleDown = (e: MouseEvent) => {
-      if (
-        volumeContainerRef.current &&
-        !volumeContainerRef.current.contains(e.target as Node)
-      ) {
+      if (volumeContainerRef.current && !volumeContainerRef.current.contains(e.target as Node)) {
         setIsVolumeOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleDown);
-    return () => document.removeEventListener('mousedown', handleDown);
+    document.addEventListener("mousedown", handleDown);
+    return () => document.removeEventListener("mousedown", handleDown);
   }, [isVolumeOpen]);
 
   // Close vertical rating popover on outside click
   useEffect(() => {
     if (!isRatingOpen) return;
     const handleDown = (e: MouseEvent) => {
-      if (
-        ratingContainerRef.current &&
-        !ratingContainerRef.current.contains(e.target as Node)
-      ) {
+      if (ratingContainerRef.current && !ratingContainerRef.current.contains(e.target as Node)) {
         setIsRatingOpen(false);
         setHoverRating(null);
         setCursorY(null);
       }
     };
-    document.addEventListener('mousedown', handleDown);
-    return () => document.removeEventListener('mousedown', handleDown);
+    document.addEventListener("mousedown", handleDown);
+    return () => document.removeEventListener("mousedown", handleDown);
   }, [isRatingOpen]);
 
   const volumeIcon = useMemo(() => {
@@ -208,7 +237,7 @@ export function PlaybackBar() {
             {coverUrl && !coverError ? (
               <img
                 src={coverUrl}
-                alt={albumTitle ?? 'Album cover'}
+                alt={albumTitle ?? "Album cover"}
                 className="w-full h-full object-cover"
                 onError={() => setCoverError(true)}
                 loading="lazy"
@@ -218,9 +247,7 @@ export function PlaybackBar() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold truncate leading-tight">
-              {cleanTrackTitle(currentTrack.title)}
-            </p>
+            <p className="text-sm font-semibold truncate leading-tight">{cleanTrackTitle(currentTrack.title)}</p>
             {(artistName || albumTitle) && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 min-w-0">
                 {artistName && artistMbid ? (
@@ -236,12 +263,10 @@ export function PlaybackBar() {
                     {artistName}
                   </span>
                 ) : null}
-                {artistName && albumTitle ? (
-                  <span className="flex-shrink-0 opacity-60">•</span>
-                ) : null}
+                {artistName && albumTitle ? <span className="flex-shrink-0 opacity-60">•</span> : null}
                 {albumTitle && currentAlbumMbid ? (
                   <Link
-                    to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ''}&artistName=${encodeURIComponent(artistName ?? '')}`}
+                    to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ""}&artistName=${encodeURIComponent(artistName ?? "")}`}
                     title={albumTitle}
                     className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
                   >
@@ -267,9 +292,10 @@ export function PlaybackBar() {
         <div className="flex flex-col items-center gap-1 min-w-[320px] md:min-w-[420px]">
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost" size="icon"
+              variant="ghost"
+              size="icon"
               onClick={toggleShuffle}
-              className={cn('rounded-full h-8 w-8 transition-colors', shuffle && 'text-primary')}
+              className={cn("rounded-full h-8 w-8 transition-colors", shuffle && "text-primary")}
             >
               <Shuffle className="w-4 h-4" />
             </Button>
@@ -277,7 +303,9 @@ export function PlaybackBar() {
               <SkipBack className="w-4 h-4 fill-current" />
             </Button>
             <Button
-              variant="ghost" size="icon" onClick={togglePlay}
+              variant="ghost"
+              size="icon"
+              onClick={togglePlay}
               className="rounded-full h-9 w-9 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
             >
               {isPlaying ? (
@@ -290,11 +318,12 @@ export function PlaybackBar() {
               <SkipForward className="w-4 h-4 fill-current" />
             </Button>
             <Button
-              variant="ghost" size="icon"
+              variant="ghost"
+              size="icon"
               onClick={cycleRepeat}
-              className={cn('rounded-full h-8 w-8 transition-colors', repeat !== 'off' && 'text-primary')}
+              className={cn("rounded-full h-8 w-8 transition-colors", repeat !== "off" && "text-primary")}
             >
-              {repeat === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              {repeat === "one" ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
             </Button>
           </div>
 
@@ -322,15 +351,15 @@ export function PlaybackBar() {
             <button
               onClick={() => setIsRatingOpen((v) => !v)}
               className={cn(
-                'flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full',
-                isRatingOpen && 'text-primary bg-primary/10'
+                "flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full",
+                isRatingOpen && "text-primary bg-primary/10",
               )}
-              aria-label={isRatingOpen ? 'Hide rating scale' : 'Rate this track'}
+              aria-label={isRatingOpen ? "Hide rating scale" : "Rate this track"}
               aria-expanded={isRatingOpen}
-              title={user ? `Rate this track (${rating ?? '–'}/10)` : 'Sign in to rate'}
+              title={user ? `Rate this track (${rating ?? "–"}/10)` : "Sign in to rate"}
             >
-              <Star className={cn('w-4 h-4', rating ? 'fill-primary text-primary' : '')} />
-              <span className="text-sm font-semibold tabular-nums">{rating ?? '–'}</span>
+              <Star className={cn("w-4 h-4", rating ? "fill-primary text-primary" : "")} />
+              <span className="text-sm font-semibold tabular-nums">{rating ?? "–"}</span>
             </button>
 
             {isRatingOpen && (
@@ -350,16 +379,22 @@ export function PlaybackBar() {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setCursorY(e.clientY - rect.top);
                   }}
-                  onMouseLeave={() => { setHoverRating(null); setCursorY(null); }}
+                  onMouseLeave={() => {
+                    setHoverRating(null);
+                    setCursorY(null);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') saveRating(Math.min(10, (rating ?? 0) + 1));
-                    else if (e.key === 'ArrowDown') saveRating(Math.max(1, (rating ?? 1) - 1));
+                    if (e.key === "ArrowUp") saveRating(Math.min(10, (rating ?? 0) + 1));
+                    else if (e.key === "ArrowDown") saveRating(Math.max(1, (rating ?? 1) - 1));
                   }}
                   className="relative h-28 w-1.5 rounded-full bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <div
                     className="absolute inset-x-0 bottom-0 bg-foreground rounded-full transition-all duration-150"
-                    style={{ height: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`, opacity: hoverRating !== null ? 0.6 : 1 }}
+                    style={{
+                      height: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`,
+                      opacity: hoverRating !== null ? 0.6 : 1,
+                    }}
                   />
                   {hoverRating !== null && cursorY !== null && (
                     <span
@@ -374,8 +409,6 @@ export function PlaybackBar() {
             )}
           </div>
 
-
-
           {/* Voice control */}
           <button
             onClick={toggleVoice}
@@ -383,11 +416,19 @@ export function PlaybackBar() {
             aria-label="Toggle voice control"
           >
             <div className="flex items-center gap-1.5">
-              {voiceOn ? <Mic className={cn("w-4 h-4", voiceState === 'active' ? 'text-primary animate-pulse' : 'text-primary')} /> : <MicOff className="w-4 h-4" />}
-              <span className="text-xs font-medium">{voiceOn ? (voiceState === 'active' ? 'Listening…' : 'On') : 'Off'}</span>
+              {voiceOn ? (
+                <Mic
+                  className={cn("w-4 h-4", voiceState === "active" ? "text-primary animate-pulse" : "text-primary")}
+                />
+              ) : (
+                <MicOff className="w-4 h-4" />
+              )}
+              <span className="text-xs font-medium">
+                {voiceOn ? (voiceState === "active" ? "Listening…" : "On") : "Off"}
+              </span>
             </div>
-            <span className="absolute top-[calc(100%+10px)] left-1/2 -translate-x-1/2 text-[10px] leading-none whitespace-nowrap hidden md:inline">
-              {voiceOn ? 'Say "wake up" then 1–10' : 'Voice control'}
+            <span className="absolute top-[calc(100%+6px)] left-1/2 -translate-x-1/2 text-[10px] leading-none whitespace-nowrap hidden md:inline">
+              {voiceOn ? 'Say "wake up" then 1–10' : "Voice control"}
             </span>
           </button>
 
@@ -397,9 +438,9 @@ export function PlaybackBar() {
               onClick={() => setIsVolumeOpen((v) => !v)}
               className={cn(
                 "text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-2 rounded-full",
-                isVolumeOpen && "text-primary bg-primary/10"
+                isVolumeOpen && "text-primary bg-primary/10",
               )}
-              aria-label={isVolumeOpen ? 'Hide volume' : 'Show volume'}
+              aria-label={isVolumeOpen ? "Hide volume" : "Show volume"}
               aria-expanded={isVolumeOpen}
             >
               {volumeIcon}
