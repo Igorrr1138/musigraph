@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { DeezerTrack } from '@/lib/deezer';
-import { findArtistMbid } from '@/lib/musicbrainz';
+import { findArtistMbid, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
 import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
 
 function formatTime(seconds: number): string {
@@ -42,6 +42,8 @@ export function PlaybackBar() {
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const preDuckVolumeRef = useRef<number | null>(null);
   const [artistMbid, setArtistMbid] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState(false);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
@@ -89,6 +91,16 @@ export function PlaybackBar() {
     });
     return () => { cancelled = true; };
   }, [artistName, currentAlbumMbid]);
+
+  // Derive the album cover from the current release-group MBID.
+  useEffect(() => {
+    setCoverError(false);
+    if (!currentAlbumMbid) {
+      setCoverUrl(null);
+      return;
+    }
+    setCoverUrl(coverArtArchiveReleaseGroupUrl(currentAlbumMbid, 250));
+  }, [currentAlbumMbid]);
 
   const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
@@ -192,8 +204,18 @@ export function PlaybackBar() {
       <div className="container mx-auto px-4 py-2.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
         {/* LEFT: cover + meta + add */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0">
-            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {coverUrl && !coverError ? (
+              <img
+                src={coverUrl}
+                alt={albumTitle ?? 'Album cover'}
+                className="w-full h-full object-cover"
+                onError={() => setCoverError(true)}
+                loading="lazy"
+              />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-muted-foreground" />
+            )}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate leading-tight">
