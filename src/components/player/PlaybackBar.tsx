@@ -92,6 +92,16 @@ export function PlaybackBar() {
     return () => { cancelled = true; };
   }, [artistName, currentAlbumMbid]);
 
+  // Derive the album cover from the current release-group MBID.
+  useEffect(() => {
+    setCoverError(false);
+    if (!currentAlbumMbid) {
+      setCoverUrl(null);
+      return;
+    }
+    setCoverUrl(coverArtArchiveReleaseGroupUrl(currentAlbumMbid, 250));
+  }, [currentAlbumMbid]);
+
   const computeRatingFromEvent = useCallback((clientY: number): number => {
     const el = ratingBarRef.current;
     if (!el) return 0;
