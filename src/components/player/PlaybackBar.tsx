@@ -42,6 +42,8 @@ export function PlaybackBar() {
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const preDuckVolumeRef = useRef<number | null>(null);
   const [artistMbid, setArtistMbid] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState(false);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
