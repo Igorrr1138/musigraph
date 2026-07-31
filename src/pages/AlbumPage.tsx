@@ -145,6 +145,7 @@ function TrackRow({
   const display = hoverRating || rating;
   const pct = (display / 10) * 100;
   const [imgError, setImgError] = useState(false);
+  const [cursorX, setCursorX] = useState<number | null>(null);
 
   const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -157,6 +158,7 @@ function TrackRow({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const score = Math.max(1, Math.min(10, Math.ceil((x / rect.width) * 10)));
+    setCursorX(x);
     onHoverRate(score);
   };
 
@@ -232,26 +234,36 @@ function TrackRow({
         <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">
           AVG
         </span>
-        <div
-          onClick={handleBarClick}
-          onMouseMove={handleBarMove}
-          onMouseLeave={() => onHoverRate(0)}
-          className={cn(
-            'relative flex-1 h-2.5 rounded-full bg-muted overflow-hidden cursor-pointer',
-            saving && 'opacity-50',
-          )}
-          role="slider"
-          aria-valuemin={0}
-          aria-valuemax={10}
-          aria-valuenow={rating}
-        >
+        <div className="relative flex-1">
           <div
-            className="absolute inset-y-0 left-0 bg-primary rounded-full"
-            style={{
-              width: `${pct}%`,
-              transition: 'width 250ms cubic-bezier(0.22, 1, 0.36, 1)',
-            }}
-          />
+            onClick={handleBarClick}
+            onMouseMove={handleBarMove}
+            onMouseLeave={() => { onHoverRate(0); setCursorX(null); }}
+            className={cn(
+              'relative h-2.5 rounded-full bg-muted overflow-hidden cursor-pointer',
+              saving && 'opacity-50',
+            )}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={10}
+            aria-valuenow={rating}
+          >
+            <div
+              className="absolute inset-y-0 left-0 bg-primary rounded-full"
+              style={{
+                width: `${pct}%`,
+                transition: 'width 250ms cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+            />
+          </div>
+          {cursorX !== null && display > 0 && (
+            <span
+              className="pointer-events-none absolute -top-7 -translate-x-1/2 rounded-md border border-border/60 bg-background/95 px-1.5 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+              style={{ left: cursorX }}
+            >
+              {display}
+            </span>
+          )}
         </div>
         <span className="text-sm font-mono text-foreground w-4 text-right">
           {rating > 0 ? rating : '–'}
