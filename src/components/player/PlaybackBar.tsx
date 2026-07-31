@@ -204,8 +204,18 @@ export function PlaybackBar() {
       <div className="container mx-auto px-4 py-2.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
         {/* LEFT: cover + meta + add */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0">
-            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {coverUrl && !coverError ? (
+              <img
+                src={coverUrl}
+                alt={albumTitle ?? 'Album cover'}
+                className="w-full h-full object-cover"
+                onError={() => setCoverError(true)}
+                loading="lazy"
+              />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-muted-foreground" />
+            )}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate leading-tight">
