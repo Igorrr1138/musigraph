@@ -234,13 +234,14 @@ function TrackRow({
         <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">
           AVG
         </span>
-        <div className="relative flex-1">
+      <div className="relative flex-1">
           <div
             onClick={handleBarClick}
             onMouseMove={handleBarMove}
             onMouseLeave={() => { onHoverRate(0); setCursorX(null); }}
             className={cn(
               'relative h-2.5 rounded-full bg-muted overflow-hidden cursor-pointer',
+              'group-hover:bg-background group-hover:ring-1 group-hover:ring-primary/40',
               saving && 'opacity-50',
             )}
             role="slider"
@@ -249,7 +250,7 @@ function TrackRow({
             aria-valuenow={rating}
           >
             <div
-              className="absolute inset-y-0 left-0 bg-primary rounded-full"
+              className="absolute inset-y-0 left-0 bg-primary rounded-full group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.7)]"
               style={{
                 width: `${pct}%`,
                 transition: 'width 250ms cubic-bezier(0.22, 1, 0.36, 1)',
