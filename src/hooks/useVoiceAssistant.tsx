@@ -6,31 +6,45 @@ const WORD_TO_NUM: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5,
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   // Common misrecognitions
-  won: 1, want: 1,
-  to: 2, too: 2, tu: 2,
-  tree: 3, free: 3, thee: 3,
-  for: 4, fore: 4, foure: 4,
-  faive: 5, fife: 5,
-  sex: 6, sik: 6, sics: 6,
-  sevin: 7,
-  ate: 8, eit: 8,
-  nain: 9, nyne: 9,
-  then: 10, tin: 10, tan: 10, hen: 10, tenn: 10,
+  won: 1, want: 1, wan: 1, juan: 1, an: 1, a: 1,
+  to: 2, too: 2, tu: 2, tue: 2, do: 2, ii: 2,
+  tree: 3, free: 3, thee: 3, trees: 3, three3: 3,
+  for: 4, fore: 4, foure: 4, ford: 4, floor: 4, war: 4,
+  faive: 5, fife: 5, hive: 5, five5: 5,
+  sex: 6, sik: 6, sics: 6, sicks: 6, six6: 6,
+  sevin: 7, sevan: 7, heaven: 7, seve: 7,
+  ate: 8, eit: 8, hate: 8, aid: 8, eight8: 8,
+  nain: 9, nyne: 9, nein: 9, line: 9, mine: 9, dine: 9,
+  then: 10, tin: 10, tan: 10, hen: 10, tenn: 10, den: 10, tent: 10, tend: 10, tempt: 10,
   '1': 1, '2': 2, '3': 3, '4': 4, '5': 5,
   '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
 };
 
+// Words that may surround the number and should be ignored ("give it a seven", "rate 7")
+const FILLER = new Set([
+  'give', 'it', 'the', 'rate', 'rating', 'set', 'score', 'is', 'of', 'out', 'ten',
+  'star', 'stars', 'point', 'points', 'please', 'uh', 'um', 'okay', 'ok', 'yeah',
+]);
+
 function extractRating(transcript: string): number | null {
-  // Only accept a single word/digit utterance like "seven" or "10".
-  const cleaned = transcript.toLowerCase().replace(/[.,!?;:"'()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const cleaned = transcript.toLowerCase().replace(/[.,!?;:"'()\-]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!cleaned) return null;
+
+  // Direct digit anywhere (e.g. "7", "give it a 10")
+  const digit = cleaned.match(/\b(10|[1-9])\b/);
+  if (digit) return parseInt(digit[1], 10);
+
   const words = cleaned.split(/\s+/);
-  if (words.length !== 1) return null;
-  const only = words[0];
-  if (/^(10|[1-9])$/.test(only)) return parseInt(only, 10);
-  const num = WORD_TO_NUM[only];
-  return num ?? null;
+  // Scan from the end so the most recent spoken number wins
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i];
+    if (FILLER.has(w) && !(words.length === 1)) continue;
+    const num = WORD_TO_NUM[w];
+    if (num) return num;
+  }
+  return null;
 }
+
 
 
 function playBeep(freq: number = 880, duration: number = 150) {
@@ -147,32 +161,46 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 6;
     recognitionRef.current = recognition;
 
     setVoiceState('passive');
 
     recognition.onresult = (event: any) => {
-      const last = event.results[event.results.length - 1];
-      const transcript = String(last[0].transcript || '').toLowerCase().trim();
-      console.log('[Voice] Transcript:', transcript, '| final:', last.isFinal, '| State:', voiceStateRef.current);
+      // Look at the last few results, and every alternative of each — the top
+      // alternative often mangles single spoken digits.
+      const start = Math.max(0, event.resultIndex);
+      const alternatives: string[] = [];
+      for (let i = start; i < event.results.length; i++) {
+        const res = event.results[i];
+        for (let a = 0; a < res.length; a++) {
+          const t = String(res[a]?.transcript || '').toLowerCase().trim();
+          if (t) alternatives.push(t);
+        }
+      }
+      if (!alternatives.length) return;
+      console.log('[Voice] Heard:', alternatives, '| State:', voiceStateRef.current);
 
       if (voiceStateRef.current === 'passive') {
-        if (transcript.includes('wake up') || transcript.includes('wakeup')) {
+        if (alternatives.some(t => /wake\s*up|wakeup|wake app|way cup/.test(t))) {
           activate();
         }
       } else if (voiceStateRef.current === 'active') {
-        // Try both interim and final; interim gives faster feedback.
-        const num = extractRating(transcript);
-        if (num) {
-          console.log('[Voice] Rating detected:', num);
-          onRatingDetectedRef.current(num);
-          playConfirmation();
-          deactivate();
+        for (const t of alternatives) {
+          const num = extractRating(t);
+          if (num) {
+            console.log('[Voice] Rating detected:', num, 'from:', t);
+            onRatingDetectedRef.current(num);
+            playConfirmation();
+            deactivate();
+            return;
+          }
         }
       }
     };
 
     let permanentError = false;
+    let restartTimer: ReturnType<typeof setTimeout> | null = null;
 
     recognition.onerror = (event: any) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return;
@@ -187,14 +215,20 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
     recognition.onend = () => {
       if (enabledRef.current && !permanentError) {
-        try { recognition.start(); } catch {}
+        // Small delay avoids "already started" races in Chrome.
+        restartTimer = setTimeout(() => {
+          try { recognition.start(); } catch {}
+        }, 150);
       }
     };
+
 
     try { recognition.start(); } catch {}
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (restartTimer) clearTimeout(restartTimer);
+      recognition.onend = null;
       recognition.stop();
       recognitionRef.current = null;
     };
