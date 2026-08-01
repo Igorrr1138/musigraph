@@ -161,32 +161,46 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 6;
     recognitionRef.current = recognition;
 
     setVoiceState('passive');
 
     recognition.onresult = (event: any) => {
-      const last = event.results[event.results.length - 1];
-      const transcript = String(last[0].transcript || '').toLowerCase().trim();
-      console.log('[Voice] Transcript:', transcript, '| final:', last.isFinal, '| State:', voiceStateRef.current);
+      // Look at the last few results, and every alternative of each — the top
+      // alternative often mangles single spoken digits.
+      const start = Math.max(0, event.resultIndex);
+      const alternatives: string[] = [];
+      for (let i = start; i < event.results.length; i++) {
+        const res = event.results[i];
+        for (let a = 0; a < res.length; a++) {
+          const t = String(res[a]?.transcript || '').toLowerCase().trim();
+          if (t) alternatives.push(t);
+        }
+      }
+      if (!alternatives.length) return;
+      console.log('[Voice] Heard:', alternatives, '| State:', voiceStateRef.current);
 
       if (voiceStateRef.current === 'passive') {
-        if (transcript.includes('wake up') || transcript.includes('wakeup')) {
+        if (alternatives.some(t => /wake\s*up|wakeup|wake app|way cup/.test(t))) {
           activate();
         }
       } else if (voiceStateRef.current === 'active') {
-        // Try both interim and final; interim gives faster feedback.
-        const num = extractRating(transcript);
-        if (num) {
-          console.log('[Voice] Rating detected:', num);
-          onRatingDetectedRef.current(num);
-          playConfirmation();
-          deactivate();
+        for (const t of alternatives) {
+          const num = extractRating(t);
+          if (num) {
+            console.log('[Voice] Rating detected:', num, 'from:', t);
+            onRatingDetectedRef.current(num);
+            playConfirmation();
+            deactivate();
+            return;
+          }
         }
       }
     };
 
     let permanentError = false;
+    let restartTimer: ReturnType<typeof setTimeout> | null = null;
 
     recognition.onerror = (event: any) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return;
@@ -201,9 +215,13 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
     recognition.onend = () => {
       if (enabledRef.current && !permanentError) {
-        try { recognition.start(); } catch {}
+        // Small delay avoids "already started" races in Chrome.
+        restartTimer = setTimeout(() => {
+          try { recognition.start(); } catch {}
+        }, 150);
       }
     };
+
 
     try { recognition.start(); } catch {}
 
