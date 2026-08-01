@@ -1,7 +1,7 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { Search, User, LogOut, BarChart3, Star, ListMusic, Settings2 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { User, LogOut, BarChart3, Star, ListMusic, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
@@ -14,18 +14,9 @@ import {
 export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [query, setQuery] = useState('');
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
-
-  const submitSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}`);
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
@@ -40,18 +31,9 @@ export function Header() {
           </Link>
 
           {/* Search */}
-          <form onSubmit={submitSearch} className="flex-1 max-w-md mx-auto hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search"
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/60 border border-border/40 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-secondary transition-colors"
-              />
-            </div>
-          </form>
+          <div className="flex-1 max-w-md mx-auto hidden md:block">
+            <GlobalSearch />
+          </div>
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-5 ml-auto">
