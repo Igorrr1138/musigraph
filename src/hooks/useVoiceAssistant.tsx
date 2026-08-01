@@ -227,6 +227,8 @@ export function useVoiceAssistant({ onRatingDetected, onDuckVolume, hasActiveTra
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (restartTimer) clearTimeout(restartTimer);
+      recognition.onend = null;
       recognition.stop();
       recognitionRef.current = null;
     };
