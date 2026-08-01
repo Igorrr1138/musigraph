@@ -1,29 +1,24 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { Header } from '@/components/layout/Header';
-import { AlbumCard } from '@/components/music/AlbumCard';
-import { ArtistCard } from '@/components/music/ArtistCard';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
-import {
-  getLastReleases,
-  getRecommendedArtists,
-  getRecentlyRated,
-  getHomePlaylists,
-} from '@/lib/homeFeed';
+import { useEffect, useMemo, useReducer, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Header } from "@/components/layout/Header";
+import { AlbumCard } from "@/components/music/AlbumCard";
+import { ArtistCard } from "@/components/music/ArtistCard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import { getLastReleases, getRecommendedArtists, getRecentlyRated, getHomePlaylists } from "@/lib/homeFeed";
 
-const HINT_DISMISS_KEY = 'onboarding_hint_dismissed';
+const HINT_DISMISS_KEY = "onboarding_hint_dismissed";
 
-const ROTATING_WORDS = ['Discover', 'Listen', '& Rate'];
+const ROTATING_WORDS = ["Discover", "Listen", "& Rate"];
 const ROTATION_INTERVAL_MS = 2500;
 
 function useReducedMotion(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function RotatingHeadline() {
@@ -36,7 +31,7 @@ function RotatingHeadline() {
     return () => window.clearInterval(id);
   }, [reduced]);
 
-  const word = reduced ? 'Discover & Rate' : ROTATING_WORDS[index];
+  const word = reduced ? "Discover & Rate" : ROTATING_WORDS[index];
 
   return (
     <h1 className="text-6xl md:text-8xl font-boldonse tracking-wide leading-[1.05]">
@@ -61,12 +56,10 @@ function RotatingHeadline() {
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-2xl font-boldonse mb-5 uppercase tracking-wider">{children}</h2>
-  );
+  return <h2 className="text-2xl font-boldonse mb-5 uppercase tracking-wider">{children}</h2>;
 }
 
-function GridSkeleton({ count, aspect = 'aspect-square' }: { count: number; aspect?: string }) {
+function GridSkeleton({ count, aspect = "aspect-square" }: { count: number; aspect?: string }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {Array.from({ length: count }).map((_, i) => (
@@ -90,14 +83,14 @@ const Index = () => {
   useEffect(() => {
     if (!user || profileLoading || !profile) return;
     if (!profile.onboarding_completed) {
-      navigate('/onboarding', { replace: true });
+      navigate("/onboarding", { replace: true });
     }
   }, [user, profile, profileLoading, navigate]);
 
   // Hint banner shown when user skipped onboarding without picking any genre.
   const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem(HINT_DISMISS_KEY) === '1';
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem(HINT_DISMISS_KEY) === "1";
   });
   const showHint =
     !!user &&
@@ -106,28 +99,27 @@ const Index = () => {
     (profile.favorite_genres?.length ?? 0) === 0 &&
     !hintDismissed;
   const dismissHint = () => {
-    sessionStorage.setItem(HINT_DISMISS_KEY, '1');
+    sessionStorage.setItem(HINT_DISMISS_KEY, "1");
     setHintDismissed(true);
   };
 
-
   const lastReleasesQ = useQuery({
-    queryKey: ['home', 'lastReleases', userId],
+    queryKey: ["home", "lastReleases", userId],
     queryFn: () => getLastReleases(userId, 5),
     staleTime: 5 * 60 * 1000,
   });
   const recommendedQ = useQuery({
-    queryKey: ['home', 'recommended', userId],
+    queryKey: ["home", "recommended", userId],
     queryFn: () => getRecommendedArtists(userId, 5),
     staleTime: 5 * 60 * 1000,
   });
   const recentlyRatedQ = useQuery({
-    queryKey: ['home', 'recentlyRated', userId],
+    queryKey: ["home", "recentlyRated", userId],
     queryFn: () => getRecentlyRated(userId, 3),
     staleTime: 60 * 1000,
   });
   const playlistsQ = useQuery({
-    queryKey: ['home', 'playlists', userId],
+    queryKey: ["home", "playlists", userId],
     queryFn: () => getHomePlaylists(userId, 2),
     staleTime: 60 * 1000,
     enabled: !!userId,
@@ -146,7 +138,7 @@ const Index = () => {
             <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
               <p className="flex-1 text-foreground/90">
-                Pick your favorite genres to personalize your feed.{' '}
+                Pick your favorite genres to personalize your feed.{" "}
                 <Link to="/dashboard/preferences" className="text-primary font-semibold hover:underline">
                   Set up preferences →
                 </Link>
@@ -164,7 +156,7 @@ const Index = () => {
         </div>
       )}
 
-      <section className={`relative ${showHint ? 'pt-12' : 'pt-32'} pb-12 px-4 overflow-hidden`}>
+      <section className={`relative ${showHint ? "pt-12" : "pt-32"} pb-12 px-4 overflow-hidden`}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -217,7 +209,7 @@ const Index = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {user ? 'Rate a few albums to unlock recommendations.' : 'Sign in to see tailored picks.'}
+                    {user ? "Rate a few albums to unlock recommendations." : "Sign in to see tailored picks."}
                   </p>
                 )}
               </div>
@@ -226,12 +218,10 @@ const Index = () => {
             {/* RIGHT: stats aside */}
             <aside className="lg:sticky lg:top-24 rounded-2xl bg-card/50 border border-border/40 p-5 space-y-8">
               <div>
-                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">
-                  Recently rated
-                </h3>
+                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">Recently rated</h3>
                 {recentlyRatedQ.isLoading ? (
                   <div className="space-y-3">
-                    {[0, 1, 2].map(i => (
+                    {[0, 1, 2].map((i) => (
                       <div key={i} className="flex gap-3 items-center">
                         <Skeleton className="w-14 h-14 rounded-lg" />
                         <div className="flex-1 space-y-2">
@@ -243,12 +233,9 @@ const Index = () => {
                   </div>
                 ) : recentlyRated.length > 0 ? (
                   <ul className="space-y-3">
-                    {recentlyRated.map(r => (
+                    {recentlyRated.map((r) => (
                       <li key={r.id}>
-                        <Link
-                          to={r.albumId ? `/album/${r.albumId}` : '#'}
-                          className="flex gap-3 items-center group"
-                        >
+                        <Link to={r.albumId ? `/album/${r.albumId}` : "#"} className="flex gap-3 items-center group">
                           <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
                             {r.coverUrl ? (
                               <img
@@ -268,9 +255,7 @@ const Index = () => {
                               {r.albumTitle}
                             </p>
                             {r.artistName && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                {r.artistName}
-                              </p>
+                              <p className="text-xs text-muted-foreground line-clamp-1">{r.artistName}</p>
                             )}
                             <div className="flex items-center gap-1 text-xs mt-0.5">
                               <Star className="w-3 h-3 fill-primary text-primary" />
@@ -283,36 +268,28 @@ const Index = () => {
                   </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {user ? 'Your rated albums will show up here.' : 'Sign in to start rating.'}
+                    {user ? "Your rated albums will show up here." : "Sign in to start rating."}
                   </p>
                 )}
               </div>
 
               <div>
-                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">
-                  My playlists
-                </h3>
+                <h3 className="text-lg font-boldonse mb-4 uppercase tracking-wider">My playlists</h3>
                 {!user ? (
-                  <Link
-                    to="/auth"
-                    className="block text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
+                  <Link to="/auth" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
                     Sign in to build playlists →
                   </Link>
                 ) : playlistsQ.isLoading ? (
                   <div className="space-y-3">
-                    {[0, 1].map(i => (
+                    {[0, 1].map((i) => (
                       <Skeleton key={i} className="h-14 w-full rounded-lg" />
                     ))}
                   </div>
                 ) : (
                   <ul className="space-y-3">
-                    {playlists.map(p => (
+                    {playlists.map((p) => (
                       <li key={p.id}>
-                        <Link
-                          to={`/dashboard/playlists`}
-                          className="flex gap-3 items-center group"
-                        >
+                        <Link to={`/dashboard/playlists`} className="flex gap-3 items-center group">
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-secondary flex-shrink-0 flex items-center justify-center">
                             {p.coverUrl ? (
                               <img
