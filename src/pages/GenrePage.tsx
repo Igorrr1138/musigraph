@@ -217,6 +217,20 @@ const GenrePage = () => {
         ) : (
           <GenreAlbumGrid albums={albums} isLoading={isLoading} />
         )}
+
+        {/* Pagination */}
+        {!isLoading && hasMore && (contentType === 'artists' ? artists.length : albums.length) > 0 && (
+          <div className="flex justify-center mt-10">
+            <button
+              type="button"
+              onClick={() => setPage(p => p + 1)}
+              disabled={isLoadingMore}
+              className="text-xs uppercase tracking-wider px-6 py-3 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50"
+            >
+              {isLoadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );
