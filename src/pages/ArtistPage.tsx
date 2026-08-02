@@ -7,7 +7,9 @@ import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistTopTracks, formatDuration, pickArtistImage, type DeezerArtist, type DeezerAlbum, type DeezerTrack } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
 import { getArtistDiscography } from "@/lib/musicPipeline";
-import { getArtistBio, type ArtistBio } from "@/lib/bio";
+import { getArtistBio, type ArtistBio as ArtistBioData } from "@/lib/bio";
+import ArtistBio from "@/components/music/ArtistBio";
+
 import { resolveGenres } from "@/lib/genreMap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
