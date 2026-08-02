@@ -101,31 +101,60 @@ const GenrePage = () => {
   };
 
   // ---- Data fetching ----
+  const PAGE_SIZE = 24;
   const [artists, setArtists] = useState<DiscoveryArtist[]>([]);
   const [albums, setAlbums] = useState<DiscoveryAlbum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Any change of genre / tab / filters restarts pagination from page 1.
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+  }, [effectiveSlug, contentType, filters]);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
+    if (page === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
 
     const run = async () => {
       try {
         if (contentType === 'albums') {
-          const res = await getAlbumsByGenre(effectiveSlug, { limit: 24 });
-          if (!cancelled) setAlbums(res);
+          const res = await getAlbumsByGenre(effectiveSlug, { limit: PAGE_SIZE, page });
+          if (cancelled) return;
+          setAlbums(prev => {
+            if (page === 1) return res;
+            const seen = new Set(prev.map(a => String(a.id)));
+            return [...prev, ...res.filter(a => !seen.has(String(a.id)))];
+          });
+          setHasMore(res.length >= PAGE_SIZE / 2);
         } else {
-          const res = await getArtistsByGenre(effectiveSlug, filters);
-          if (!cancelled) setArtists(res);
+          const res = await getArtistsByGenre(effectiveSlug, { ...filters, page });
+          if (cancelled) return;
+          setArtists(prev => {
+            if (page === 1) return res;
+            const seen = new Set(prev.map(a => String(a.id)));
+            return [...prev, ...res.filter(a => !seen.has(String(a.id)))];
+          });
+          setHasMore(res.length >= PAGE_SIZE / 2);
         }
       } catch (err) {
         console.error('[GenrePage] discovery fetch failed:', err);
         if (!cancelled) {
-          if (contentType === 'albums') setAlbums([]);
-          else setArtists([]);
+          if (page === 1) {
+            if (contentType === 'albums') setAlbums([]);
+            else setArtists([]);
+          }
+          setHasMore(false);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
       }
     };
     void run();
@@ -133,7 +162,7 @@ const GenrePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [effectiveSlug, contentType, filters]);
+  }, [effectiveSlug, contentType, filters, page]);
 
   const parentSlug = parentCategorySlug(parentCategory);
   const activeParentSlug = parentSlug;
