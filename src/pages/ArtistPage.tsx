@@ -717,7 +717,7 @@ const ArtistPage = () => {
                 isLoading={isLoadingBio}
                 artistName={artist.name}
                 mbid={mbid}
-                genres={genres}
+                genres={genres.map((g) => g.label)}
               />
             )}
 
