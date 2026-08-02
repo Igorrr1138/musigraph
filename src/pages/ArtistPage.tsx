@@ -109,7 +109,7 @@ const ArtistPage = () => {
   const [mbGenres, setMbGenres] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [mbid, setMbid] = useState<string | null>(null);
-  const [bio, setBio] = useState<ArtistBio | null>(null);
+  const [bio, setBio] = useState<ArtistBioData | null>(null);
   const [isLoadingBio, setIsLoadingBio] = useState(false);
   const [bioAttempted, setBioAttempted] = useState(false);
   const [popularTracks, setPopularTracks] = useState<DeezerTrack[]>([]);
