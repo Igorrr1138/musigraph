@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
-
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistTopTracks, formatDuration, pickArtistImage, type DeezerArtist, type DeezerAlbum, type DeezerTrack } from "@/lib/deezer";
@@ -26,22 +25,30 @@ import { supabase } from "@/integrations/supabase/client";
 type OtherTab = "all" | "single" | "album" | "compilation";
 type SecondaryTab = "discography" | "popular" | "bio" | "similar";
 
-// ОНОВЛЕНО: Тепер функція сортування враховує original_year, якщо він існує
-function chronoSort<T extends { release_date?: string; original_year?: number | string }>(arr: T[]): T[] {
+// Стійке хронологічне сортування з урахуванням original_year, release_date та назви
+function chronoSort<T extends { release_date?: string; original_year?: number | string; title?: string }>(arr: T[]): T[] {
   return [...arr].sort((a, b) => {
-    const ta = a.original_year
-      ? new Date(`${a.original_year}-01-01`).getTime()
-      : new Date(a.release_date ?? "9999-12-31").getTime();
+    const yearA = a.original_year
+      ? Number(a.original_year)
+      : a.release_date
+      ? parseInt(a.release_date.slice(0, 4), 10)
+      : 9999;
+    const yearB = b.original_year
+      ? Number(b.original_year)
+      : b.release_date
+      ? parseInt(b.release_date.slice(0, 4), 10)
+      : 9999;
 
-    const tb = b.original_year
-      ? new Date(`${b.original_year}-01-01`).getTime()
-      : new Date(b.release_date ?? "9999-12-31").getTime();
+    if (yearA !== yearB) return yearA - yearB;
 
-    return ta - tb;
+    const dateA = a.release_date ?? "";
+    const dateB = b.release_date ?? "";
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+    return (a.title ?? "").localeCompare(b.title ?? "");
   });
 }
 
-/** Semicircular radial gauge — animated on load. */
 function RadialScoreGauge({ score, rated, total }: { score: number; rated: number; total: number }) {
   const pct = Math.max(0, Math.min(1, score / 10));
   const radius = 100;
@@ -60,7 +67,6 @@ function RadialScoreGauge({ score, rated, total }: { score: number; rated: numbe
   return (
     <div className="relative w-full max-w-[280px] mx-auto">
       <svg viewBox="0 0 240 140" className="w-full h-auto">
-        {/* Track */}
         <path
           d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
           fill="none"
@@ -68,7 +74,6 @@ function RadialScoreGauge({ score, rated, total }: { score: number; rated: numbe
           strokeWidth="16"
           strokeLinecap="round"
         />
-        {/* Progress */}
         <path
           d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
           fill="none"
@@ -97,7 +102,6 @@ function RadialScoreGauge({ score, rated, total }: { score: number; rated: numbe
 const ArtistPage = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-
   const [artist, setArtist] = useState<DeezerArtist | null>(null);
   const [albums, setAlbums] = useState<DeezerAlbum[]>([]);
   const [mbGenres, setMbGenres] = useState<string[]>([]);
@@ -109,11 +113,9 @@ const ArtistPage = () => {
   const [popularTracks, setPopularTracks] = useState<DeezerTrack[]>([]);
   const [isLoadingPopular, setIsLoadingPopular] = useState(false);
   const [popularAttempted, setPopularAttempted] = useState(false);
-
   const [isLoadingArtist, setIsLoadingArtist] = useState(true);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
   const [otherTab, setOtherTab] = useState<OtherTab>("all");
   const [activeTab, setActiveTab] = useState<SecondaryTab>("discography");
   const [albumSortAsc, setAlbumSortAsc] = useState(true);
@@ -140,7 +142,6 @@ const ArtistPage = () => {
 
   useEffect(() => {
     if (!id) return;
-
     let cancelled = false;
     setIsLoadingArtist(true);
     setIsLoadingAlbums(true);
@@ -153,8 +154,6 @@ const ArtistPage = () => {
     setOtherTab("all");
     setActiveTab("discography");
 
-    // MusicBrainz-only release metadata. Deezer remains only for the artist
-    // shell/imagery because this route is keyed by the existing Deezer ID.
     (async () => {
       const data = await getArtist(id);
       if (cancelled) return;
@@ -163,10 +162,7 @@ const ArtistPage = () => {
       }
       setIsLoadingArtist(false);
 
-      const payload = await getArtistDiscography(
-        id,
-        data?.name ?? undefined,
-      );
+      const payload = await getArtistDiscography(id, data?.name ?? undefined);
       if (cancelled) return;
       setAlbums(payload.albums);
       setMbGenres(payload.genres);
@@ -179,21 +175,21 @@ const ArtistPage = () => {
     };
   }, [id]);
 
-  // Fetch this user's ratings for any of the artist's albums
+  // Завантаження оцінок користувача за MusicBrainz ID (album_mbid)
   useEffect(() => {
     if (!user || !artist) return;
     let cancelled = false;
 
     supabase
       .from("album_ratings")
-      .select("album_deezer_id, rating")
+      .select("album_mbid, rating")
       .eq("user_id", user.id)
       .eq("artist_name", artist.name)
       .then(({ data }) => {
         if (cancelled || !data) return;
         const map: Record<string, number> = {};
         data.forEach((r) => {
-          if (r.album_deezer_id) map[String(r.album_deezer_id)] = r.rating;
+          if (r.album_mbid) map[String(r.album_mbid)] = r.rating;
         });
         setRatings(map);
       });
@@ -203,8 +199,7 @@ const ArtistPage = () => {
     };
   }, [user, artist]);
 
-  // Lazy-load the biography the first time the Bio tab is opened.
-  // Last.fm is our only bio source.
+  // Ліниве завантаження біографії з Last.fm
   useEffect(() => {
     if (activeTab !== "bio" || !artist || bioAttempted) return;
     let cancelled = false;
@@ -222,12 +217,13 @@ const ArtistPage = () => {
         setIsLoadingBio(false);
         setBioAttempted(true);
       });
+
     return () => {
       cancelled = true;
     };
   }, [activeTab, artist, bioAttempted]);
 
-  // Lazy-load popular songs from MusicBrainz when the tab is opened.
+  // Ліниве завантаження популярних треків з MusicBrainz
   useEffect(() => {
     if (activeTab !== "popular" || !mbid || popularAttempted) return;
     let cancelled = false;
@@ -245,18 +241,16 @@ const ArtistPage = () => {
         setIsLoadingPopular(false);
         setPopularAttempted(true);
       });
+
     return () => {
       cancelled = true;
     };
   }, [activeTab, mbid, popularAttempted]);
 
-  // Reset popular tracks when the artist changes.
   useEffect(() => {
     setPopularTracks([]);
     setPopularAttempted(false);
   }, [id]);
-
-
 
   const artistImage = artist ? pickArtistImage(artist) : null;
 
@@ -276,17 +270,15 @@ const ArtistPage = () => {
   const otherReleases = useMemo(() => {
     const empty = { all: [], single: [], album: [], compilation: [] } as Record<OtherTab, ClassifiedAlbum[]>;
     if (!discography) return empty;
-
     return {
       single: discography.singles,
-      album: discography.live, // "live" releases live under Other > Album bucket
+      album: discography.live,
       compilation: discography.compilations,
       all: sortByReleaseDateAsc([...discography.singles, ...discography.live, ...discography.compilations]),
     };
   }, [discography]);
 
   const { activeYears, country, totalAlbums } = useMemo(() => {
-    // ОНОВЛЕНО: Тепер обчислення років активності також пріоритетно враховує original_year
     const years = (discography?.studioAlbums ?? [])
       .map((a: any) => {
         if (a.original_year) return Number(a.original_year);
@@ -299,20 +291,23 @@ const ArtistPage = () => {
     const last = years[years.length - 1];
     const now = new Date().getFullYear();
 
-    const active = first
-      ? last && last >= now - 3
-        ? `${first}–present`
-        : last
-          ? `${first}–${last}`
-          : `${first}`
-      : null;
+    let active: string | null = null;
+    if (first) {
+      if (first === last) {
+        active = `${first}`;
+      } else if (last && last >= now - 3) {
+        active = `${first}–present`;
+      } else {
+        active = `${first}–${last}`;
+      }
+    }
 
     return {
       activeYears: active,
-      country: null as string | null, // Deezer artist payload doesn't expose country reliably
+      country: (artist as any)?.country ?? null,
       totalAlbums: discography?.studioAlbums.length ?? 0,
     };
-  }, [discography]);
+  }, [discography, artist]);
 
   const { avgScore, ratedCount } = useMemo(() => {
     if (!discography) return { avgScore: 0, ratedCount: 0 };
@@ -380,7 +375,7 @@ const ArtistPage = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             >
               {albumSortAsc ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
-              {albumSortAsc ? "Ascent" : "Descent"}
+              {albumSortAsc ? "Oldest" : "Newest"}
             </button>
           )}
         </div>
@@ -405,7 +400,6 @@ const ArtistPage = () => {
   const epCount = discography?.eps.length ?? 0;
   const otherTotal = otherReleases.all.length;
   const visibleOther = otherReleases[otherTab];
-
   const hasAnyRelease = studioCount + epCount + otherTotal > 0;
 
   const otherTabs: Array<{ id: OtherTab; label: string; count: number }> = [
@@ -422,9 +416,9 @@ const ArtistPage = () => {
     { id: "similar", label: "Similar Artists" },
   ];
 
-  // MusicBrainz genres/tags — our only genre source now.
   const genres = resolveGenres(mbGenres, 5, artist.name);
   const artistType = (artist.type ?? "artist").toLowerCase() === "artist" ? "Artist" : "Group";
+  const cleanBioText = bio?.text ? bio.text.replace(/<[^>]*>?/gm, "") : "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -463,7 +457,6 @@ const ArtistPage = () => {
                   </div>
                 )}
               </motion.div>
-
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -472,7 +465,6 @@ const ArtistPage = () => {
               >
                 <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground mb-2">{artistType}</p>
                 <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] mb-4 break-words">{artist.name}</h1>
-
                 {genres.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-5">
                     {genres.map((g) => (
@@ -487,7 +479,6 @@ const ArtistPage = () => {
                     ))}
                   </div>
                 )}
-
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                   {country && (
                     <span className="inline-flex items-center gap-1.5">
@@ -531,7 +522,6 @@ const ArtistPage = () => {
               className="rounded-2xl border border-border/50 bg-card p-6 flex flex-col justify-between"
             >
               <RadialScoreGauge score={avgScore} rated={ratedCount} total={totalAlbums} />
-
               <Link
                 to={`/dashboard/rated-music/${encodeURIComponent(artist.name)}`}
                 className="mt-4 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
@@ -593,8 +583,7 @@ const ArtistPage = () => {
                 ) : hasAnyRelease ? (
                   <>
                     {renderSection("Albums", albumSortAsc ? discography.studioAlbums : [...discography.studioAlbums].reverse(), 0, true)}
-                    {renderSection("LP", discography.eps, studioCount)}
-
+                    {renderSection("EPs", discography.eps, studioCount)}
                     {otherTotal > 0 && (
                       <section className="mb-12">
                         <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
@@ -617,8 +606,8 @@ const ArtistPage = () => {
                                     active
                                       ? "bg-foreground text-background"
                                       : disabled
-                                        ? "bg-secondary/40 text-muted-foreground/40 cursor-not-allowed"
-                                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                                      ? "bg-secondary/40 text-muted-foreground/40 cursor-not-allowed"
+                                      : "bg-secondary text-muted-foreground hover:text-foreground"
                                   }`}
                                 >
                                   {tab.label}
@@ -627,7 +616,6 @@ const ArtistPage = () => {
                             })}
                           </div>
                         </div>
-
                         {visibleOther.length > 0 ? (
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-6">
                             {visibleOther.map((album, index) => {
@@ -648,7 +636,7 @@ const ArtistPage = () => {
                         )}
                       </section>
                     )}
-                  </>
+                  <>
                 ) : (
                   <div className="text-center py-12">
                     <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -730,14 +718,14 @@ const ArtistPage = () => {
                     <Skeleton className="h-4 w-9/12" />
                     <Skeleton className="h-4 w-11/12" />
                   </div>
-                ) : bio ? (
+                ) : cleanBioText ? (
                   <article>
-                    {bio.text.split(/\n{2,}/).map((para, i) => (
+                    {cleanBioText.split(/\n{2,}/).map((para, i) => (
                       <p key={i} className="text-base leading-relaxed text-foreground/90 mb-4">
                         {para}
                       </p>
                     ))}
-                    {bio.url && (
+                    {bio?.url && (
                       <p className="mt-6 text-xs text-muted-foreground">
                         Source:{" "}
                         <a
