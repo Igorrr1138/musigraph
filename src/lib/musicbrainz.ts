@@ -480,3 +480,34 @@ export async function searchRecordingsMB(
       releaseMbid: rec.releases?.[0]?.id,
     }));
 }
+
+// ---------- Artist quick facts (origin / active era) ----------
+
+export interface MbArtistFacts {
+  area?: string;
+  beginArea?: string;
+  beginYear?: string;
+  endYear?: string;
+  ended?: boolean;
+  type?: string;
+}
+
+export async function getArtistFactsMB(mbid: string): Promise<MbArtistFacts | null> {
+  if (!isMusicBrainzId(mbid)) return null;
+  const r = await mbFetch<{
+    type?: string;
+    area?: { name?: string };
+    'begin-area'?: { name?: string };
+    'life-span'?: { begin?: string; end?: string; ended?: boolean };
+  }>(`/artist/${mbid}`);
+  if (!r) return null;
+  const span = r['life-span'];
+  return {
+    area: r.area?.name || undefined,
+    beginArea: r['begin-area']?.name || undefined,
+    beginYear: span?.begin?.slice(0, 4) || undefined,
+    endYear: span?.end?.slice(0, 4) || undefined,
+    ended: span?.ended ?? undefined,
+    type: r.type || undefined,
+  };
+}
