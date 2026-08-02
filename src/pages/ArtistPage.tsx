@@ -709,44 +709,16 @@ const ArtistPage = () => {
             )}
 
             {activeTab === "bio" && (
-              <div className="max-w-3xl">
-                {isLoadingBio ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-11/12" />
-                    <Skeleton className="h-4 w-10/12" />
-                    <Skeleton className="h-4 w-9/12" />
-                    <Skeleton className="h-4 w-11/12" />
-                  </div>
-                ) : cleanBioText ? (
-                  <article>
-                    {cleanBioText.split(/\n{2,}/).map((para, i) => (
-                      <p key={i} className="text-base leading-relaxed text-foreground/90 mb-4">
-                        {para}
-                      </p>
-                    ))}
-                    {bio?.url && (
-                      <p className="mt-6 text-xs text-muted-foreground">
-                        Source:{" "}
-                        <a
-                          href={bio.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-foreground"
-                        >
-                          Last.fm
-                        </a>
-                      </p>
-                    )}
-                  </article>
-                ) : (
-                  <div className="py-20 text-center text-muted-foreground">
-                    <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                    No biography available for this artist.
-                  </div>
-                )}
-              </div>
+              <ArtistBio
+                rawBio={bio?.text ?? ""}
+                sourceUrl={bio?.url}
+                isLoading={isLoadingBio}
+                artistName={artist.name}
+                mbid={mbid}
+                genres={genres}
+              />
             )}
+
 
             {activeTab === "similar" && (
               <div className="py-20 text-center text-muted-foreground">
