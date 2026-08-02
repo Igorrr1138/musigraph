@@ -254,7 +254,7 @@ export function PlaybackBar() {
                   <Link
                     to={`/artist/${artistMbid}`}
                     title={artistName}
-                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
+                    className="truncate min-w-0 hover:text-foreground hover:underline transition-colors"
                   >
                     {artistName}
                   </Link>
