@@ -636,7 +636,7 @@ const ArtistPage = () => {
                         )}
                       </section>
                     )}
-                  <>
+                  </>
                 ) : (
                   <div className="text-center py-12">
                     <Disc3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
