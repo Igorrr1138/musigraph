@@ -31,6 +31,8 @@ export interface DiscoveryFilters {
   sort?: SortMode;
   /** Page size. Defaults to 24 -- ~6 grid rows on desktop. */
   limit?: number;
+  /** 1-based page number, forwarded to the Last.fm tag API. */
+  page?: number;
 }
 
 export interface DiscoveryArtist extends DeezerArtist {
