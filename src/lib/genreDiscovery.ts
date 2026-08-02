@@ -31,6 +31,8 @@ export interface DiscoveryFilters {
   sort?: SortMode;
   /** Page size. Defaults to 24 -- ~6 grid rows on desktop. */
   limit?: number;
+  /** 1-based page number, forwarded to the Last.fm tag API. */
+  page?: number;
 }
 
 export interface DiscoveryArtist extends DeezerArtist {
@@ -68,13 +70,18 @@ function decadeFromYearString(s: string | null | undefined): number | null {
  * only -- the caller resolves them through Deezer for image/id metadata so
  * we don't introduce a second album/image source.
  */
-async function fetchTopArtistNamesFromLastfm(genre: WhitelistedGenre, limit: number): Promise<string[]> {
+async function fetchTopArtistNamesFromLastfm(
+  genre: WhitelistedGenre,
+  limit: number,
+  page = 1,
+): Promise<string[]> {
   if (!LASTFM_API_KEY) return [];
   try {
     const url =
       `${LASTFM_BASE}?method=tag.gettopartists` +
       `&tag=${encodeURIComponent(genre.key)}` +
       `&limit=${Math.min(Math.max(limit, 1), 100)}` +
+      `&page=${Math.max(page, 1)}` +
       `&api_key=${LASTFM_API_KEY}&format=json`;
     const res = await fetch(url);
     if (!res.ok) return [];
@@ -93,7 +100,7 @@ async function fetchTopArtistNamesFromLastfm(genre: WhitelistedGenre, limit: num
  */
 export async function getArtistsByGenre(
   slug: string,
-  { country, decade, sort = 'top', limit = 24 }: DiscoveryFilters = {},
+  { country, decade, sort = 'top', limit = 24, page = 1 }: DiscoveryFilters = {},
 ): Promise<DiscoveryArtist[]> {
   const genre = genreFromSlug(slug);
   if (!genre) return [];
@@ -103,7 +110,7 @@ export async function getArtistsByGenre(
   // artist. No persistent cache for now.
   const rows: CachedArtistRow[] = [];
 
-  const remoteNames = await fetchTopArtistNamesFromLastfm(genre, limit * 2);
+  const remoteNames = await fetchTopArtistNamesFromLastfm(genre, limit * 2, page);
   const concurrency = 4;
   for (let i = 0; i < remoteNames.length && rows.length < limit * 2; i += concurrency) {
     const slice = remoteNames.slice(i, i + concurrency);
@@ -182,7 +189,7 @@ interface LastfmAlbum {
  */
 export async function getAlbumsByGenre(
   slug: string,
-  { limit = 24 }: { limit?: number } = {},
+  { limit = 24, page = 1 }: { limit?: number; page?: number } = {},
 ): Promise<DiscoveryAlbum[]> {
   const genre = genreFromSlug(slug);
   if (!genre || !LASTFM_API_KEY) return [];
@@ -193,6 +200,7 @@ export async function getAlbumsByGenre(
       `${LASTFM_BASE}?method=tag.gettopalbums` +
       `&tag=${encodeURIComponent(genre.key)}` +
       `&limit=${Math.min(Math.max(limit, 1), 50)}` +
+      `&page=${Math.max(page, 1)}` +
       `&api_key=${LASTFM_API_KEY}&format=json`;
     const res = await fetch(url);
     if (!res.ok) return [];
