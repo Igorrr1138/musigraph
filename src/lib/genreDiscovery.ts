@@ -189,7 +189,7 @@ interface LastfmAlbum {
  */
 export async function getAlbumsByGenre(
   slug: string,
-  { limit = 24 }: { limit?: number } = {},
+  { limit = 24, page = 1 }: { limit?: number; page?: number } = {},
 ): Promise<DiscoveryAlbum[]> {
   const genre = genreFromSlug(slug);
   if (!genre || !LASTFM_API_KEY) return [];
@@ -200,6 +200,7 @@ export async function getAlbumsByGenre(
       `${LASTFM_BASE}?method=tag.gettopalbums` +
       `&tag=${encodeURIComponent(genre.key)}` +
       `&limit=${Math.min(Math.max(limit, 1), 50)}` +
+      `&page=${Math.max(page, 1)}` +
       `&api_key=${LASTFM_API_KEY}&format=json`;
     const res = await fetch(url);
     if (!res.ok) return [];
