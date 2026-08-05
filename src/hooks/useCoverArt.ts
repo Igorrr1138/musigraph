@@ -21,8 +21,14 @@ function imageExists(url: string): Promise<boolean> {
 
 async function resolveArtistCover(artistMbid: string): Promise<string | null> {
   try {
-    const groups = await searchReleaseGroupsMB(`arid:${artistMbid}`, 8);
-    for (const rg of groups) {
+    const releases = await fetchArtistReleases(artistMbid);
+    const ranked = [...releases]
+      .sort((a, b) => {
+        const rank = (r: typeof a) => (r.record_type === 'album' ? 0 : r.record_type === 'ep' ? 1 : 2);
+        return rank(a) - rank(b) || (a.year ?? 9999) - (b.year ?? 9999);
+      })
+      .slice(0, 8);
+    for (const rg of ranked) {
       const url = coverArtArchiveReleaseGroupUrl(rg.mbid, 500);
       if (url && (await imageExists(url))) return url;
     }
@@ -31,6 +37,7 @@ async function resolveArtistCover(artistMbid: string): Promise<string | null> {
   }
   return null;
 }
+
 
 /**
  * MusicBrainz has no artist images, so we borrow the cover of the artist's
