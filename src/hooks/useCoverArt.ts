@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { searchReleaseGroupsMB, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
+import { fetchArtistReleases, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
 
 /** Module-level caches so grids don't re-probe the same artwork on every render. */
 const probeCache = new Map<string, Promise<boolean>>();
