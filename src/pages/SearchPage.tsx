@@ -352,26 +352,21 @@ function ArtistResultCard({ artist }: { artist: MbArtistSearchResult }) {
 }
 
 function AlbumResultCard({ album }: { album: MbReleaseGroupSearchResult }) {
-  const cover = useAlbumCover(album.title, album.artistName);
-  const to = cover ? `/album/${cover.deezerId}` : '#';
+  const cover = coverArtArchiveReleaseGroupUrl(album.mbid, 500);
+  const to = `/album/${album.mbid}`;
   return (
     <Link
       to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3 relative">
-        {cover?.coverUrl ? (
-          <img
-            src={cover.coverUrl}
-            alt={album.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Disc3 className="w-12 h-12 text-muted-foreground" />
-          </div>
-        )}
+        <CoverImage
+          src={cover}
+          alt={album.title}
+          fallback={<Disc3 className="w-12 h-12 text-muted-foreground" />}
+          className="transition-transform duration-500 group-hover:scale-105"
+        />
+
         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-[10px] uppercase tracking-wider">
           {album.primaryType ?? 'Album'}
         </span>
