@@ -194,6 +194,37 @@ function classifyReleaseGroup(
  * Fetch the artist's release groups (albums/EPs/singles/live/compilation).
  * Paginated at 100 per page; MB caps at 100 so we walk offsets until empty.
  */
+/**
+ * Cheap single-request variant used for artwork lookups: the first page of an
+ * artist's album/EP release-groups. Avoids the multi-page walk (and the MB
+ * rate-limit pressure) of `fetchArtistReleases`.
+ */
+export async function fetchArtistReleaseGroupsPage(
+  mbid: string,
+  limit = 8,
+): Promise<MbRelease[]> {
+  const r = await mbFetch<MbReleaseGroupsResponse>(
+    `/release-group?artist=${mbid}&type=album|ep&limit=${limit}`,
+  );
+  const groups = r?.['release-groups'] ?? [];
+  const out: MbRelease[] = [];
+  for (const g of groups) {
+    if (!g.id || !g.title) continue;
+    const rt = classifyReleaseGroup(g['primary-type'], g['secondary-types']);
+    if (!rt) continue;
+    const date = g['first-release-date'] || undefined;
+    const yearNum = date ? parseInt(date.slice(0, 4), 10) : NaN;
+    out.push({
+      mbid: g.id,
+      title: g.title,
+      date,
+      year: Number.isFinite(yearNum) ? yearNum : undefined,
+      record_type: rt,
+    });
+  }
+  return out;
+}
+
 export async function fetchArtistReleases(mbid: string): Promise<MbRelease[]> {
   const out: MbRelease[] = [];
   const seen = new Set<string>();
