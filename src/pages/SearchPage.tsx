@@ -292,20 +292,17 @@ function TopResultCard({
 }
 
 function SongRow({ track }: { track: MbRecordingSearchResult }) {
-  const cover = useAlbumCover(track.releaseTitle ?? track.title, track.artistName);
-  const albumHref = cover ? `/album/${cover.deezerId}` : '#';
+  const cover = coverArtArchiveReleaseUrl(track.releaseMbid, 250);
+  const albumHref = track.releaseMbid ? `/album/${track.releaseMbid}` : '#';
   return (
     <li className="flex items-center gap-4 py-3 group">
       <Link
         to={albumHref}
         className="w-11 h-11 rounded-lg bg-secondary overflow-hidden flex items-center justify-center shrink-0"
       >
-        {cover?.coverUrl ? (
-          <img src={cover.coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <Music2 className="w-5 h-5 text-muted-foreground" />
-        )}
+        <CoverImage src={cover} alt="" fallback={<Music2 className="w-5 h-5 text-muted-foreground" />} />
       </Link>
+
       <div className="min-w-0 flex-1">
         <p className="font-semibold truncate group-hover:text-primary transition-colors">{track.title}</p>
         {track.artistName && (
