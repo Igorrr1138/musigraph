@@ -10,7 +10,8 @@ import {
   type MbReleaseGroupSearchResult,
   type MbRecordingSearchResult,
 } from '@/lib/musicbrainz';
-import { lookupArtistCover, lookupAlbumCover, type CoverRef } from '@/lib/deezerCover';
+import { coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
+import { useArtistCoverArt, coverArtArchiveReleaseUrl } from '@/hooks/useCoverArt';
 import { cn } from '@/lib/utils';
 
 type Tab = 'all' | 'artists' | 'albums' | 'songs';
@@ -170,25 +171,37 @@ export default function SearchPage() {
 
 /* ---------- Subcomponents ---------- */
 
-function useArtistCover(name: string) {
-  const [ref, setRef] = useState<CoverRef | null>(null);
+/** <img> that falls back to a placeholder icon when Cover Art Archive 404s. */
+function CoverImage({
+  src,
+  alt,
+  fallback,
+  className,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: React.ReactNode;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    let cancelled = false;
-    lookupArtistCover(name).then((r) => { if (!cancelled) setRef(r); });
-    return () => { cancelled = true; };
-  }, [name]);
-  return ref;
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return <div className="w-full h-full flex items-center justify-center">{fallback}</div>;
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={cn('w-full h-full object-cover', className)}
+    />
+  );
 }
 
-function useAlbumCover(title: string, artist?: string) {
-  const [ref, setRef] = useState<CoverRef | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    lookupAlbumCover(title, artist).then((r) => { if (!cancelled) setRef(r); });
-    return () => { cancelled = true; };
-  }, [title, artist]);
-  return ref;
-}
 
 function Section({
   title,
@@ -227,8 +240,8 @@ function TopResultCard({
   trackCount: number;
   albumCount: number;
 }) {
-  const cover = useArtistCover(artist.name);
-  const to = cover ? `/artist/${cover.deezerId}` : '#';
+  const cover = useArtistCoverArt(artist.mbid);
+  const to = `/artist/${artist.mbid}`;
   return (
     <div>
       <h2 className="font-boldonse text-2xl mb-5 tracking-wide">Top result</h2>
@@ -237,13 +250,12 @@ function TopResultCard({
         className="block rounded-3xl border border-border/50 bg-card/40 p-5 hover:border-primary/50 transition-colors"
       >
         <div className="aspect-square w-full rounded-2xl overflow-hidden bg-secondary mb-5 relative">
-          {cover?.coverUrl ? (
-            <img src={cover.coverUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <User className="w-16 h-16 text-muted-foreground" />
-            </div>
-          )}
+          <CoverImage
+            src={cover}
+            alt={artist.name}
+            fallback={<User className="w-16 h-16 text-muted-foreground" />}
+          />
+
           <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs uppercase tracking-wider">
             Artist
           </span>
@@ -280,20 +292,17 @@ function TopResultCard({
 }
 
 function SongRow({ track }: { track: MbRecordingSearchResult }) {
-  const cover = useAlbumCover(track.releaseTitle ?? track.title, track.artistName);
-  const albumHref = cover ? `/album/${cover.deezerId}` : '#';
+  const cover = coverArtArchiveReleaseUrl(track.releaseMbid, 250);
+  const albumHref = track.releaseMbid ? `/album/${track.releaseMbid}` : '#';
   return (
     <li className="flex items-center gap-4 py-3 group">
       <Link
         to={albumHref}
         className="w-11 h-11 rounded-lg bg-secondary overflow-hidden flex items-center justify-center shrink-0"
       >
-        {cover?.coverUrl ? (
-          <img src={cover.coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <Music2 className="w-5 h-5 text-muted-foreground" />
-        )}
+        <CoverImage src={cover} alt="" fallback={<Music2 className="w-5 h-5 text-muted-foreground" />} />
       </Link>
+
       <div className="min-w-0 flex-1">
         <p className="font-semibold truncate group-hover:text-primary transition-colors">{track.title}</p>
         {track.artistName && (
@@ -316,27 +325,22 @@ function SongRow({ track }: { track: MbRecordingSearchResult }) {
 }
 
 function ArtistResultCard({ artist }: { artist: MbArtistSearchResult }) {
-  const cover = useArtistCover(artist.name);
-  const to = cover ? `/artist/${cover.deezerId}` : '#';
+  const cover = useArtistCoverArt(artist.mbid);
+  const to = `/artist/${artist.mbid}`;
   return (
     <Link
       to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3">
-        {cover?.coverUrl ? (
-          <img
-            src={cover.coverUrl}
-            alt={artist.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <User className="w-12 h-12 text-muted-foreground" />
-          </div>
-        )}
+        <CoverImage
+          src={cover}
+          alt={artist.name}
+          fallback={<User className="w-12 h-12 text-muted-foreground" />}
+          className="transition-transform duration-500 group-hover:scale-105"
+        />
       </div>
+
       <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
         {artist.name}
       </h3>
@@ -348,26 +352,21 @@ function ArtistResultCard({ artist }: { artist: MbArtistSearchResult }) {
 }
 
 function AlbumResultCard({ album }: { album: MbReleaseGroupSearchResult }) {
-  const cover = useAlbumCover(album.title, album.artistName);
-  const to = cover ? `/album/${cover.deezerId}` : '#';
+  const cover = coverArtArchiveReleaseGroupUrl(album.mbid, 500);
+  const to = `/album/${album.mbid}`;
   return (
     <Link
       to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3 relative">
-        {cover?.coverUrl ? (
-          <img
-            src={cover.coverUrl}
-            alt={album.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Disc3 className="w-12 h-12 text-muted-foreground" />
-          </div>
-        )}
+        <CoverImage
+          src={cover}
+          alt={album.title}
+          fallback={<Disc3 className="w-12 h-12 text-muted-foreground" />}
+          className="transition-transform duration-500 group-hover:scale-105"
+        />
+
         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm text-[10px] uppercase tracking-wider">
           {album.primaryType ?? 'Album'}
         </span>
