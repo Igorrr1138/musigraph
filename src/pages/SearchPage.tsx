@@ -240,8 +240,8 @@ function TopResultCard({
   trackCount: number;
   albumCount: number;
 }) {
-  const cover = useArtistCover(artist.name);
-  const to = cover ? `/artist/${cover.deezerId}` : '#';
+  const cover = useArtistCoverArt(artist.mbid);
+  const to = `/artist/${artist.mbid}`;
   return (
     <div>
       <h2 className="font-boldonse text-2xl mb-5 tracking-wide">Top result</h2>
@@ -250,13 +250,12 @@ function TopResultCard({
         className="block rounded-3xl border border-border/50 bg-card/40 p-5 hover:border-primary/50 transition-colors"
       >
         <div className="aspect-square w-full rounded-2xl overflow-hidden bg-secondary mb-5 relative">
-          {cover?.coverUrl ? (
-            <img src={cover.coverUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <User className="w-16 h-16 text-muted-foreground" />
-            </div>
-          )}
+          <CoverImage
+            src={cover}
+            alt={artist.name}
+            fallback={<User className="w-16 h-16 text-muted-foreground" />}
+          />
+
           <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs uppercase tracking-wider">
             Artist
           </span>
