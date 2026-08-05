@@ -171,25 +171,37 @@ export default function SearchPage() {
 
 /* ---------- Subcomponents ---------- */
 
-function useArtistCover(name: string) {
-  const [ref, setRef] = useState<CoverRef | null>(null);
+/** <img> that falls back to a placeholder icon when Cover Art Archive 404s. */
+function CoverImage({
+  src,
+  alt,
+  fallback,
+  className,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: React.ReactNode;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    let cancelled = false;
-    lookupArtistCover(name).then((r) => { if (!cancelled) setRef(r); });
-    return () => { cancelled = true; };
-  }, [name]);
-  return ref;
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return <div className="w-full h-full flex items-center justify-center">{fallback}</div>;
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={cn('w-full h-full object-cover', className)}
+    />
+  );
 }
 
-function useAlbumCover(title: string, artist?: string) {
-  const [ref, setRef] = useState<CoverRef | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    lookupAlbumCover(title, artist).then((r) => { if (!cancelled) setRef(r); });
-    return () => { cancelled = true; };
-  }, [title, artist]);
-  return ref;
-}
 
 function Section({
   title,
