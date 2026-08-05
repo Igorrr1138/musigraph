@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchArtistReleases, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
+import { fetchArtistReleaseGroupsPage, coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
 
 /** Module-level caches so grids don't re-probe the same artwork on every render. */
 const probeCache = new Map<string, Promise<boolean>>();
@@ -21,7 +21,7 @@ function imageExists(url: string): Promise<boolean> {
 
 async function resolveArtistCover(artistMbid: string): Promise<string | null> {
   try {
-    const releases = await fetchArtistReleases(artistMbid);
+    const releases = await fetchArtistReleaseGroupsPage(artistMbid, 8);
     const ranked = [...releases]
       .sort((a, b) => {
         const rank = (r: typeof a) => (r.record_type === 'album' ? 0 : r.record_type === 'ep' ? 1 : 2);
