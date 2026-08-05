@@ -325,27 +325,22 @@ function SongRow({ track }: { track: MbRecordingSearchResult }) {
 }
 
 function ArtistResultCard({ artist }: { artist: MbArtistSearchResult }) {
-  const cover = useArtistCover(artist.name);
-  const to = cover ? `/artist/${cover.deezerId}` : '#';
+  const cover = useArtistCoverArt(artist.mbid);
+  const to = `/artist/${artist.mbid}`;
   return (
     <Link
       to={to}
       className="group rounded-2xl border border-border/40 bg-card/30 p-4 hover:border-primary/50 transition-colors"
     >
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3">
-        {cover?.coverUrl ? (
-          <img
-            src={cover.coverUrl}
-            alt={artist.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <User className="w-12 h-12 text-muted-foreground" />
-          </div>
-        )}
+        <CoverImage
+          src={cover}
+          alt={artist.name}
+          fallback={<User className="w-12 h-12 text-muted-foreground" />}
+          className="transition-transform duration-500 group-hover:scale-105"
+        />
       </div>
+
       <h3 className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">
         {artist.name}
       </h3>
