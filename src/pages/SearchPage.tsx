@@ -10,7 +10,8 @@ import {
   type MbReleaseGroupSearchResult,
   type MbRecordingSearchResult,
 } from '@/lib/musicbrainz';
-import { lookupArtistCover, lookupAlbumCover, type CoverRef } from '@/lib/deezerCover';
+import { coverArtArchiveReleaseGroupUrl } from '@/lib/musicbrainz';
+import { useArtistCoverArt, coverArtArchiveReleaseUrl } from '@/hooks/useCoverArt';
 import { cn } from '@/lib/utils';
 
 type Tab = 'all' | 'artists' | 'albums' | 'songs';
