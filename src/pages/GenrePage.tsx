@@ -101,8 +101,8 @@ const GenrePage = () => {
 
   // ---- Data fetching ----
   const PAGE_SIZE = 24;
-  const [artists, setArtists] = useState<DiscoveryArtist[]>([]);
-  const [albums, setAlbums] = useState<DiscoveryAlbum[]>([]);
+  const [artists, setArtists] = useState<GenreEntry[]>([]);
+  const [albums, setAlbums] = useState<GenreEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -119,25 +119,23 @@ const GenrePage = () => {
     if (page === 1) setIsLoading(true);
     else setIsLoadingMore(true);
 
+    const merge = (prev: GenreEntry[], res: GenreEntry[]) => {
+      if (page === 1) return res;
+      const seen = new Set(prev.map(e => e.key));
+      return [...prev, ...res.filter(e => !seen.has(e.key))];
+    };
+
     const run = async () => {
       try {
         if (contentType === 'albums') {
-          const res = await getAlbumsByGenre(effectiveSlug, { limit: PAGE_SIZE, page });
+          const res = await getGenreAlbumEntries(effectiveSlug, { limit: PAGE_SIZE, page });
           if (cancelled) return;
-          setAlbums(prev => {
-            if (page === 1) return res;
-            const seen = new Set(prev.map(a => String(a.id)));
-            return [...prev, ...res.filter(a => !seen.has(String(a.id)))];
-          });
+          setAlbums(prev => merge(prev, res));
           setHasMore(res.length >= PAGE_SIZE / 2);
         } else {
-          const res = await getArtistsByGenre(effectiveSlug, { ...filters, page });
+          const res = await getGenreArtistEntries(effectiveSlug, { limit: PAGE_SIZE, page });
           if (cancelled) return;
-          setArtists(prev => {
-            if (page === 1) return res;
-            const seen = new Set(prev.map(a => String(a.id)));
-            return [...prev, ...res.filter(a => !seen.has(String(a.id)))];
-          });
+          setArtists(prev => merge(prev, res));
           setHasMore(res.length >= PAGE_SIZE / 2);
         }
       } catch (err) {
