@@ -208,24 +208,24 @@ function writeCache(rows: Array<{ key: string; resolved: ResolvedEntry }>): void
 }
 
 async function resolveArtist(name: string): Promise<ResolvedEntry> {
+  // ONE request buys us both the artist MBID (via artist-credit) and a cover
+  // (MusicBrainz stores no artist images, so we borrow release-group art).
+  const groups = await searchReleaseGroupsMB(`artist:"${name}"`, 3);
+  const match =
+    groups.find(g => (g.artistName ?? '').toLowerCase() === name.toLowerCase() && g.artistMbid) ??
+    groups.find(g => g.artistMbid) ??
+    null;
+  if (match?.artistMbid) {
+    return {
+      mbid: match.artistMbid,
+      imageUrl: coverArtArchiveReleaseGroupUrl(match.mbid, 500),
+      artistMbid: match.artistMbid,
+    };
+  }
   const hits = await searchArtistsMB(name, 1);
   const artist = hits[0];
   if (!artist) return { mbid: null, imageUrl: null };
-  // MusicBrainz has no artist images — borrow the earliest release-group cover.
-  let imageUrl: string | null = null;
-  try {
-    const groups = await fetchArtistReleaseGroupsPage(artist.mbid, 6);
-    const best =
-      [...groups].sort((a, b) => {
-        const rank = (r: (typeof groups)[number]) =>
-          r.record_type === 'album' ? 0 : r.record_type === 'ep' ? 1 : 2;
-        return rank(a) - rank(b) || (a.year ?? 9999) - (b.year ?? 9999);
-      })[0] ?? null;
-    if (best) imageUrl = coverArtArchiveReleaseGroupUrl(best.mbid, 500);
-  } catch {
-    /* cover stays null → card shows the styled placeholder */
-  }
-  return { mbid: artist.mbid, imageUrl, artistMbid: artist.mbid };
+  return { mbid: artist.mbid, imageUrl: null, artistMbid: artist.mbid };
 }
 
 async function resolveAlbum(title: string, artistName?: string): Promise<ResolvedEntry> {
