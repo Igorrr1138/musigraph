@@ -19,14 +19,39 @@ import type { DeezerAlbum, DeezerTrack } from './deezer';
 
 const MB_BASE = 'https://musicbrainz.org/ws/2';
 const CAA_BASE = 'https://coverartarchive.org';
+// NOTE: do NOT send a custom User-Agent from the browser. It is a forbidden
+// header (silently dropped) and, worse, it turns every call into a CORS
+// preflight that MusicBrainz answers with 503.
 const MB_HEADERS: HeadersInit = {
   Accept: 'application/json',
-  'User-Agent': 'SoundVault/1.0 ( https://musigraph.lovable.app )',
 };
 const DEFAULT_TIMEOUT = 8_000;
 const MBID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T | null> {
+/* ------------------------------------------------------------------ */
+/* Global rate limiter — MusicBrainz allows ~1 request/second per IP.  */
+/* Every call in the app funnels through this single serialized queue, */
+/* so no amount of UI concurrency can trigger 503 / 429 storms.        */
+/* ------------------------------------------------------------------ */
+const MIN_GAP_MS = 1_100;
+const MAX_RETRIES = 2;
+let chain: Promise<unknown> = Promise.resolve();
+let lastStart = 0;
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function schedule<T>(task: () => Promise<T>): Promise<T> {
+  const run = chain.then(async () => {
+    const wait = MIN_GAP_MS - (Date.now() - lastStart);
+    if (wait > 0) await sleep(wait);
+    lastStart = Date.now();
+    return task();
+  });
+  chain = run.catch(() => undefined);
+  return run as Promise<T>;
+}
+
+async function mbFetchOnce<T>(path: string, timeoutMs: number): Promise<T | null | 'retry'> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -34,6 +59,7 @@ async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T 
       headers: MB_HEADERS,
       signal: ctrl.signal,
     });
+    if (res.status === 503 || res.status === 429) return 'retry';
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
@@ -42,6 +68,16 @@ async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T 
     clearTimeout(timer);
   }
 }
+
+async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T | null> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const result = await schedule(() => mbFetchOnce<T>(path, timeoutMs));
+    if (result !== 'retry') return result;
+    await sleep(1_000 * (attempt + 1));
+  }
+  return null;
+}
+
 
 /** Escape a value for the Lucene-style MB query string. */
 function lucene(s: string): string {
