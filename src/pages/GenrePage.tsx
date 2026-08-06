@@ -11,10 +11,9 @@ import { ContentTypeToggle, type DiscoveryContentType } from '@/components/disco
 import { genreFromSlug } from '@/lib/genreWhitelist';
 import { parentCategorySlug, parentCategoryFromSlug, PARENT_CATEGORIES } from '@/lib/genreMap';
 import {
-  getArtistsByGenre,
-  getAlbumsByGenre,
-  type DiscoveryArtist,
-  type DiscoveryAlbum,
+  getGenreArtistEntries,
+  getGenreAlbumEntries,
+  type GenreEntry,
   type SortMode,
 } from '@/lib/genreDiscovery';
 import { useSeoMeta, genrePageSeo } from '@/lib/seo';
