@@ -210,9 +210,9 @@ const GenrePage = () => {
 
         {/* Grid */}
         {contentType === 'artists' ? (
-          <GenreArtistGrid artists={artists} isLoading={isLoading} />
+          <GenreArtistGrid entries={artists} isLoading={isLoading} />
         ) : (
-          <GenreAlbumGrid albums={albums} isLoading={isLoading} />
+          <GenreAlbumGrid entries={albums} isLoading={isLoading} />
         )}
 
         {/* Pagination */}
