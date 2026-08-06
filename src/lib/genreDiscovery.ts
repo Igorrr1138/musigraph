@@ -140,7 +140,7 @@ export async function getGenreAlbumEntries(
         tag: genre.key,
       } satisfies GenreEntry;
     })
-    .filter((e): e is GenreEntry => e !== null)
+    .filter((e): e is NonNullable<typeof e> => e !== null)
     .slice(0, limit);
 }
 
