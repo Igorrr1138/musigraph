@@ -16,6 +16,7 @@ import {
   fetchArtistReleases,
   fetchReleaseGroupAlbum,
   coverArtArchiveReleaseGroupUrl,
+  mbScheduledFetch,
 } from './musicbrainz';
 
 // ---------- Types (shape preserved for downstream compatibility) ----------

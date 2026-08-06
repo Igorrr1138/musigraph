@@ -362,11 +362,9 @@ async function rateLimitedMusicBrainzFetch(url: string) {
 
   lastMusicBrainzRequestAt = Date.now();
 
-  return fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+  // Funnels through the single global MusicBrainz queue (1 req/sec + retries).
+  const res = await mbScheduledFetch(url);
+  return res ?? new Response(null, { status: 503 });
 }
 
 async function fetchMusicBrainzArtistSearch(artistName: string) {
