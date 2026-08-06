@@ -78,6 +78,32 @@ async function mbFetch<T>(path: string, timeoutMs = DEFAULT_TIMEOUT): Promise<T 
   return null;
 }
 
+/**
+ * Public escape hatch for modules that need a raw MusicBrainz URL but must
+ * still respect the single global 1 req/sec queue (with 503/429 retries).
+ */
+export async function mbScheduledFetch(url: string, timeoutMs = DEFAULT_TIMEOUT): Promise<Response | null> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await schedule(async () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        return await fetch(url, { headers: MB_HEADERS, signal: ctrl.signal });
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+    if (!res) return null;
+    if (res.status !== 503 && res.status !== 429) return res;
+    await sleep(1_000 * (attempt + 1));
+  }
+  return null;
+}
+
+
+
 
 /** Escape a value for the Lucene-style MB query string. */
 function lucene(s: string): string {
