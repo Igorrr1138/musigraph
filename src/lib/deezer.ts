@@ -145,11 +145,8 @@ export async function searchTracks(query: string, limit = 12): Promise<DeezerTra
 
 export async function getArtist(mbid: string): Promise<DeezerArtist | null> {
   try {
-    const r = await fetch(
-      `https://musicbrainz.org/ws/2/artist/${mbid}?fmt=json`,
-      { headers: { Accept: 'application/json' } },
-    );
-    if (!r.ok) return null;
+    const r = await mbScheduledFetch(`https://musicbrainz.org/ws/2/artist/${mbid}?fmt=json`);
+    if (!r?.ok) return null;
     const j = (await r.json()) as { id?: string; name?: string };
     if (!j?.id || !j.name) return null;
     return { id: j.id, name: j.name, type: 'artist' };
@@ -192,11 +189,8 @@ export async function getArtistTopTracks(mbid: string, limit = 10): Promise<Deez
  */
 export async function getRelatedArtists(mbid: string, limit = 8): Promise<DeezerArtist[]> {
   try {
-    const r = await fetch(
-      `https://musicbrainz.org/ws/2/artist/${mbid}?inc=artist-rels&fmt=json`,
-      { headers: { Accept: 'application/json' } },
-    );
-    if (!r.ok) return [];
+    const r = await mbScheduledFetch(`https://musicbrainz.org/ws/2/artist/${mbid}?inc=artist-rels&fmt=json`);
+    if (!r?.ok) return [];
     const j = (await r.json()) as {
       relations?: Array<{ artist?: { id?: string; name?: string } }>;
     };
