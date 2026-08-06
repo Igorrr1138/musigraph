@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   searchArtistsMB,
   searchReleaseGroupsMB,
-  fetchArtistReleaseGroupsPage,
   coverArtArchiveReleaseGroupUrl,
 } from './musicbrainz';
 import { genreFromSlug, type WhitelistedGenre } from './genreWhitelist';
@@ -184,8 +183,11 @@ async function readCache(keys: string[]): Promise<Map<string, ResolvedEntry>> {
 }
 
 /** Fire-and-forget persistence so the next visit is a pure cache hit. */
-function writeCache(rows: Array<{ key: string; resolved: ResolvedEntry }>): void {
+async function writeCache(rows: Array<{ key: string; resolved: ResolvedEntry }>): Promise<void> {
   if (rows.length === 0) return;
+  // Cache writes require an authenticated session; skip silently otherwise.
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return;
   void supabase
     .from('music_cache')
     .upsert(
@@ -298,6 +300,6 @@ export async function resolveGenreEntries(
       memo.set(key, resolved);
       if (!isCancelled()) onResolved(key, resolved);
     }
-    writeCache(results.filter(r => r.resolved.mbid));
+    void writeCache(results.filter(r => r.resolved.mbid));
   }
 }

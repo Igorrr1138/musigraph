@@ -11,6 +11,7 @@ export interface GenreArtistGridProps {
 
 function ArtistTile({ entry, resolved }: { entry: GenreEntry; resolved?: ResolvedEntry }) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const pending = !resolved;
   const cover = !failed ? resolved?.imageUrl ?? null : null;
   const href = resolved?.mbid ? `/artist/${resolved.mbid}` : null;
@@ -26,8 +27,9 @@ function ArtistTile({ entry, resolved }: { entry: GenreEntry; resolved?: Resolve
             alt={entry.name}
             loading="lazy"
             onError={() => setFailed(true)}
-            className="w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:scale-110"
-            onLoad={e => e.currentTarget.classList.remove('opacity-0')}
+            onLoad={() => setLoaded(true)}
+            ref={el => { if (el?.complete && el.naturalWidth > 0) setLoaded(true); }}
+            className={`w-full h-full object-cover transition-opacity duration-300 group-hover:scale-110 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-secondary to-card">
