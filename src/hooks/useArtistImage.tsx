@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { mbScheduledFetch } from '@/lib/musicbrainz';
 
 const imageCache = new Map<string, string | null>();
 const pendingRequests = new Map<string, Promise<string | null>>();
