@@ -27,12 +27,12 @@ import {
   DotsSixVertical,
   DotsThree,
   Download,
-  Drum,
+
   FadersHorizontal,
   Fire,
   FloppyDisk,
   Gear,
-  GuitarIcon,
+  Guitar,
   Headphones,
   Image as PhImage,
   ImageBroken,
@@ -92,7 +92,7 @@ export {
   Cpu,
   Diamond,
   Download,
-  Drum,
+
   Headphones,
   House,
   Info,
@@ -136,7 +136,7 @@ export const Disc3 = VinylRecord;
 export const Dot = Circle;
 export const Flame = Fire;
 export const GripVertical = DotsSixVertical;
-export const Guitar = GuitarIcon;
+
 export const Image = PhImage;
 export const ImageIcon = PhImage;
 export const ImageOff = ImageBroken;
