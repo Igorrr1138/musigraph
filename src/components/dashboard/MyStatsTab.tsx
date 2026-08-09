@@ -9,7 +9,7 @@ import {
   Headphones,
   Calendar,
   ImageOff,
-} from 'lucide-react';
+} from '@/components/icons';
 import {
   Area,
   AreaChart,

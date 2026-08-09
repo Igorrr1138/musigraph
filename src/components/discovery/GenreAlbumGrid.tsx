@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Disc3 } from 'lucide-react';
+import { Disc3 } from '@/components/icons';
 import { useGenreCovers } from '@/hooks/useGenreCovers';
 import type { GenreEntry, ResolvedEntry } from '@/lib/genreDiscovery';
 

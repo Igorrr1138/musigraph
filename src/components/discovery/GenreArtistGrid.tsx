@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User } from 'lucide-react';
+import { User } from '@/components/icons';
 import { useGenreCovers } from '@/hooks/useGenreCovers';
 import type { GenreEntry, ResolvedEntry } from '@/lib/genreDiscovery';
 

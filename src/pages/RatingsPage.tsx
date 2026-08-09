@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
+import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from '@/components/icons';
 
 import { RatingSparkline } from '@/components/charts/brand-charts';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useArtistImage } from '@/hooks/useArtistImage';
 import { useAuth } from '@/hooks/useAuth';
@@ -90,16 +89,15 @@ const RatingsPage = () => {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-background flex items-center justify-center">
         <Disc3 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header />
-      <div className="pt-24 px-4">
+    <div className="bg-background pb-8">
+      <div className="pt-8 px-4">
         <div className="container mx-auto max-w-6xl">
           <Link
             to="/"

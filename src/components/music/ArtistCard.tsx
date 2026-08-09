@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User } from 'lucide-react';
+import { User } from '@/components/icons';
 import { pickArtistImage, type DeezerArtist } from '@/lib/deezer';
 
 interface ArtistCardProps {

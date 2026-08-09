@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { User, LogOut, BarChart3, Star, ListMusic, Settings2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, Hamburger, LogOut, BarChart3, Star, ListMusic, Settings2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,106 +11,91 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function Header() {
-  const { user, signOut } = useAuth();
-  const location = useLocation();
+interface HeaderProps {
+  onOpenMenu?: () => void;
+}
 
-  const isActive = (path: string) =>
-    location.pathname === path || location.pathname.startsWith(`${path}/`);
+/**
+ * Sticky editorial header: wordmark, flat search field, account block.
+ */
+export function Header({ onOpenMenu }: HeaderProps) {
+  const { user, signOut } = useAuth();
+
+  const nickname = user?.email ? user.email.split('@')[0] : null;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
-      <div className="container mx-auto px-6">
-        <div className="flex items-center gap-6 h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <div className="w-7 h-7 rounded-lg gradient-bg" />
-            <span className="text-lg font-boldonse tracking-wider text-foreground">
-              SOUNDVAULT
-            </span>
+    <header className="sticky top-0 z-40 border-b border-ink bg-background">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 px-6 py-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="lg:hidden text-foreground"
+            aria-label="Open navigation"
+          >
+            <Hamburger className="h-5 w-5" />
+          </button>
+          <Link to="/" className="font-display text-[24px] uppercase leading-[1.2] md:text-[33px]">
+            SoundVault
           </Link>
+        </div>
 
-          {/* Search */}
-          <div className="flex-1 max-w-md mx-auto hidden md:block">
-            <GlobalSearch />
-          </div>
+        <div className="hidden md:block max-w-[520px] w-full justify-self-center">
+          <GlobalSearch />
+        </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2 md:gap-5 ml-auto">
-            <Link
-              to="/pricing"
-              className={`hidden md:inline text-sm uppercase tracking-wider transition-colors ${
-                isActive('/pricing') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Pricing
+        <div className="flex items-center gap-5 px-2 py-2.5 justify-self-end">
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3" aria-label="Account menu">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                    <User className="h-4 w-4" />
+                  </span>
+                  <span className="hidden font-display text-[13px] uppercase leading-none md:inline">
+                    {nickname}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 border border-ink bg-popover">
+                <div className="px-3 py-2">
+                  <p className="truncate text-sm">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard" className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" /> My stats
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/rated-music" className="flex items-center gap-2">
+                    <Star className="h-4 w-4" /> Rated music
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/playlists" className="flex items-center gap-2">
+                    <ListMusic className="h-4 w-4" /> Playlists
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/preferences" className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4" /> Preferences
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/auth">
+              <Button className="border border-ink bg-primary px-6 text-xs uppercase text-primary-foreground hover:opacity-90">
+                Sign In
+              </Button>
             </Link>
-            <a
-              href="#"
-              className="hidden md:inline text-sm uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Download App
-            </a>
-            {user && (
-              <Link
-                to="/dashboard"
-                className={`hidden md:inline text-sm uppercase tracking-wider transition-colors ${
-                  isActive('/dashboard') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                My stats
-              </Link>
-            )}
-
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center">
-                      <User className="w-4 h-4 text-primary-foreground" />
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 glass">
-                  <div className="px-3 py-2">
-                    <p className="text-sm font-medium truncate">{user.email}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" /> My stats
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard/rated-music" className="flex items-center gap-2">
-                      <Star className="w-4 h-4" /> Rated music
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard/playlists" className="flex items-center gap-2">
-                      <ListMusic className="w-4 h-4" /> Playlists
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard/preferences" className="flex items-center gap-2">
-                      <Settings2 className="w-4 h-4" /> Preferences
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="text-destructive">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link to="/auth">
-                <Button className="gradient-bg text-primary-foreground border-0 hover:opacity-90 uppercase tracking-wider text-xs font-medium px-6">
-                  Sign In
-                </Button>
-              </Link>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </header>

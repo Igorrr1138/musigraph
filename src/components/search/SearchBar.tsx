@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X } from '@/components/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchBarProps {

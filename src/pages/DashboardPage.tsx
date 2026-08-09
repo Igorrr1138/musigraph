@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Disc3 } from 'lucide-react';
+import { Disc3 } from '@/components/icons';
 
-import { Header } from '@/components/layout/Header';
-import { DashboardSidebar, type DashboardTab } from '@/components/dashboard/DashboardSidebar';
+import type { DashboardTab } from '@/components/dashboard/DashboardSidebar';
 import { MyStatsTab } from '@/components/dashboard/MyStatsTab';
 import { RatedMusicTab } from '@/components/dashboard/RatedMusicTab';
 import { RatedMusicArtistTab } from '@/components/dashboard/RatedMusicArtistTab';
@@ -37,19 +36,17 @@ export default function DashboardPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-background flex items-center justify-center">
         <Disc3 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header />
-      <div className="pt-24 px-4">
+    <div className="bg-background pb-8">
+      <div className="pt-8 px-4">
         <div className="container mx-auto max-w-7xl">
-          <div className="flex flex-col md:flex-row gap-6">
-            <DashboardSidebar active={active} />
+          <div className="min-w-0">
             <main className="flex-1 min-w-0">
               {active === 'stats' && <MyStatsTab />}
               {active === 'rated' &&

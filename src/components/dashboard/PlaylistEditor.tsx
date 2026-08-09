@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Search, Pencil, Save, X, Music, Plus, ChevronLeft, Trash2, ImageIcon, Sparkles } from 'lucide-react';
+import { Search, Pencil, Save, X, Music, Plus, ChevronLeft, Trash2, ImageIcon, Sparkles } from '@/components/icons';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Disc3, Calendar, Star } from 'lucide-react';
+import { Disc3, Calendar, Star } from '@/components/icons';
 import { pickAlbumCover, type DeezerAlbum } from '@/lib/deezer';
 
 interface AlbumCardProps {

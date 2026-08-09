@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/components/icons';
 import {
   findArtistMbid,
   fetchArtistReleases,
@@ -79,9 +78,8 @@ export default function DebugDiscographyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header />
-      <main className="pt-24 px-6 container mx-auto max-w-5xl space-y-6">
+    <div className="bg-background pb-8">
+      <main className="pt-8 px-6 container mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-3xl font-boldonse mb-2">Discography Debug</h1>
           <p className="text-muted-foreground text-sm">

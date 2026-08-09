@@ -13,104 +13,104 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light (default) — Swiss editorial: white paper, black ink, one coral accent */
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 12 90% 52%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
-
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
-
-    --accent: 0 78% 55%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 95%;
-
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
-    --ring: 12 90% 52%;
-
-    --radius: 0.75rem;
-
-    --glow: 12 90% 52%;
-    --gradient-start: 20 95% 55%;
-    --gradient-end: 0 78% 50%;
-    --surface: 0 0% 6%;
-    --surface-elevated: 0 0% 10%;
-
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 12 90% 52%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 12 90% 52%;
-  }
-
-  .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 12 90% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
-    --accent: 0 78% 55%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
-    --ring: 12 90% 52%;
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 12 90% 52%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 12 90% 52%;
-  }
-
-  /* Figma "Album page" palette — light editorial scheme, scoped to the album view */
-  .theme-editorial {
-    --background: 0 0% 100%;          /* mono/00 #ffffff */
-    --foreground: 0 0% 7%;            /* text/default #111111 */
-    --card: 0 0% 97%;                 /* mono/05 #f7f7f7 */
+    --card: 0 0% 100%;
     --card-foreground: 0 0% 7%;
+
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 7%;
-    --primary: 11 82% 69%;            /* accent #f4826a */
+
+    --primary: 12 74% 63%;            /* #e8775a */
     --primary-foreground: 0 0% 7%;
-    --secondary: 0 0% 96%;            /* surface/raised #f5f5f5 */
+
+    --secondary: 0 0% 96%;            /* #f5f5f5 */
     --secondary-foreground: 0 0% 7%;
-    --muted: 220 13% 86%;             /* border/strong #d1d5db */
-    --muted-foreground: 0 0% 32%;     /* text/secondary #525252 */
-    --accent: 11 82% 69%;
+
+    --muted: 0 0% 97%;                /* #f7f7f7 */
+    --muted-foreground: 0 0% 32%;     /* #525252 */
+
+    --accent: 12 74% 63%;
     --accent-foreground: 0 0% 7%;
-    --border: 220 13% 86%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 86%;            /* #d1d5db */
     --input: 220 13% 86%;
-    --ring: 11 82% 69%;
+    --ring: 0 0% 7%;
+
+    --radius: 0rem;
+
+    --ink: 0 0% 7%;                   /* strong rule / inverse block */
+    --ink-foreground: 0 0% 100%;
+    --band: 0 0% 90%;                 /* #e6e6e6 hero band */
+    --surface: 0 0% 97%;
+    --surface-elevated: 0 0% 96%;
+    --glow: 12 74% 63%;
+    --gradient-start: 12 74% 63%;
+    --gradient-end: 12 74% 63%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 7%;
+    --sidebar-primary: 0 0% 10%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-border: 0 0% 7%;
+    --sidebar-ring: 0 0% 7%;
+  }
+
+  /* Dark — same system inverted, identical accent */
+  .dark {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 96%;
+
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 12 74% 63%;
+    --primary-foreground: 0 0% 7%;
+
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 96%;
+
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 54%;
+
+    --accent: 12 74% 63%;
+    --accent-foreground: 0 0% 7%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 96%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 0 0% 96%;
+
+    --ink: 0 0% 96%;
+    --ink-foreground: 0 0% 5%;
+    --band: 0 0% 10%;
+    --surface: 0 0% 7%;
+    --surface-elevated: 0 0% 9%;
+
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 0 0% 96%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 9%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 96%;
+    --sidebar-ring: 0 0% 96%;
   }
 }
+
 
 
 @layer base {

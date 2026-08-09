@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useId } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Disc3, User, Users } from 'lucide-react';
+import { Disc3, User, Users } from '@/components/icons';
 import {
   Area,
   AreaChart,
@@ -19,7 +19,6 @@ import {
   TooltipShell,
   chartPalette,
 } from '@/components/charts/brand-charts';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useArtistImage } from '@/hooks/useArtistImage';
@@ -297,16 +296,15 @@ const ArtistRatingsPage = () => {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-background flex items-center justify-center">
         <Disc3 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header />
-      <div className="pt-24 px-4">
+    <div className="bg-background pb-8">
+      <div className="pt-8 px-4">
         <div className="container mx-auto max-w-6xl">
           <Breadcrumb className="mb-8">
             <BreadcrumbList>

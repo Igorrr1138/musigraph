@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Disc3, Music2 } from 'lucide-react';
+import { Disc3, Music2 } from '@/components/icons';
 
 // Beta @supabase/supabase-js auth.oauth namespace — typed locally.
 type AuthzDetails = {

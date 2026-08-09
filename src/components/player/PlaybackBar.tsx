@@ -15,7 +15,7 @@ import {
   MicOff,
   Image as ImageIcon,
   Star,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
@@ -229,106 +229,126 @@ export function PlaybackBar() {
   } as unknown as DeezerTrack;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl bg-card/80 border-t border-border/40 shadow-[0_-4px_30px_-10px_hsl(var(--primary)/0.15)]">
-      <div className="container mx-auto px-4 py-2.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-ink">
+      <div className="px-4 py-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
         {/* LEFT: cover + meta + add */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-lg bg-secondary border border-border/60 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {coverUrl && !coverError ? (
-              <img
-                src={coverUrl}
-                alt={albumTitle ?? "Album cover"}
-                className="w-full h-full object-cover"
-                onError={() => setCoverError(true)}
-                loading="lazy"
-              />
-            ) : (
-              <ImageIcon className="w-4 h-4 text-muted-foreground" />
-            )}
+        <div className="flex items-center justify-between gap-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 bg-secondary border border-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {coverUrl && !coverError ? (
+                <img
+                  src={coverUrl}
+                  alt={albumTitle ?? "Album cover"}
+                  className="w-full h-full object-cover"
+                  onError={() => setCoverError(true)}
+                  loading="lazy"
+                />
+              ) : (
+                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="font-display uppercase text-[12px] leading-[1.3] truncate">
+                {cleanTrackTitle(currentTrack.title)}
+              </p>
+              {(artistName || albumTitle) && (
+                <div className="flex items-center gap-1 text-[11px] leading-[1.3] uppercase text-muted-foreground mt-1 min-w-0 font-display">
+                  {artistName && artistMbid ? (
+                    <Link
+                      to={`/artist/${artistMbid}`}
+                      title={artistName}
+                      className="truncate min-w-0 hover:text-foreground transition-colors"
+                    >
+                      {artistName}
+                    </Link>
+                  ) : artistName ? (
+                    <span className="truncate min-w-0 flex-[1_1_0%]" title={artistName}>
+                      {artistName}
+                    </span>
+                  ) : null}
+                  {artistName && albumTitle ? <span className="flex-shrink-0">•</span> : null}
+                  {albumTitle && currentAlbumMbid ? (
+                    <Link
+                      to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ""}&artistName=${encodeURIComponent(artistName ?? "")}`}
+                      title={albumTitle}
+                      className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground transition-colors"
+                    >
+                      {albumTitle}
+                    </Link>
+                  ) : albumTitle ? (
+                    <span className="truncate min-w-0 flex-[1_1_0%]" title={albumTitle}>
+                      {albumTitle}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate leading-tight">{cleanTrackTitle(currentTrack.title)}</p>
-            {(artistName || albumTitle) && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 min-w-0">
-                {artistName && artistMbid ? (
-                  <Link
-                    to={`/artist/${artistMbid}`}
-                    title={artistName}
-                    className="truncate min-w-0 hover:text-foreground hover:underline transition-colors"
-                  >
-                    {artistName}
-                  </Link>
-                ) : artistName ? (
-                  <span className="truncate min-w-0 flex-[1_1_0%]" title={artistName}>
-                    {artistName}
-                  </span>
-                ) : null}
-                {artistName && albumTitle ? <span className="flex-shrink-0 opacity-60">•</span> : null}
-                {albumTitle && currentAlbumMbid ? (
-                  <Link
-                    to={`/album/${currentAlbumMbid}?artistId=${artistMbid ?? ""}&artistName=${encodeURIComponent(artistName ?? "")}`}
-                    title={albumTitle}
-                    className="truncate min-w-0 flex-[1_1_0%] hover:text-foreground hover:underline transition-colors"
-                  >
-                    {albumTitle}
-                  </Link>
-                ) : albumTitle ? (
-                  <span className="truncate min-w-0 flex-[1_1_0%]" title={albumTitle}>
-                    {albumTitle}
-                  </span>
-                ) : null}
-              </div>
-            )}
+          <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+            <AddToPlaylistButton
+              track={trackForPlaylist}
+              artistName={artistName ?? undefined}
+              albumTitle={albumTitle ?? undefined}
+              albumDeezerId={currentAlbumMbid ?? undefined}
+            />
+            <span className="caption-tech leading-none">
+              add song to
+              <br />
+              playlist
+            </span>
           </div>
-          <AddToPlaylistButton
-            track={trackForPlaylist}
-            artistName={artistName ?? undefined}
-            albumTitle={albumTitle ?? undefined}
-            albumDeezerId={currentAlbumMbid ?? undefined}
-          />
+          <div className="lg:hidden">
+            <AddToPlaylistButton
+              track={trackForPlaylist}
+              artistName={artistName ?? undefined}
+              albumTitle={albumTitle ?? undefined}
+              albumDeezerId={currentAlbumMbid ?? undefined}
+            />
+          </div>
         </div>
 
         {/* CENTER: controls + progress */}
-        <div className="flex flex-col items-center gap-1 min-w-[320px] md:min-w-[420px]">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
+        <div className="flex flex-col items-center gap-1.5 min-w-[300px] md:min-w-[420px]">
+          <div className="flex items-center gap-6">
+            <button
               onClick={toggleShuffle}
-              className={cn("rounded-full h-8 w-8 transition-colors", shuffle && "text-primary")}
+              aria-label="Shuffle"
+              className={cn(
+                "text-muted-foreground hover:text-foreground transition-colors",
+                shuffle && "text-primary",
+              )}
             >
               <Shuffle className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={prevTrack} className="rounded-full h-8 w-8">
-              <SkipBack className="w-4 h-4 fill-current" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={togglePlay}
-              className="rounded-full h-9 w-9 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
-            >
-              {isPlaying ? (
-                <Pause className="w-4 h-4 fill-current" />
-              ) : (
-                <Play className="w-4 h-4 fill-current ml-0.5" />
-              )}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={nextTrack} className="rounded-full h-8 w-8">
-              <SkipForward className="w-4 h-4 fill-current" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+            </button>
+            <div className="flex items-center gap-4">
+              <button onClick={prevTrack} aria-label="Previous track" className="hover:opacity-70 transition-opacity">
+                <SkipBack className="w-6 h-6" weight="fill" />
+              </button>
+              <button onClick={togglePlay} aria-label="Play/pause" className="hover:opacity-70 transition-opacity">
+                {isPlaying ? (
+                  <Pause className="w-7 h-7" weight="fill" />
+                ) : (
+                  <Play className="w-7 h-7" weight="fill" />
+                )}
+              </button>
+              <button onClick={nextTrack} aria-label="Next track" className="hover:opacity-70 transition-opacity">
+                <SkipForward className="w-6 h-6" weight="fill" />
+              </button>
+            </div>
+            <button
               onClick={cycleRepeat}
-              className={cn("rounded-full h-8 w-8 transition-colors", repeat !== "off" && "text-primary")}
+              aria-label="Repeat"
+              className={cn(
+                "text-muted-foreground hover:text-foreground transition-colors",
+                repeat !== "off" && "text-primary",
+              )}
             >
               {repeat === "one" ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-            </Button>
+            </button>
           </div>
 
-          <div className="w-full flex items-center gap-3">
-            <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-10 text-right">
+          <div className="w-full flex items-center gap-2.5">
+            <span className="numeric text-[11px] text-muted-foreground w-10 text-right">
               {formatTime(currentTime)}
             </span>
             <Slider
@@ -336,34 +356,33 @@ export function PlaybackBar() {
               max={duration || 100}
               step={0.5}
               onValueChange={handleSeek}
-              className="flex-1 cursor-pointer [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-track]]:bg-muted [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:opacity-0 [&:hover_[data-radix-slider-thumb]]:opacity-100 [&_[data-radix-slider-thumb]]:transition-opacity [&_[data-radix-slider-thumb]]:border-foreground"
+              className="flex-1 cursor-pointer [&_[data-radix-slider-track]]:h-[2px] [&_[data-radix-slider-track]]:rounded-none [&_[data-radix-slider-track]]:bg-border [&_[data-radix-slider-range]]:bg-primary [&_[data-radix-slider-thumb]]:h-2.5 [&_[data-radix-slider-thumb]]:w-2.5 [&_[data-radix-slider-thumb]]:rounded-none [&_[data-radix-slider-thumb]]:opacity-0 [&:hover_[data-radix-slider-thumb]]:opacity-100 [&_[data-radix-slider-thumb]]:transition-opacity [&_[data-radix-slider-thumb]]:border-foreground"
             />
-            <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-10">
-              {formatTime(duration)}
-            </span>
+            <span className="numeric text-[11px] text-muted-foreground w-10">{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* RIGHT: rating + voice + volume */}
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-start justify-end gap-8 pr-2">
           {/* Rating — star icon toggles a vertical 1–10 scale */}
-          <div ref={ratingContainerRef} className="relative flex items-center justify-center">
+          <div ref={ratingContainerRef} className="relative flex flex-col items-center">
             <button
               onClick={() => setIsRatingOpen((v) => !v)}
               className={cn(
-                "flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full",
-                isRatingOpen && "text-primary bg-primary/10",
+                "flex items-center gap-2 text-foreground hover:opacity-70 transition-opacity",
+                isRatingOpen && "text-primary",
               )}
               aria-label={isRatingOpen ? "Hide rating scale" : "Rate this track"}
               aria-expanded={isRatingOpen}
               title={user ? `Rate this track (${rating ?? "–"}/10)` : "Sign in to rate"}
             >
-              <Star className={cn("w-4 h-4", rating ? "fill-primary text-primary" : "")} />
-              <span className="text-sm font-semibold tabular-nums">{rating ?? "–"}</span>
+              <Star className="w-5 h-5" weight={rating ? "fill" : "regular"} />
+              <span className="numeric text-[13px]">{rating ? String(rating).padStart(2, "0") : "–"}</span>
             </button>
+            <span className="caption-tech mt-1.5 hidden md:inline">Rating</span>
 
             {isRatingOpen && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 rounded-2xl bg-card/95 border border-border/60 backdrop-blur-xl shadow-[0_-8px_30px_-10px_hsl(var(--primary)/0.2)] z-50 flex flex-col items-center gap-2 min-w-[44px]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 bg-background border border-ink z-50 flex flex-col items-center gap-2 min-w-[44px]">
                 <div
                   ref={ratingBarRef}
                   role="slider"
@@ -387,10 +406,10 @@ export function PlaybackBar() {
                     if (e.key === "ArrowUp") saveRating(Math.min(10, (rating ?? 0) + 1));
                     else if (e.key === "ArrowDown") saveRating(Math.max(1, (rating ?? 1) - 1));
                   }}
-                  className="relative h-28 w-1.5 rounded-full bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="relative h-28 w-1.5 bg-border cursor-pointer focus:outline-none focus:ring-1 focus:ring-foreground"
                 >
                   <div
-                    className="absolute inset-x-0 bottom-0 bg-foreground rounded-full transition-all duration-150"
+                    className="absolute inset-x-0 bottom-0 bg-primary transition-all duration-150"
                     style={{
                       height: `${((hoverRating ?? rating ?? 0) / 10) * 100}%`,
                       opacity: hoverRating !== null ? 0.6 : 1,
@@ -398,7 +417,7 @@ export function PlaybackBar() {
                   />
                   {hoverRating !== null && cursorY !== null && (
                     <span
-                      className="pointer-events-none absolute left-4 -translate-y-1/2 rounded-md border border-border/60 bg-background/95 px-1.5 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+                      className="numeric pointer-events-none absolute left-4 -translate-y-1/2 border border-ink bg-background px-1.5 py-0.5 text-xs"
                       style={{ top: cursorY }}
                     >
                       {hoverRating}
@@ -412,49 +431,48 @@ export function PlaybackBar() {
           {/* Voice control */}
           <button
             onClick={toggleVoice}
-            className="relative flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            className="relative flex flex-col items-center text-foreground hover:opacity-70 transition-opacity"
             aria-label="Toggle voice control"
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {voiceOn ? (
-                <Mic
-                  className={cn("w-4 h-4", voiceState === "active" ? "text-primary animate-pulse" : "text-primary")}
-                />
+                <Mic className={cn("w-5 h-5 text-primary", voiceState === "active" && "animate-pulse")} />
               ) : (
-                <MicOff className="w-4 h-4" />
+                <MicOff className="w-5 h-5" />
               )}
-              <span className="text-xs font-medium">
+              <span className="font-display uppercase text-[13px] leading-none">
                 {voiceOn ? (voiceState === "active" ? "Listening…" : "On") : "Off"}
               </span>
             </div>
-            <span className="absolute top-[calc(100%+6px)] left-1/2 -translate-x-1/2 text-[10px] leading-none whitespace-nowrap hidden md:inline">
+            <span className="caption-tech mt-1.5 whitespace-nowrap hidden md:inline">
               {voiceOn ? 'Say "wake up" then 1–10' : "Voice control"}
             </span>
           </button>
 
           {/* Volume */}
-          <div ref={volumeContainerRef} className="relative flex items-center justify-center">
+          <div ref={volumeContainerRef} className="relative flex flex-col items-center">
             <button
               onClick={() => setIsVolumeOpen((v) => !v)}
               className={cn(
-                "text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-2 rounded-full",
-                isVolumeOpen && "text-primary bg-primary/10",
+                "text-foreground hover:opacity-70 transition-opacity flex-shrink-0",
+                isVolumeOpen && "text-primary",
               )}
               aria-label={isVolumeOpen ? "Hide volume" : "Show volume"}
               aria-expanded={isVolumeOpen}
             >
               {volumeIcon}
             </button>
+            <span className="caption-tech mt-1.5 hidden md:inline">Volume</span>
 
             {isVolumeOpen && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 rounded-2xl bg-card/95 border border-border/60 backdrop-blur-xl shadow-[0_-8px_30px_-10px_hsl(var(--primary)/0.2)] z-50 flex flex-col items-center gap-2 min-w-[44px]">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-3 bg-background border border-ink z-50 flex flex-col items-center gap-2 min-w-[44px]">
                 <Slider
                   orientation="vertical"
                   value={[volume]}
                   max={100}
                   step={1}
                   onValueChange={([v]) => setVolume(v)}
-                  className="h-28 w-5 [&_[data-radix-slider-track]]:w-1.5 [&_[data-radix-slider-track]]:bg-muted [&_[data-radix-slider-range]]:bg-foreground [&_[data-radix-slider-thumb]]:h-3 [&_[data-radix-slider-thumb]]:w-3 [&_[data-radix-slider-thumb]]:border-foreground"
+                  className="h-28 w-5 [&_[data-radix-slider-track]]:w-1.5 [&_[data-radix-slider-track]]:rounded-none [&_[data-radix-slider-track]]:bg-border [&_[data-radix-slider-range]]:bg-primary [&_[data-radix-slider-thumb]]:h-2.5 [&_[data-radix-slider-thumb]]:w-2.5 [&_[data-radix-slider-thumb]]:rounded-none [&_[data-radix-slider-thumb]]:border-foreground"
                 />
               </div>
             )}
@@ -464,3 +482,4 @@ export function PlaybackBar() {
     </div>
   );
 }
+

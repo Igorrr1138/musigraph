@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Clock, Star, PlayCircle } from 'lucide-react';
+import { Music, Clock, Star, PlayCircle } from '@/components/icons';
 import { formatDuration, type DeezerTrack } from '@/lib/deezer';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';

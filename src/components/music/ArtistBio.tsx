@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, MapPin, CalendarDays, Tag, User } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, CalendarDays, Tag, User } from "@/components/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { processBioText, splitYears } from "@/lib/cleanAndParseBio";

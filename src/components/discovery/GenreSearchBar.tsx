@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search } from '@/components/icons';
 import { ALL_WHITELISTED_GENRES } from '@/lib/genreWhitelist';
 
 /**

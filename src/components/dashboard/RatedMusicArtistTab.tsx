@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Disc3, User, Users, ArrowLeft } from 'lucide-react';
+import { Disc3, User, Users, ArrowLeft } from '@/components/icons';
 import {
   Area,
   AreaChart,
