@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Disc3, ImageIcon, Loader2, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Disc3, ImageIcon, Info, Loader2, PlayCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
 import { SongDetails } from '@/components/music/SongDetails';
@@ -165,82 +165,58 @@ function TrackRow({
   return (
     <div
       className={cn(
-        'group grid items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200',
-        'grid-cols-[28px_56px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(180px,1.2fr)_56px_44px]',
-        'hover:bg-secondary/60 hover:shadow-sm',
+        'group grid grid-cols-[repeat(6,minmax(0,1fr))] gap-x-6 items-center border-b border-dashed border-border transition-colors',
         isPlaying && 'bg-primary/10',
+        'hover:bg-secondary/40',
       )}
     >
-      {/* # */}
-      <span className="text-sm font-mono text-muted-foreground text-center">{position}</span>
-
-      {/* Artwork */}
-      <button
-        onClick={onPlay}
-        className="relative w-12 h-12 rounded-md bg-secondary overflow-hidden flex items-center justify-center group/play"
-      >
-        {albumCover && !imgError ? (
-          <img
-            src={albumCover}
-            alt=""
-            className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <ImageIcon className="w-4 h-4 text-muted-foreground" />
-        )}
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
-          <PlayCircle className="w-5 h-5 text-white" />
-        </div>
-      </button>
-
-      {/* Title */}
-      <div className="min-w-0">
+      {/* # + cover + title */}
+      <div className="col-span-2 flex items-center gap-3 pl-6 py-1.5 min-w-0">
+        <span className="font-display text-[13px] uppercase tabular-nums text-foreground">
+          {String(position).padStart(3, '0')}
+        </span>
+        <button
+          onClick={onPlay}
+          className="relative w-12 h-12 bg-secondary overflow-hidden flex items-center justify-center shrink-0 group/play"
+        >
+          {albumCover && !imgError ? (
+            <img
+              src={albumCover}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          )}
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
+            <PlayCircle className="w-5 h-5 text-white" />
+          </div>
+        </button>
         <p
           className={cn(
-            'truncate text-sm font-medium',
+            'truncate font-display text-xs uppercase leading-normal',
             isPlaying ? 'text-primary' : 'text-foreground',
           )}
         >
           {track.title}
         </p>
-        {artistName && (
-          <p className="truncate text-xs text-muted-foreground sm:hidden">{artistName}</p>
-        )}
       </div>
 
-      {/* Album column / Song Details on hover */}
-      <div className="relative min-w-0 hidden md:flex items-center">
-        <span className="truncate text-sm text-muted-foreground group-hover:opacity-0 transition-opacity">
-          {albumTitle}
-        </span>
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          className={cn(
-            'absolute left-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium',
-            'bg-background border border-border shadow-sm hover:bg-secondary',
-            'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0',
-            'transition-all duration-200',
-            isExpanded && 'opacity-100 translate-x-0 bg-primary text-primary-foreground border-primary',
-          )}
-        >
-          {isExpanded ? 'Hide details' : 'Song Details'}
-        </button>
-      </div>
+      {/* Album */}
+      <p className="hidden md:block truncate font-display text-xs uppercase text-muted-foreground">
+        {albumTitle}
+      </p>
 
       {/* Rating */}
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">
-          AVG
-        </span>
-      <div className="relative flex-1">
+      <div className="flex items-center gap-2 self-stretch py-2">
+        <div className="relative flex-1">
           <div
             onClick={handleBarClick}
             onMouseMove={handleBarMove}
             onMouseLeave={() => { onHoverRate(0); setCursorX(null); }}
             className={cn(
-              'relative h-2.5 rounded-full bg-muted overflow-hidden cursor-pointer',
+              'relative h-1.5 bg-muted overflow-hidden cursor-pointer',
               'group-hover:bg-background group-hover:ring-1 group-hover:ring-primary/40',
               saving && 'opacity-50',
             )}
@@ -250,7 +226,7 @@ function TrackRow({
             aria-valuenow={rating}
           >
             <div
-              className="absolute inset-y-0 left-0 bg-primary rounded-full group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.7)]"
+              className="absolute inset-y-0 left-0 bg-foreground group-hover:bg-primary"
               style={{
                 width: `${pct}%`,
                 transition: 'width 250ms cubic-bezier(0.22, 1, 0.36, 1)',
@@ -259,25 +235,23 @@ function TrackRow({
           </div>
           {cursorX !== null && display > 0 && (
             <span
-              className="pointer-events-none absolute -top-7 -translate-x-1/2 rounded-md border border-border/60 bg-background/95 px-1.5 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+              className="pointer-events-none absolute -top-7 -translate-x-1/2 border border-border bg-background px-1.5 py-0.5 font-display text-xs tabular-nums"
               style={{ left: cursorX }}
             >
               {display}
             </span>
           )}
         </div>
-        <span className="text-sm font-mono text-foreground w-4 text-right">
-          {rating > 0 ? rating : '–'}
+        <span className="font-display text-[13px] uppercase tabular-nums w-6 text-right">
+          {rating > 0 ? String(rating).padStart(2, '0') : '--'}
         </span>
       </div>
 
-      {/* Duration */}
-      <span className="text-sm font-mono text-muted-foreground text-right">
-        {track.duration ? formatDuration(track.duration) : '--:--'}
-      </span>
-
-      {/* Add */}
-      <div className="flex justify-center">
+      {/* Time + add to playlist */}
+      <div className="flex items-center justify-between pr-3 self-stretch">
+        <span className="font-display text-[13px] uppercase tabular-nums text-muted-foreground">
+          {track.duration ? formatDuration(track.duration) : '--:--'}
+        </span>
         <AddToPlaylistButton
           track={track}
           artistName={artistName}
@@ -286,9 +260,25 @@ function TrackRow({
           coverUrl={albumCover}
         />
       </div>
+
+      {/* Song details */}
+      <div className="flex items-center justify-end pr-4">
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          aria-label={isExpanded ? 'Hide song details' : 'Song details'}
+          className={cn(
+            'inline-flex items-center justify-center w-6 h-6 rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-foreground',
+            isExpanded && 'bg-foreground text-background border-foreground',
+          )}
+        >
+          <Info className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
+
 
 /* -------------------- Album Review -------------------- */
 
@@ -677,28 +667,37 @@ const AlbumPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          {/* Back nav */}
-          {artistId && artistName && (
-            <Link
-              to={`/artist/${artistId}`}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 group"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              Back to {artistName}
-            </Link>
+      <main className="pt-20 pb-24">
+        {/* ---------- Hero ---------- */}
+        <section className="relative overflow-hidden bg-secondary/30 px-6 pt-6 pb-12">
+          {coverUrl && !coverError && (
+            <img
+              src={coverUrl}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-[473px] w-full object-cover opacity-10 blur-2xl"
+            />
           )}
 
-          {/* Hero */}
-          <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-8 lg:gap-12 items-center mb-12">
-            {/* Left: cover + metadata */}
-            <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div className="relative">
+            {/* Back nav */}
+            {artistId && artistName && (
+              <Link
+                to={`/artist/${artistId}`}
+                className="inline-flex items-center gap-2.5 font-display text-[11px] uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors mb-12 group"
+              >
+                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+                Back to {artistName}
+              </Link>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+              {/* Cover */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
-                className="w-56 h-56 sm:w-64 sm:h-64 rounded-2xl bg-secondary overflow-hidden flex-shrink-0 border border-border/60"
+                className="lg:col-span-2 w-full max-w-[275px] aspect-square bg-secondary overflow-hidden"
               >
                 {coverUrl && !coverError ? (
                   <img
@@ -714,147 +713,167 @@ const AlbumPage = () => {
                 )}
               </motion.div>
 
+              {/* Title + meta rows */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="flex-1 min-w-0"
+                className="lg:col-span-2 flex flex-col justify-between min-w-0"
               >
-                <Badge
-                  variant="secondary"
-                  className="rounded-full text-xs font-medium px-3 py-1 mb-3"
-                >
-                  {recordType}
-                </Badge>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight mb-2">
-                  {album.title}
-                </h1>
-                {artistName && artistId && (
-                  <Link
-                    to={`/artist/${artistId}`}
-                    className="text-base font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    {artistName}
-                  </Link>
-                )}
-                <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-                  {album.release_date && <span>{album.release_date}</span>}
-                  {album.release_date && tracks.length > 0 && <span>•</span>}
-                  {tracks.length > 0 && (
-                    <span>
-                      {tracks.length} track{tracks.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
+                <div className="flex flex-col gap-6">
+                  <span className="self-start bg-foreground text-background font-display text-xs uppercase leading-snug pl-0.5 pr-5">
+                    {recordType}
+                  </span>
+                  <h1 className="font-display text-4xl md:text-[60px] leading-[0.9] uppercase break-words">
+                    {album.title}
+                  </h1>
                 </div>
+
+                <dl className="mt-8 flex flex-col font-display uppercase">
+                  <div className="flex items-center justify-between border-t border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Artist</dt>
+                    <dd className="text-[13px]">
+                      {artistId && artistName ? (
+                        <Link to={`/artist/${artistId}`} className="hover:text-primary transition-colors">
+                          {artistName}
+                        </Link>
+                      ) : (
+                        artistName ?? '—'
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Year</dt>
+                    <dd className="text-[13px] tabular-nums">{album.release_date || '—'}</dd>
+                  </div>
+                  <div className="flex items-center justify-between border-y border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Tracks</dt>
+                    <dd className="text-[13px] tabular-nums">{tracks.length} tracks</dd>
+                  </div>
+                </dl>
               </motion.div>
+
+              {/* Average score */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+                className="lg:col-span-1 flex flex-col justify-end items-end text-right font-display uppercase gap-1"
+              >
+                <p className="text-[11px] text-muted-foreground">Average score</p>
+                <p className="text-[40px] leading-tight tracking-tight tabular-nums">
+                  {ratedScores.length > 0 ? avgScore.toFixed(1) : '–'}/10
+                </p>
+                <p className="text-xs">
+                  Rated tracks: {ratedScores.length}/{tracks.length}
+                </p>
+              </motion.div>
+
+              {/* Accent block */}
+              <div className="hidden lg:flex lg:col-span-1 items-end">
+                <div
+                  className="w-full h-[191px] border-b border-foreground bg-primary"
+                  style={{ opacity: Math.max(0.35, ratedScores.length ? avgScore / 10 : 0.35) }}
+                />
+              </div>
             </div>
+          </div>
+        </section>
 
-            {/* Right: radial gauge */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-            >
-              <RadialScoreGauge
-                score={avgScore}
-                rated={ratedScores.length}
-                total={tracks.length}
-              />
-            </motion.div>
-          </section>
+        {/* ---------- Track list ---------- */}
+        <section className="border-t border-foreground pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-x-6 gap-y-5 px-6 pt-10 pb-6">
+            <h2 className="md:col-span-2 font-display text-[32px] leading-tight uppercase">
+              Track list
+            </h2>
+            <p className="md:col-span-3 self-end text-sm text-muted-foreground max-w-[255px]">
+              Rate each song and compare against the rest of the record
+            </p>
+          </div>
 
-          {/* Tracks */}
-          <section className="mb-12">
-            <div className="flex items-baseline justify-between mb-5 px-1">
-              <h2 className="text-2xl font-bold">Tracks</h2>
-              <p className="text-sm text-muted-foreground hidden md:block">
-                Rate each song and compare against the rest of the record.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-2 sm:p-3">
-              {/* Header row */}
-              <div className="hidden md:grid grid-cols-[28px_56px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(180px,1.2fr)_56px_44px] gap-4 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
-                <span className="text-center">#</span>
-                <span></span>
+          <div className="px-6">
+            {/* Table header */}
+            <div className="hidden md:grid grid-cols-[repeat(6,minmax(0,1fr))] gap-x-6 bg-secondary/60 border-y border-border py-2 font-display text-[11px] uppercase">
+              <div className="col-span-2 flex items-center gap-[101px] pl-6">
+                <span>#</span>
                 <span>Song name</span>
-                <span>Album</span>
-                <span>Rating</span>
-                <span className="text-right">Time</span>
-                <span></span>
               </div>
-
-              <div className="py-1">
-                <AnimatePresence initial={false}>
-                  {tracks.map((track, idx) => {
-                    const position = track.track_position ?? idx + 1;
-                    const rating = trackRatings[position] ?? 0;
-                    const hover = hoverRatings[position] ?? 0;
-                    const isPlaying =
-                      ytCurrentTrack?.position === position &&
-                      ytCurrentTrack?.title === track.title;
-                    const trackIdStr = String(track.id);
-                    const isExpanded = expandedTrackId === trackIdStr;
-                    return (
-                      <motion.div
-                        key={track.id ?? idx}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: idx * 0.02 }}
-                      >
-                        <TrackRow
-                          track={track}
-                          index={idx}
-                          position={position}
-                          albumTitle={album.title}
-                          albumCover={coverUrl}
-                          albumDeezerId={String(id)}
-                          artistName={artistName}
-                          rating={rating}
-                          hoverRating={hover}
-                          isPlaying={isPlaying}
-                          saving={savingTrack === position}
-                          isExpanded={isExpanded}
-                          onToggleExpand={() =>
-                            setExpandedTrackId(isExpanded ? null : trackIdStr)
-                          }
-                          onRate={(r) => handleRateTrack(track, position, r)}
-                          onHoverRate={(r) =>
-                            setHoverRatings((prev) => ({ ...prev, [position]: r }))
-                          }
-                          onPlay={() => handlePlay(track, position)}
-                        />
-                        <AnimatePresence initial={false}>
-                          {isExpanded && (
-                            <SongDetails
-                              key={`details-${trackIdStr}`}
-                              track={track}
-                              albumDeezerId={String(id)}
-                              albumCover={coverUrl}
-                              artistName={artistName}
-                              onClose={() => setExpandedTrackId(null)}
-                            />
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-4 mt-2 border-t border-border/60">
-                <span className="text-sm font-semibold text-muted-foreground">
-                  Album Score ({ratedScores.length}/{tracks.length} tracks rated)
-                </span>
-                <span className="text-2xl font-bold">
-                  {ratedScores.length > 0 ? `${avgScore.toFixed(1)}/10` : '–/10'}
-                </span>
-              </div>
+              <span>Album</span>
+              <span>Rating</span>
+              <span>Time</span>
+              <span className="text-right pr-4">Song details</span>
             </div>
-          </section>
 
-          {/* Album review */}
+            <AnimatePresence initial={false}>
+              {tracks.map((track, idx) => {
+                const position = track.track_position ?? idx + 1;
+                const rating = trackRatings[position] ?? 0;
+                const hover = hoverRatings[position] ?? 0;
+                const isPlaying =
+                  ytCurrentTrack?.position === position &&
+                  ytCurrentTrack?.title === track.title;
+                const trackIdStr = String(track.id);
+                const isExpanded = expandedTrackId === trackIdStr;
+                return (
+                  <motion.div
+                    key={track.id ?? idx}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: idx * 0.02 }}
+                  >
+                    <TrackRow
+                      track={track}
+                      index={idx}
+                      position={position}
+                      albumTitle={album.title}
+                      albumCover={coverUrl}
+                      albumDeezerId={String(id)}
+                      artistName={artistName}
+                      rating={rating}
+                      hoverRating={hover}
+                      isPlaying={isPlaying}
+                      saving={savingTrack === position}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() =>
+                        setExpandedTrackId(isExpanded ? null : trackIdStr)
+                      }
+                      onRate={(r) => handleRateTrack(track, position, r)}
+                      onHoverRate={(r) =>
+                        setHoverRatings((prev) => ({ ...prev, [position]: r }))
+                      }
+                      onPlay={() => handlePlay(track, position)}
+                    />
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <SongDetails
+                          key={`details-${trackIdStr}`}
+                          track={track}
+                          albumDeezerId={String(id)}
+                          albumCover={coverUrl}
+                          artistName={artistName}
+                          onClose={() => setExpandedTrackId(null)}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+
+            {/* Score bar */}
+            <div className="mt-6 flex items-center justify-between bg-foreground text-background px-4 py-1.5 font-display uppercase">
+              <span className="text-xs">
+                Album Score ({ratedScores.length}/{tracks.length} tracks rated)
+              </span>
+              <span className="text-2xl tracking-tight tabular-nums">
+                {ratedScores.length > 0 ? `${avgScore.toFixed(1)}/10` : '–/10'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Album review */}
+        <div className="px-6">
           <AlbumReviewCard albumDeezerId={String(id)} />
         </div>
       </main>
