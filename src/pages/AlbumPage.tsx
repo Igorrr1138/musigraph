@@ -771,10 +771,7 @@ const AlbumPage = () => {
 
               {/* Accent block */}
               <div className="hidden lg:flex lg:col-span-1 items-end">
-                <div
-                  className="w-full h-[191px] border-b border-foreground bg-primary"
-                  style={{ opacity: Math.max(0.35, ratedScores.length ? avgScore / 10 : 0.35) }}
-                />
+                <div className="w-full h-[191px] border-b border-foreground bg-primary" />
               </div>
             </div>
           </div>
