@@ -165,82 +165,58 @@ function TrackRow({
   return (
     <div
       className={cn(
-        'group grid items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200',
-        'grid-cols-[28px_56px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(180px,1.2fr)_56px_44px]',
-        'hover:bg-secondary/60 hover:shadow-sm',
+        'group grid grid-cols-[repeat(6,minmax(0,1fr))] gap-x-6 items-center border-b border-dashed border-border transition-colors',
         isPlaying && 'bg-primary/10',
+        'hover:bg-secondary/40',
       )}
     >
-      {/* # */}
-      <span className="text-sm font-mono text-muted-foreground text-center">{position}</span>
-
-      {/* Artwork */}
-      <button
-        onClick={onPlay}
-        className="relative w-12 h-12 rounded-md bg-secondary overflow-hidden flex items-center justify-center group/play"
-      >
-        {albumCover && !imgError ? (
-          <img
-            src={albumCover}
-            alt=""
-            className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <ImageIcon className="w-4 h-4 text-muted-foreground" />
-        )}
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
-          <PlayCircle className="w-5 h-5 text-white" />
-        </div>
-      </button>
-
-      {/* Title */}
-      <div className="min-w-0">
+      {/* # + cover + title */}
+      <div className="col-span-2 flex items-center gap-3 pl-6 py-1.5 min-w-0">
+        <span className="font-display text-[13px] uppercase tabular-nums text-foreground">
+          {String(position).padStart(3, '0')}
+        </span>
+        <button
+          onClick={onPlay}
+          className="relative w-12 h-12 bg-secondary overflow-hidden flex items-center justify-center shrink-0 group/play"
+        >
+          {albumCover && !imgError ? (
+            <img
+              src={albumCover}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          )}
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
+            <PlayCircle className="w-5 h-5 text-white" />
+          </div>
+        </button>
         <p
           className={cn(
-            'truncate text-sm font-medium',
+            'truncate font-display text-xs uppercase leading-normal',
             isPlaying ? 'text-primary' : 'text-foreground',
           )}
         >
           {track.title}
         </p>
-        {artistName && (
-          <p className="truncate text-xs text-muted-foreground sm:hidden">{artistName}</p>
-        )}
       </div>
 
-      {/* Album column / Song Details on hover */}
-      <div className="relative min-w-0 hidden md:flex items-center">
-        <span className="truncate text-sm text-muted-foreground group-hover:opacity-0 transition-opacity">
-          {albumTitle}
-        </span>
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          className={cn(
-            'absolute left-0 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium',
-            'bg-background border border-border shadow-sm hover:bg-secondary',
-            'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0',
-            'transition-all duration-200',
-            isExpanded && 'opacity-100 translate-x-0 bg-primary text-primary-foreground border-primary',
-          )}
-        >
-          {isExpanded ? 'Hide details' : 'Song Details'}
-        </button>
-      </div>
+      {/* Album */}
+      <p className="hidden md:block truncate font-display text-xs uppercase text-muted-foreground">
+        {albumTitle}
+      </p>
 
       {/* Rating */}
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">
-          AVG
-        </span>
-      <div className="relative flex-1">
+      <div className="flex items-center gap-2 self-stretch py-2">
+        <div className="relative flex-1">
           <div
             onClick={handleBarClick}
             onMouseMove={handleBarMove}
             onMouseLeave={() => { onHoverRate(0); setCursorX(null); }}
             className={cn(
-              'relative h-2.5 rounded-full bg-muted overflow-hidden cursor-pointer',
+              'relative h-1.5 bg-muted overflow-hidden cursor-pointer',
               'group-hover:bg-background group-hover:ring-1 group-hover:ring-primary/40',
               saving && 'opacity-50',
             )}
@@ -250,7 +226,7 @@ function TrackRow({
             aria-valuenow={rating}
           >
             <div
-              className="absolute inset-y-0 left-0 bg-primary rounded-full group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.7)]"
+              className="absolute inset-y-0 left-0 bg-foreground group-hover:bg-primary"
               style={{
                 width: `${pct}%`,
                 transition: 'width 250ms cubic-bezier(0.22, 1, 0.36, 1)',
@@ -259,25 +235,23 @@ function TrackRow({
           </div>
           {cursorX !== null && display > 0 && (
             <span
-              className="pointer-events-none absolute -top-7 -translate-x-1/2 rounded-md border border-border/60 bg-background/95 px-1.5 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+              className="pointer-events-none absolute -top-7 -translate-x-1/2 border border-border bg-background px-1.5 py-0.5 font-display text-xs tabular-nums"
               style={{ left: cursorX }}
             >
               {display}
             </span>
           )}
         </div>
-        <span className="text-sm font-mono text-foreground w-4 text-right">
-          {rating > 0 ? rating : '–'}
+        <span className="font-display text-[13px] uppercase tabular-nums w-6 text-right">
+          {rating > 0 ? String(rating).padStart(2, '0') : '--'}
         </span>
       </div>
 
-      {/* Duration */}
-      <span className="text-sm font-mono text-muted-foreground text-right">
-        {track.duration ? formatDuration(track.duration) : '--:--'}
-      </span>
-
-      {/* Add */}
-      <div className="flex justify-center">
+      {/* Time + add to playlist */}
+      <div className="flex items-center justify-between pr-3 self-stretch">
+        <span className="font-display text-[13px] uppercase tabular-nums text-muted-foreground">
+          {track.duration ? formatDuration(track.duration) : '--:--'}
+        </span>
         <AddToPlaylistButton
           track={track}
           artistName={artistName}
@@ -286,9 +260,25 @@ function TrackRow({
           coverUrl={albumCover}
         />
       </div>
+
+      {/* Song details */}
+      <div className="flex items-center justify-end pr-4">
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          aria-label={isExpanded ? 'Hide song details' : 'Song details'}
+          className={cn(
+            'inline-flex items-center justify-center w-6 h-6 rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-foreground',
+            isExpanded && 'bg-foreground text-background border-foreground',
+          )}
+        >
+          <Info className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
+
 
 /* -------------------- Album Review -------------------- */
 
