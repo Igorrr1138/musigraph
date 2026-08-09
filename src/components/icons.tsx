@@ -171,3 +171,5 @@ export const MusicSimple = MusicNotesSimple;
 
 export const Drum = MusicNotesSimple;
 export { Guitar, PianoKeys };
+
+export { Sun, Moon, List as Hamburger, CaretRight as ChevronRightIcon } from "@phosphor-icons/react";
