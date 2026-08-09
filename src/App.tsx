@@ -4,8 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/hooks/useTheme";
 import { YouTubePlayerProvider } from "@/hooks/useYouTubePlayer";
+import { AppShell } from "@/components/layout/AppShell";
 import { PlaybackBar } from "@/components/player/PlaybackBar";
+
 import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import OnboardingPage from "./pages/OnboardingPage";
