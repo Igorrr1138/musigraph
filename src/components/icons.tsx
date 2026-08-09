@@ -168,3 +168,6 @@ export const Volume1 = SpeakerSimpleLow;
 export const Volume2 = SpeakerSimpleHigh;
 export const VolumeX = SpeakerSimpleX;
 export const MusicSimple = MusicNotesSimple;
+
+export const Drum = MusicNotesSimple;
+export { Guitar, PianoKeys };
