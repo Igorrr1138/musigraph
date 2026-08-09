@@ -14,7 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        boldonse: ["Boldonse", "cursive"],
+        boldonse: ["ProFontWindows", "Space Mono", "monospace"],
+        display: ["ProFontWindows", "Space Mono", "monospace"],
+        profont: ["ProFontWindows", "Space Mono", "monospace"],
         grotesk: ["Space Grotesk", "sans-serif"],
         mono: ["Space Mono", "monospace"],
       },
