@@ -1,79 +1,55 @@
-# Full Deezer Removal Plan
+# Swiss editorial shell: sidebar, header, playback bar, Phosphor icons
 
-This is a large refactor: Deezer is currently woven through routing (URLs use Deezer IDs), the ratings schema (`album_deezer_id`, `artist_deezer_id`), cover art, search, artist top tracks, related artists, and playback matching. I want to confirm the scope + one data-migration decision before I start editing.
+Rebuild the app frame to match the Figma "Album page" frame, apply it to every page, and swap the icon set. Visual language: Swiss/editorial — monochrome + one coral accent (#e8775a), 1px dividers, no gradients/glass/shadows, no rounded containers, uppercase ProFontWindows labels, Space Grotesk paragraphs.
 
-## What "Deezer entirely removed" means in this codebase
+## 1. Two-theme token system
 
-Files to delete:
-- `src/lib/deezer.ts`
-- `src/lib/deezerCover.ts`
+- Rewrite the token layer in `src/index.css` as a real light/dark pair instead of the page-scoped `theme-editorial` class:
+  - Light (default, matches Figma): background #ffffff, raised #f5f5f5 / #f7f7f7, hero band #e6e6e6, text #111111, secondary #525252, border #d1d5db, strong border #111111, accent #e8775a.
+  - Dark: inverted equivalents — #0d0d0d background, #171717 raised, #f5f5f5 text, #8a8a8a secondary, #2a2a2a border, same coral accent.
+- Remove gradient/glow/glass utilities from use in the shell and replace them with flat borders. `--radius` drops to 0 for shell surfaces.
+- Add a theme toggle (stored in localStorage, `class="dark"` on `<html>`), placed in the sidebar footer next to Settings.
 
-Files to rewrite so they only touch MusicBrainz / Cover Art Archive / Last.fm (genres):
-- Pages: `SearchPage`, `ArtistPage`, `AlbumPage`, `ArtistRatingsPage`, `RatingsPage`, `DiscographyMapPage`, `GraphPage`, `DebugDiscographyPage`
-- Lib: `musicPipeline.ts`, `musicbrainz.ts`, `homeFeed.ts`, `discography.ts`, `purify.ts`, `genreDiscovery.ts`
-- Components: `AlbumCard`, `ArtistCard`, `TrackList`, `SongDetails`, `AddToPlaylistButton`, `PlaybackBar`, `MyStatsTab`, `RatedMusicTab`, `RatedMusicArtistTab`, `PlaylistEditor`
-- MCP: `src/lib/mcp/*`, `supabase/functions/mcp/index.ts`
-- Hooks: `useArtistImage`
+## 2. App shell (applies to all pages)
 
-## Replacement mapping
-
-| Current (Deezer) | Replacement |
-|---|---|
-| Album/artist search (`searchArtists`, `searchAlbums`, `searchTracks`) | MusicBrainz search (already exists in `musicbrainz.ts`: `searchArtistsMB`, `searchReleaseGroupsMB`, `searchRecordingsMB`) |
-| Album/artist covers | Cover Art Archive (`https://coverartarchive.org/release-group/{mbid}/front-500`) — no artist images available; artist tiles show initials/placeholder |
-| Artist top tracks | Drop the section (MB has no popularity signal) or replace with "Popular releases" (MB release-group list) |
-| Related artists | Drop, or use MB artist relations (band-member/similar via URL rels — sparse) |
-| Track previews (30s MP3) | Removed — no equivalent in MB |
-| YouTube playback title matching (currently uses Deezer titles) | Uses MB recording titles instead |
-
-## Route + storage impact — the decision I need from you
-
-URLs today: `/artist/:deezerId`, `/album/:deezerId`. Ratings rows are keyed on `album_deezer_id` + `artist_deezer_id`. Removing Deezer forces one of:
-
-**Option A — Switch to MBIDs everywhere and migrate ratings.**
-- Routes become `/artist/:mbid`, `/album/:mbid`.
-- Migration: add `album_mbid` / `artist_mbid` columns, backfill from existing `music_cache` where possible, then rename. Ratings without a matching MBID (albums that had no MB match) will be lost.
-- Cleanest end state.
-
-**Option B — Keep Deezer numeric IDs as opaque route identifiers only, but delete every Deezer *call*.**
-- Existing ratings + shareable URLs keep working.
-- IDs in the DB/URL are still called `deezer_id` but no code hits deezer.com anymore. Purely cosmetic Deezer presence.
-- Contradicts "Deezer should not affect anything" if you consider the column names.
-
-**Option C — Same as A but drop the ratings table entirely and start fresh.**
-- Simplest code, but every user loses their ratings.
-
-## Features that will visibly change or disappear
-
-- No 30-second track previews anywhere (album page, playlists, search).
-- No artist images on artist tiles/cards (CAA covers albums only). Placeholder initials tile instead.
-- Playback bar still works via YouTube search, but match quality drops slightly (no `isrc` field from MB in most cases; falls back to title + duration).
-- Homepage "Last releases" / "Recommended" that used Deezer charts becomes MB-driven: e.g. recent release-groups by favorite-genre artists. Recommendations get less lively.
-- Search returns MB results only — no covers on artist results, album covers via CAA (some albums have no CAA art → placeholder).
-- Related artists section on ArtistPage: removed unless you want the sparse MB-relations fallback.
-
-## Technical approach once Option chosen
+New `src/components/layout/AppShell.tsx` wrapping every route via a layout route in `App.tsx`:
 
 ```text
-1. Extend src/lib/musicbrainz.ts with:
-   - fetchReleaseGroupDetails(mbid)  // tracklist via /release?release-group=…
-   - artistTopReleases(mbid)          // used where "top tracks" used to be
-   - coverArtArchive helpers already exist
-2. Delete src/lib/deezer.ts, src/lib/deezerCover.ts.
-3. Rewrite musicPipeline.ts to be MB-only (drop Deezer merge pass + covers pass).
-4. Sweep every file in the list above; replace Deezer types (DeezerAlbum/Artist/Track)
-   with MB-native shapes exported from musicbrainz.ts.
-5. Update routes + ratings schema per chosen Option.
-6. Update MCP tools (search-music, rate-album, list-my-ratings) and edge function
-   to speak MBIDs.
-7. TRUNCATE music_cache, artists_cache, albums_cache, tracks_cache
-   (all keyed on deezer_id — obsolete).
++----------+--------------------------------------+
+| Sidebar  |  Header (sticky top)                 |
+| 264px    +--------------------------------------+
+| sticky   |  <page content>                      |
+| full-h   |                                      |
++----------+--------------------------------------+
+|  Playback bar (fixed bottom, all pages)         |
++-------------------------------------------------+
 ```
 
-## Questions before I start
+**Sidebar** (`DashboardSidebar` replaced by a global `AppSidebar`): 264px, sticky full-height, 1px right border, 64px top padding. Items with 16px icons + 13px uppercase labels, each row separated by a 1px bottom border: Home, My stats, Rated music, Playlists, Preferences. Active row = solid #1a1a1a fill with inverse text. Bottom block: Settings row (top border) and a full-width coral "Upgrade to pro" button with a 1px black border, linking to `/pricing`. On mobile it becomes a drawer opened by a hamburger in the header.
 
-1. **Which option for routes + ratings? A, B, or C?** This changes ~half the diff.
-2. **Artist top tracks + related artists sections — drop entirely, or keep as "Popular releases" / "MB relations"?**
-3. **Track previews — confirm okay to remove the play-preview UI everywhere (album page play buttons, search hover previews).**
+**Header**: sticky top, 1px bottom border, 24px horizontal padding, grid-aligned with the sidebar. Left: "SoundVault" wordmark at 33px uppercase. Center: flat search field (#f7f7f7, 1px #d1d5db border, no radius) using the existing `GlobalSearch` behaviour restyled. Right: 32px circular user avatar + uppercase nickname, keeping the current dropdown/sign-in logic.
 
-Once you answer, I'll execute the full sweep in one pass and clear the stale caches.
+**Playback bar**: fixed to the bottom on every route (currently already global, but restyled). Three-column grid: left = 48px cover, uppercase track title, "artist • album" links, add-to-playlist; center = shuffle / prev / play / next / repeat with a 2px flat progress track (coral fill) and 11px timestamps; right = queue, star rating with numeric value, voice-control toggle, volume, details — each with a 10px uppercase caption underneath, exactly as in the frame. All existing behaviour (vertical rating/volume popovers, voice control, rating sync) is preserved, only the visual layer changes.
+
+## 3. Album page corrections against the design
+
+Diff the current `src/pages/AlbumPage.tsx` against the frame and fix:
+- Hero band uses #e6e6e6 with 24px padding and a 48px gap; cover is a fixed 275px square, not fluid.
+- 6-column grid: cover col 1, hero info cols 3-4, average-score block col 5 right-aligned (11px label, 40px score, "Rated tracks: n/n"), coral 168x191 accent block col 6.
+- Meta rows (Artist / Year / Tracks) use black 1px top borders, 11px secondary label vs 13px value.
+- Track table header on #f5f5f5 with top+bottom borders; rows use dashed #d1d5db bottom borders and the 6-column grid (#/song, album, rating bar + 2-digit value, time + info, details).
+- Footer score bar: solid #111 background, white 12px uppercase label, 24px score value.
+- Remove the leftover page-scoped `theme-editorial` wrapper once global tokens land.
+
+## 4. Phosphor icons everywhere
+
+- Add `@phosphor-icons/react`, remove `lucide-react`.
+- Replace icon imports across all 58 files that use lucide, mapping equivalents (House, ChartLine, StarHalf, Playlist, FadersHorizontal, Gear, MagnifyingGlass, User, MicrophoneSlash, SpeakerSimpleHigh, Info, SkipBack/Forward, Play/Pause, Shuffle, Repeat, etc.) — the sidebar/header/player names come straight from the Figma layer names.
+- Use `weight="regular"` monoline as the default, `size` in px, `currentColor` for color so icons follow theme tokens.
+
+## Technical notes
+
+- Routing changes in `src/App.tsx`: wrap routes in a shell layout; `/auth`, `/reset-password`, `/onboarding` and the OAuth consent page stay outside the shell.
+- `DashboardPage` drops its own sidebar and uses the global one; dashboard tab routing is unchanged.
+- No data-layer, MusicBrainz, or rating-logic changes — presentation only.
+- Figma localhost asset URLs are not referenced; icons come from Phosphor and artwork from the existing Cover Art Archive pipeline.
