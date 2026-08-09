@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
+import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, ArrowDown } from "@/components/icons";
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistTopTracks, formatDuration, pickArtistImage, type DeezerArtist, type DeezerAlbum, type DeezerTrack } from "@/lib/deezer";

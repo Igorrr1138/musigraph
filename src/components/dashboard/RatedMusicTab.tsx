@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from 'lucide-react';
+import { Star, Disc3, ArrowRight, User, TrendingUp, Music } from '@/components/icons';
 
 import { RatingSparkline } from '@/components/charts/brand-charts';
 import { useArtistImage } from '@/hooks/useArtistImage';

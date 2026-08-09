@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Clock, User, Disc3, Loader2 } from 'lucide-react';
+import { Search, X, Clock, User, Disc3, Loader2 } from '@/components/icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   searchArtistsMB,

@@ -10,7 +10,7 @@ import {
   Legend,
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImageIcon, Loader2, Settings2, X, GripVertical } from 'lucide-react';
+import { ImageIcon, Loader2, Settings2, X, GripVertical } from '@/components/icons';
 import type { DeezerTrack } from '@/lib/deezer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';

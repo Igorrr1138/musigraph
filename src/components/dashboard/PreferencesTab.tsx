@@ -1,4 +1,4 @@
-import { Disc3 } from 'lucide-react';
+import { Disc3 } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Check, ListMusic, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Check, ListMusic, Sparkles, Loader2 } from '@/components/icons';
 import {
   Dialog,
   DialogContent,

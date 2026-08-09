@@ -15,7 +15,7 @@ import {
   MicOff,
   Image as ImageIcon,
   Star,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Disc3, User, Music2, Users, Loader2, Calendar } from 'lucide-react';
+import { Disc3, User, Music2, Users, Loader2, Calendar } from '@/components/icons';
 import { Header } from '@/components/layout/Header';
 import {
   searchArtistsMB,

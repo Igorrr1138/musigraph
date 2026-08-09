@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Circle, Sparkles, Music, Diamond, ShieldCheck, RotateCcw, Clock, Music2 } from 'lucide-react';
+import { Check, Circle, Sparkles, Music, Diamond, ShieldCheck, RotateCcw, Clock, Music2 } from '@/components/icons';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 

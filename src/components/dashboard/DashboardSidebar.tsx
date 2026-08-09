@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Star, ListMusic, Settings2 } from 'lucide-react';
+import { BarChart3, Star, ListMusic, Settings2 } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 export type DashboardTab = 'stats' | 'rated' | 'playlists' | 'preferences';

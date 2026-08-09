@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Music, Sparkles, ListMusic, Trash2 } from 'lucide-react';
+import { Plus, Music, Sparkles, ListMusic, Trash2 } from '@/components/icons';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';

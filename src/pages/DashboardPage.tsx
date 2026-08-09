@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Disc3 } from 'lucide-react';
+import { Disc3 } from '@/components/icons';
 
 import { Header } from '@/components/layout/Header';
 import { DashboardSidebar, type DashboardTab } from '@/components/dashboard/DashboardSidebar';

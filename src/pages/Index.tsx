@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from "lucide-react";
+import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";

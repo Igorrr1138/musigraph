@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Music2, Mic2, Cpu, Radio, Disc3, Piano, Guitar, Drum, Flame, Headphones, Sparkles, Activity } from 'lucide-react';
+import { Music2, Mic2, Cpu, Radio, Disc3, Piano, Guitar, Drum, Flame, Headphones, Sparkles, Activity } from '@/components/icons';
 import { PARENT_CATEGORIES, parentCategorySlug } from '@/lib/genreMap';
 import { cn } from '@/lib/utils';
 
