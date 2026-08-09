@@ -624,7 +624,7 @@ const AlbumPage = () => {
 
   if (isLoading) {
     return (
-      <div className="theme-editorial bg-background text-foreground">
+      <div className="bg-background text-foreground">
         <div className="pt-8 px-4">
           <div className="container mx-auto max-w-6xl">
             <Skeleton className="h-6 w-40 mb-8" />
@@ -644,7 +644,7 @@ const AlbumPage = () => {
 
   if (!album) {
     return (
-      <div className="theme-editorial bg-background text-foreground">
+      <div className="bg-background text-foreground">
         <div className="pt-8 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Album not found</h1>
           <Link to="/" className="text-primary hover:underline">
@@ -661,7 +661,7 @@ const AlbumPage = () => {
   const recordType = (album.record_type ?? 'Album').charAt(0).toUpperCase() + (album.record_type ?? 'Album').slice(1);
 
   return (
-    <div className="theme-editorial bg-background text-foreground">
+    <div className="bg-background text-foreground">
 
       <main className="pt-20 pb-24">
         {/* ---------- Hero ---------- */}
