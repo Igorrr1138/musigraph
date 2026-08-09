@@ -625,7 +625,7 @@ const AlbumPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="theme-editorial min-h-screen bg-background text-foreground">
         <Header />
         <div className="pt-24 px-4">
           <div className="container mx-auto max-w-6xl">
@@ -646,7 +646,7 @@ const AlbumPage = () => {
 
   if (!album) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="theme-editorial min-h-screen bg-background text-foreground">
         <Header />
         <div className="pt-24 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Album not found</h1>
@@ -664,7 +664,7 @@ const AlbumPage = () => {
   const recordType = (album.record_type ?? 'Album').charAt(0).toUpperCase() + (album.record_type ?? 'Album').slice(1);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="theme-editorial min-h-screen bg-background text-foreground">
       <Header />
 
       <main className="pt-20 pb-24">
