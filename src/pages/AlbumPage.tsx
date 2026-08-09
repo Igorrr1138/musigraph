@@ -625,7 +625,7 @@ const AlbumPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="theme-editorial min-h-screen bg-background text-foreground">
         <Header />
         <div className="pt-24 px-4">
           <div className="container mx-auto max-w-6xl">
@@ -646,7 +646,7 @@ const AlbumPage = () => {
 
   if (!album) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="theme-editorial min-h-screen bg-background text-foreground">
         <Header />
         <div className="pt-24 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Album not found</h1>
@@ -664,7 +664,7 @@ const AlbumPage = () => {
   const recordType = (album.record_type ?? 'Album').charAt(0).toUpperCase() + (album.record_type ?? 'Album').slice(1);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="theme-editorial min-h-screen bg-background text-foreground">
       <Header />
 
       <main className="pt-20 pb-24">
@@ -771,10 +771,7 @@ const AlbumPage = () => {
 
               {/* Accent block */}
               <div className="hidden lg:flex lg:col-span-1 items-end">
-                <div
-                  className="w-full h-[191px] border-b border-foreground bg-primary"
-                  style={{ opacity: Math.max(0.35, ratedScores.length ? avgScore / 10 : 0.35) }}
-                />
+                <div className="w-full h-[191px] border-b border-foreground bg-primary" />
               </div>
             </div>
           </div>

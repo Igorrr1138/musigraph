@@ -89,7 +89,29 @@
     --sidebar-border: 0 0% 14%;
     --sidebar-ring: 12 90% 52%;
   }
+
+  /* Figma "Album page" palette — light editorial scheme, scoped to the album view */
+  .theme-editorial {
+    --background: 0 0% 100%;          /* mono/00 #ffffff */
+    --foreground: 0 0% 7%;            /* text/default #111111 */
+    --card: 0 0% 97%;                 /* mono/05 #f7f7f7 */
+    --card-foreground: 0 0% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 11 82% 69%;            /* accent #f4826a */
+    --primary-foreground: 0 0% 7%;
+    --secondary: 0 0% 96%;            /* surface/raised #f5f5f5 */
+    --secondary-foreground: 0 0% 7%;
+    --muted: 220 13% 86%;             /* border/strong #d1d5db */
+    --muted-foreground: 0 0% 32%;     /* text/secondary #525252 */
+    --accent: 11 82% 69%;
+    --accent-foreground: 0 0% 7%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
+    --ring: 11 82% 69%;
+  }
 }
+
 
 @layer base {
   * {
