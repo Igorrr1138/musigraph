@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Disc3, ImageIcon, Info, Loader2, PlayCircle } from '@/components/icons';
-import { Header } from '@/components/layout/Header';
 import { AddToPlaylistButton } from '@/components/music/AddToPlaylistButton';
 import { SongDetails } from '@/components/music/SongDetails';
 import {
@@ -625,9 +624,8 @@ const AlbumPage = () => {
 
   if (isLoading) {
     return (
-      <div className="theme-editorial min-h-screen bg-background text-foreground">
-        <Header />
-        <div className="pt-24 px-4">
+      <div className="theme-editorial bg-background text-foreground">
+        <div className="pt-8 px-4">
           <div className="container mx-auto max-w-6xl">
             <Skeleton className="h-6 w-40 mb-8" />
             <div className="flex flex-col md:flex-row gap-8">
@@ -646,9 +644,8 @@ const AlbumPage = () => {
 
   if (!album) {
     return (
-      <div className="theme-editorial min-h-screen bg-background text-foreground">
-        <Header />
-        <div className="pt-24 px-4 text-center">
+      <div className="theme-editorial bg-background text-foreground">
+        <div className="pt-8 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Album not found</h1>
           <Link to="/" className="text-primary hover:underline">
             Back to search
@@ -664,8 +661,7 @@ const AlbumPage = () => {
   const recordType = (album.record_type ?? 'Album').charAt(0).toUpperCase() + (album.record_type ?? 'Album').slice(1);
 
   return (
-    <div className="theme-editorial min-h-screen bg-background text-foreground">
-      <Header />
+    <div className="theme-editorial bg-background text-foreground">
 
       <main className="pt-20 pb-24">
         {/* ---------- Hero ---------- */}

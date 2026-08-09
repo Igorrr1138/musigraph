@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Disc3, User, MapPin, Calendar, Music2, ArrowRight, RefreshCw, ArrowUp, ArrowDown } from "@/components/icons";
-import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { getArtist, getArtistTopTracks, formatDuration, pickArtistImage, type DeezerArtist, type DeezerAlbum, type DeezerTrack } from "@/lib/deezer";
 import { buildDiscography, sortByReleaseDateAsc, type ClassifiedAlbum } from "@/lib/discography";
@@ -321,9 +320,8 @@ const ArtistPage = () => {
 
   if (isLoadingArtist) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="pt-24 px-4">
+      <div className="bg-background">
+        <div className="pt-8 px-4">
           <div className="container mx-auto max-w-[1440px]">
             <Skeleton className="h-8 w-32 mb-8" />
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
@@ -345,9 +343,8 @@ const ArtistPage = () => {
 
   if (!artist) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="pt-24 px-4 text-center">
+      <div className="bg-background">
+        <div className="pt-8 px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Artist not found</h1>
           <Link to="/" className="text-primary hover:underline">
             Back to search
@@ -423,9 +420,8 @@ const ArtistPage = () => {
   const cleanBioText = bio?.text ? bio.text.replace(/<[^>]*>?/gm, "") : "";
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="pt-24 px-4">
+    <div className="bg-background">
+      <div className="pt-8 px-4">
         <div className="container mx-auto max-w-[1440px]">
           <Breadcrumb className="mb-6">
             <BreadcrumbList>

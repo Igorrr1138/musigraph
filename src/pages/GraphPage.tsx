@@ -20,7 +20,6 @@ import {
   chartPalette,
   getBrandRatingColor,
 } from '@/components/charts/brand-charts';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -180,17 +179,16 @@ const GraphPage = () => {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-background flex items-center justify-center">
         <Disc3 className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="bg-background">
 
-      <div className="pt-24 px-4 pb-12">
+      <div className="pt-8 px-4 pb-12">
         <div className="container mx-auto max-w-6xl">
           <Link
             to="/ratings"

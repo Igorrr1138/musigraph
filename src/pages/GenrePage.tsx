@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Header } from '@/components/layout/Header';
 import { GenreFilters } from '@/components/discovery/GenreFilters';
 import { GenreArtistGrid } from '@/components/discovery/GenreArtistGrid';
 import { GenreAlbumGrid } from '@/components/discovery/GenreAlbumGrid';
@@ -166,10 +165,9 @@ const GenrePage = () => {
   const activeSubSlug = activeIsParent ? null : activeGenre?.slug ?? null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="bg-background">
 
-      <main className="container mx-auto max-w-6xl pt-28 pb-20 px-4">
+      <main className="container mx-auto max-w-6xl pt-8 pb-20 px-4">
         {/* Breadcrumb */}
         <nav className="text-xs text-muted-foreground mb-6 flex gap-2 items-center" aria-label="Breadcrumb">
           <Link to="/" className="hover:text-foreground transition-colors">Home</Link>

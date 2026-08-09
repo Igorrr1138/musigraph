@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Disc3, Plus, Star, Music, ListMusic, Sparkles, X } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/Header";
 import { AlbumCard } from "@/components/music/AlbumCard";
 import { ArtistCard } from "@/components/music/ArtistCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -129,11 +128,10 @@ const Index = () => {
   const playlists = playlistsQ.data ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="bg-background">
 
       {showHint && (
-        <div className="pt-24 px-4">
+        <div className="pt-8 px-4">
           <div className="container mx-auto max-w-7xl">
             <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
@@ -156,7 +154,7 @@ const Index = () => {
         </div>
       )}
 
-      <section className={`relative ${showHint ? "pt-12" : "pt-32"} pb-12 px-4 overflow-hidden`}>
+      <section className={`relative ${showHint ? "pt-12" : "pt-10"} pb-12 px-4 overflow-hidden`}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />

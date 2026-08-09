@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Disc3, User, Music2, Users, Loader2, Calendar } from '@/components/icons';
-import { Header } from '@/components/layout/Header';
 import {
   searchArtistsMB,
   searchReleaseGroupsMB,
@@ -63,10 +62,9 @@ export default function SearchPage() {
   const total = artists.length + albums.length + tracks.length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="bg-background">
 
-      <main className="container mx-auto px-6 pt-28 pb-32 max-w-7xl">
+      <main className="container mx-auto px-6 pt-8 pb-32 max-w-7xl">
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
             Search result for:

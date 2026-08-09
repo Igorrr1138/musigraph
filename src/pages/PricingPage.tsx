@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Circle, Sparkles, Music, Diamond, ShieldCheck, RotateCcw, Clock, Music2 } from '@/components/icons';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 
 const basicIncluded = [
@@ -66,9 +65,8 @@ export default function PricingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="pt-24 pb-16">
+    <div className="bg-background">
+      <main className="pt-8 pb-16">
         {/* Hero */}
         <section className="container mx-auto px-6 text-center max-w-3xl">
           <div className="inline-block px-4 py-1.5 rounded-full border border-border/60 text-xs uppercase tracking-[0.25em] text-muted-foreground mb-6">
