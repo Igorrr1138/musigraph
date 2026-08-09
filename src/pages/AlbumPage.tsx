@@ -667,28 +667,37 @@ const AlbumPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          {/* Back nav */}
-          {artistId && artistName && (
-            <Link
-              to={`/artist/${artistId}`}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 group"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              Back to {artistName}
-            </Link>
+      <main className="pt-20 pb-24">
+        {/* ---------- Hero ---------- */}
+        <section className="relative overflow-hidden bg-secondary/30 px-6 pt-6 pb-12">
+          {coverUrl && !coverError && (
+            <img
+              src={coverUrl}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-[473px] w-full object-cover opacity-10 blur-2xl"
+            />
           )}
 
-          {/* Hero */}
-          <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-8 lg:gap-12 items-center mb-12">
-            {/* Left: cover + metadata */}
-            <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div className="relative">
+            {/* Back nav */}
+            {artistId && artistName && (
+              <Link
+                to={`/artist/${artistId}`}
+                className="inline-flex items-center gap-2.5 font-display text-[11px] uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors mb-12 group"
+              >
+                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+                Back to {artistName}
+              </Link>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+              {/* Cover */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
-                className="w-56 h-56 sm:w-64 sm:h-64 rounded-2xl bg-secondary overflow-hidden flex-shrink-0 border border-border/60"
+                className="lg:col-span-2 w-full max-w-[275px] aspect-square bg-secondary overflow-hidden"
               >
                 {coverUrl && !coverError ? (
                   <img
@@ -704,147 +713,167 @@ const AlbumPage = () => {
                 )}
               </motion.div>
 
+              {/* Title + meta rows */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="flex-1 min-w-0"
+                className="lg:col-span-2 flex flex-col justify-between min-w-0"
               >
-                <Badge
-                  variant="secondary"
-                  className="rounded-full text-xs font-medium px-3 py-1 mb-3"
-                >
-                  {recordType}
-                </Badge>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight mb-2">
-                  {album.title}
-                </h1>
-                {artistName && artistId && (
-                  <Link
-                    to={`/artist/${artistId}`}
-                    className="text-base font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    {artistName}
-                  </Link>
-                )}
-                <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-                  {album.release_date && <span>{album.release_date}</span>}
-                  {album.release_date && tracks.length > 0 && <span>•</span>}
-                  {tracks.length > 0 && (
-                    <span>
-                      {tracks.length} track{tracks.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
+                <div className="flex flex-col gap-6">
+                  <span className="self-start bg-foreground text-background font-display text-xs uppercase leading-snug pl-0.5 pr-5">
+                    {recordType}
+                  </span>
+                  <h1 className="font-display text-4xl md:text-[60px] leading-[0.9] uppercase break-words">
+                    {album.title}
+                  </h1>
                 </div>
+
+                <dl className="mt-8 flex flex-col font-display uppercase">
+                  <div className="flex items-center justify-between border-t border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Artist</dt>
+                    <dd className="text-[13px]">
+                      {artistId && artistName ? (
+                        <Link to={`/artist/${artistId}`} className="hover:text-primary transition-colors">
+                          {artistName}
+                        </Link>
+                      ) : (
+                        artistName ?? '—'
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Year</dt>
+                    <dd className="text-[13px] tabular-nums">{album.release_date || '—'}</dd>
+                  </div>
+                  <div className="flex items-center justify-between border-y border-foreground pt-2 pb-1.5">
+                    <dt className="text-[11px] text-muted-foreground">Tracks</dt>
+                    <dd className="text-[13px] tabular-nums">{tracks.length} tracks</dd>
+                  </div>
+                </dl>
               </motion.div>
+
+              {/* Average score */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+                className="lg:col-span-1 flex flex-col justify-end items-end text-right font-display uppercase gap-1"
+              >
+                <p className="text-[11px] text-muted-foreground">Average score</p>
+                <p className="text-[40px] leading-tight tracking-tight tabular-nums">
+                  {ratedScores.length > 0 ? avgScore.toFixed(1) : '–'}/10
+                </p>
+                <p className="text-xs">
+                  Rated tracks: {ratedScores.length}/{tracks.length}
+                </p>
+              </motion.div>
+
+              {/* Accent block */}
+              <div className="hidden lg:flex lg:col-span-1 items-end">
+                <div
+                  className="w-full h-[191px] border-b border-foreground bg-primary"
+                  style={{ opacity: Math.max(0.35, ratedScores.length ? avgScore / 10 : 0.35) }}
+                />
+              </div>
             </div>
+          </div>
+        </section>
 
-            {/* Right: radial gauge */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-            >
-              <RadialScoreGauge
-                score={avgScore}
-                rated={ratedScores.length}
-                total={tracks.length}
-              />
-            </motion.div>
-          </section>
+        {/* ---------- Track list ---------- */}
+        <section className="border-t border-foreground pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-x-6 gap-y-5 px-6 pt-10 pb-6">
+            <h2 className="md:col-span-2 font-display text-[32px] leading-tight uppercase">
+              Track list
+            </h2>
+            <p className="md:col-span-3 self-end text-sm text-muted-foreground max-w-[255px]">
+              Rate each song and compare against the rest of the record
+            </p>
+          </div>
 
-          {/* Tracks */}
-          <section className="mb-12">
-            <div className="flex items-baseline justify-between mb-5 px-1">
-              <h2 className="text-2xl font-bold">Tracks</h2>
-              <p className="text-sm text-muted-foreground hidden md:block">
-                Rate each song and compare against the rest of the record.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-2 sm:p-3">
-              {/* Header row */}
-              <div className="hidden md:grid grid-cols-[28px_56px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(180px,1.2fr)_56px_44px] gap-4 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
-                <span className="text-center">#</span>
-                <span></span>
+          <div className="px-6">
+            {/* Table header */}
+            <div className="hidden md:grid grid-cols-[repeat(6,minmax(0,1fr))] gap-x-6 bg-secondary/60 border-y border-border py-2 font-display text-[11px] uppercase">
+              <div className="col-span-2 flex items-center gap-[101px] pl-6">
+                <span>#</span>
                 <span>Song name</span>
-                <span>Album</span>
-                <span>Rating</span>
-                <span className="text-right">Time</span>
-                <span></span>
               </div>
-
-              <div className="py-1">
-                <AnimatePresence initial={false}>
-                  {tracks.map((track, idx) => {
-                    const position = track.track_position ?? idx + 1;
-                    const rating = trackRatings[position] ?? 0;
-                    const hover = hoverRatings[position] ?? 0;
-                    const isPlaying =
-                      ytCurrentTrack?.position === position &&
-                      ytCurrentTrack?.title === track.title;
-                    const trackIdStr = String(track.id);
-                    const isExpanded = expandedTrackId === trackIdStr;
-                    return (
-                      <motion.div
-                        key={track.id ?? idx}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: idx * 0.02 }}
-                      >
-                        <TrackRow
-                          track={track}
-                          index={idx}
-                          position={position}
-                          albumTitle={album.title}
-                          albumCover={coverUrl}
-                          albumDeezerId={String(id)}
-                          artistName={artistName}
-                          rating={rating}
-                          hoverRating={hover}
-                          isPlaying={isPlaying}
-                          saving={savingTrack === position}
-                          isExpanded={isExpanded}
-                          onToggleExpand={() =>
-                            setExpandedTrackId(isExpanded ? null : trackIdStr)
-                          }
-                          onRate={(r) => handleRateTrack(track, position, r)}
-                          onHoverRate={(r) =>
-                            setHoverRatings((prev) => ({ ...prev, [position]: r }))
-                          }
-                          onPlay={() => handlePlay(track, position)}
-                        />
-                        <AnimatePresence initial={false}>
-                          {isExpanded && (
-                            <SongDetails
-                              key={`details-${trackIdStr}`}
-                              track={track}
-                              albumDeezerId={String(id)}
-                              albumCover={coverUrl}
-                              artistName={artistName}
-                              onClose={() => setExpandedTrackId(null)}
-                            />
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-4 mt-2 border-t border-border/60">
-                <span className="text-sm font-semibold text-muted-foreground">
-                  Album Score ({ratedScores.length}/{tracks.length} tracks rated)
-                </span>
-                <span className="text-2xl font-bold">
-                  {ratedScores.length > 0 ? `${avgScore.toFixed(1)}/10` : '–/10'}
-                </span>
-              </div>
+              <span>Album</span>
+              <span>Rating</span>
+              <span>Time</span>
+              <span className="text-right pr-4">Song details</span>
             </div>
-          </section>
 
-          {/* Album review */}
+            <AnimatePresence initial={false}>
+              {tracks.map((track, idx) => {
+                const position = track.track_position ?? idx + 1;
+                const rating = trackRatings[position] ?? 0;
+                const hover = hoverRatings[position] ?? 0;
+                const isPlaying =
+                  ytCurrentTrack?.position === position &&
+                  ytCurrentTrack?.title === track.title;
+                const trackIdStr = String(track.id);
+                const isExpanded = expandedTrackId === trackIdStr;
+                return (
+                  <motion.div
+                    key={track.id ?? idx}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: idx * 0.02 }}
+                  >
+                    <TrackRow
+                      track={track}
+                      index={idx}
+                      position={position}
+                      albumTitle={album.title}
+                      albumCover={coverUrl}
+                      albumDeezerId={String(id)}
+                      artistName={artistName}
+                      rating={rating}
+                      hoverRating={hover}
+                      isPlaying={isPlaying}
+                      saving={savingTrack === position}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() =>
+                        setExpandedTrackId(isExpanded ? null : trackIdStr)
+                      }
+                      onRate={(r) => handleRateTrack(track, position, r)}
+                      onHoverRate={(r) =>
+                        setHoverRatings((prev) => ({ ...prev, [position]: r }))
+                      }
+                      onPlay={() => handlePlay(track, position)}
+                    />
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <SongDetails
+                          key={`details-${trackIdStr}`}
+                          track={track}
+                          albumDeezerId={String(id)}
+                          albumCover={coverUrl}
+                          artistName={artistName}
+                          onClose={() => setExpandedTrackId(null)}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+
+            {/* Score bar */}
+            <div className="mt-6 flex items-center justify-between bg-foreground text-background px-4 py-1.5 font-display uppercase">
+              <span className="text-xs">
+                Album Score ({ratedScores.length}/{tracks.length} tracks rated)
+              </span>
+              <span className="text-2xl tracking-tight tabular-nums">
+                {ratedScores.length > 0 ? `${avgScore.toFixed(1)}/10` : '–/10'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Album review */}
+        <div className="px-6">
           <AlbumReviewCard albumDeezerId={String(id)} />
         </div>
       </main>
