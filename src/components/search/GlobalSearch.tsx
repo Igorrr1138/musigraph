@@ -263,7 +263,7 @@ export function GlobalSearch({
             onFocus={() => setOpen(true)}
             placeholder={placeholder}
             aria-label="Search music"
-            className="w-full h-10 pl-10 pr-10 rounded-full bg-secondary/60 border border-border/40 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-secondary transition-colors"
+            className="w-full h-10 pl-10 pr-10 bg-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors"
           />
           {query && (
             <button
@@ -273,7 +273,7 @@ export function GlobalSearch({
                 setQuery('');
                 inputRef.current?.focus();
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-background/60 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:opacity-70 transition-opacity"
             >
               <X className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
@@ -288,7 +288,7 @@ export function GlobalSearch({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 rounded-2xl border border-border/50 bg-popover/85 backdrop-blur-xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto"
+            className="absolute left-0 right-0 top-full z-50 border border-ink bg-popover overflow-hidden max-h-[70vh] overflow-y-auto"
           >
             {panel}
           </motion.div>
@@ -322,7 +322,7 @@ function Row({
         onClick={onClick}
         className="flex items-center gap-3 min-w-0 flex-1 text-left"
       >
-        <span className="w-9 h-9 rounded-lg bg-secondary/80 overflow-hidden flex items-center justify-center shrink-0">
+        <span className="w-9 h-9 bg-secondary overflow-hidden flex items-center justify-center shrink-0">
           {imageUrl && imgOk ? (
             <img
               src={imageUrl}
@@ -351,7 +351,7 @@ function Row({
             e.stopPropagation();
             onRemove();
           }}
-          className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-background/60 transition-opacity shrink-0"
+          className="p-1.5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shrink-0"
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
