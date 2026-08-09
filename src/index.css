@@ -1,5 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Boldonse&family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
+@font-face {
+  font-family: 'ProFontWindows';
+  src: url('/__l5e/assets-v1/667cc577-fc96-4349-a5b2-720d5cad88bc/ProFontWindows.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,7 +101,16 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Boldonse', cursive;
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+  }
+
+  /* Digits, labels, buttons and links use the technical display face */
+  button, a, label, th,
+  .font-display {
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
   }
 }
 
@@ -180,7 +197,28 @@
 
   .nav-link {
     @apply relative px-4 py-2 text-muted-foreground transition-colors duration-200 uppercase tracking-[0.2em] text-xs font-medium;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
+  }
+
+  /* Typography system */
+  .label-tech {
+    @apply uppercase text-[11px] leading-none tracking-[0.18em] text-muted-foreground;
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
+  }
+
+  .caption-tech {
+    @apply uppercase text-[10px] leading-[1.3] tracking-[0.22em] text-muted-foreground;
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
+  }
+
+  .headline-xl {
+    @apply uppercase text-[clamp(2.5rem,7vw,5rem)] leading-[0.9] tracking-[-0.02em];
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
+  }
+
+  .numeric {
+    @apply tabular-nums tracking-[0.02em];
+    font-family: 'ProFontWindows', 'Space Mono', monospace;
   }
 
   .nav-link:hover {
