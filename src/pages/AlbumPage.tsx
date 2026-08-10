@@ -28,7 +28,8 @@ import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
-import { PixelatedCover } from '@/components/music/PixelatedCover';
+import { PixelatedCover, DEFAULT_PIXEL_PARAMS, type PixelatedCoverParams } from '@/components/music/PixelatedCover';
+import { PixelatedCoverControls } from '@/components/music/PixelatedCoverControls';
 
 
 const MOOD_TAGS = [
@@ -433,6 +434,8 @@ const AlbumPage = () => {
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [savingTrack, setSavingTrack] = useState<number | null>(null);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  const [pixelParams, setPixelParams] = useState<PixelatedCoverParams>(DEFAULT_PIXEL_PARAMS);
+  const [pixelPanelOpen, setPixelPanelOpen] = useState(false);
   const routeArtistId = searchParams.get('artistId') ?? undefined;
   const routeArtistName = searchParams.get('artistName') ?? undefined;
 
@@ -671,9 +674,21 @@ const AlbumPage = () => {
           {coverUrl && !coverError && (
             <PixelatedCover
               src={coverUrl}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20 grayscale"
+              {...pixelParams}
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
             />
           )}
+
+          {coverUrl && !coverError && (
+            <PixelatedCoverControls
+              open={pixelPanelOpen}
+              onOpenChange={setPixelPanelOpen}
+              params={pixelParams}
+              onChange={setPixelParams}
+            />
+          )}
+
+
 
 
           <div className="relative">

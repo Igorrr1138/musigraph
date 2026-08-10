@@ -4,25 +4,48 @@ import { useEffect, useRef, useState } from 'react';
  * Close Pixelate (desandro) style renderer, ported to canvas + rAF.
  * Draws the album cover as animated square pixels, greyscaled, low opacity.
  */
-interface PixelatedCoverProps {
-  src: string;
-  className?: string;
+export interface PixelatedCoverParams {
   /** Pixel block size range animated back and forth */
-  minResolution?: number;
-  maxResolution?: number;
+  minResolution: number;
+  maxResolution: number;
   /** Seconds for one direction of the loop */
-  duration?: number;
+  duration: number;
+  /** 0..1 canvas opacity */
+  opacity: number;
+  /** 0..1 greyscale amount */
+  grayscale: number;
+  /** Square or circle pixels */
+  shape: 'square' | 'circle';
+  /** Gap between pixels in px */
+  gap: number;
+  /** Animation running */
+  playing: boolean;
 }
 
-export function PixelatedCover({
-  src,
-  className,
-  minResolution = 8,
-  maxResolution = 42,
-  duration = 14,
-}: PixelatedCoverProps) {
+export const DEFAULT_PIXEL_PARAMS: PixelatedCoverParams = {
+  minResolution: 8,
+  maxResolution: 42,
+  duration: 14,
+  opacity: 0.2,
+  grayscale: 1,
+  shape: 'square',
+  gap: 0,
+  playing: true,
+};
+
+interface PixelatedCoverProps extends Partial<PixelatedCoverParams> {
+  src: string;
+  className?: string;
+}
+
+export function PixelatedCover({ src, className, ...overrides }: PixelatedCoverProps) {
+  const p = { ...DEFAULT_PIXEL_PARAMS, ...overrides };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
+
+  // keep latest params without restarting the image load
+  const paramsRef = useRef(p);
+  paramsRef.current = p;
 
   useEffect(() => {
     if (!src) return;
@@ -61,15 +84,34 @@ export function PixelatedCover({
         return;
       }
 
-      const start = performance.now();
+      let elapsed = 0;
+      let last = performance.now();
 
       const render = (now: number) => {
-        // ping-pong easing between min and max resolution
-        const t = ((now - start) / 1000) % (duration * 2);
-        const p = t < duration ? t / duration : 2 - t / duration;
-        const eased = 0.5 - Math.cos(p * Math.PI) / 2;
-        const res = Math.max(2, Math.round(minResolution + (maxResolution - minResolution) * eased));
+        const {
+          minResolution,
+          maxResolution,
+          duration,
+          grayscale,
+          shape,
+          gap,
+          playing,
+        } = paramsRef.current;
+
+        const dt = (now - last) / 1000;
+        last = now;
+        if (playing) elapsed += dt;
+
+        const dur = Math.max(0.5, duration);
+        const t = elapsed % (dur * 2);
+        const prog = t < dur ? t / dur : 2 - t / dur;
+        const eased = 0.5 - Math.cos(prog * Math.PI) / 2;
+        const res = Math.max(
+          2,
+          Math.round(minResolution + (maxResolution - minResolution) * eased),
+        );
         const offset = res / 2;
+        const size = Math.max(1, res - gap);
 
         ctx.clearRect(0, 0, w, h);
         for (let y = 0; y < h + res; y += res) {
@@ -83,8 +125,17 @@ export function PixelatedCover({
             const a = data[i + 3] / 255;
             if (!a) continue;
             const grey = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-            ctx.fillStyle = `rgba(${grey},${grey},${grey},${a})`;
-            ctx.fillRect(x - offset, y - offset, res, res);
+            const cr = Math.round(r + (grey - r) * grayscale);
+            const cg = Math.round(g + (grey - g) * grayscale);
+            const cb = Math.round(b + (grey - b) * grayscale);
+            ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
+            if (shape === 'circle') {
+              ctx.beginPath();
+              ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+              ctx.fill();
+            } else {
+              ctx.fillRect(x - offset, y - offset, size, size);
+            }
           }
         }
         raf = requestAnimationFrame(render);
@@ -97,9 +148,16 @@ export function PixelatedCover({
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, [src, minResolution, maxResolution, duration]);
+  }, [src]);
 
   if (failed) return null;
 
-  return <canvas ref={canvasRef} aria-hidden className={className} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className={className}
+      style={{ opacity: p.opacity }}
+    />
+  );
 }
