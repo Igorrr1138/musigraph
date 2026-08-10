@@ -665,9 +665,9 @@ const AlbumPage = () => {
   return (
     <div className="bg-background text-foreground">
 
-      <main className="pt-20 pb-24">
+      <main className="pb-24">
         {/* ---------- Hero ---------- */}
-        <section className="relative overflow-hidden bg-secondary/30 px-6 pt-6 pb-12">
+        <section className="relative overflow-hidden bg-secondary/30 px-6 pt-8 pb-12">
           {coverUrl && !coverError && (
             <PixelatedCover
               src={coverUrl}
