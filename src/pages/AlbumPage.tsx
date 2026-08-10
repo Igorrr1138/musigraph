@@ -766,10 +766,30 @@ const AlbumPage = () => {
                 </p>
               </motion.div>
 
-              {/* Accent block */}
+              {/* Accent block — album score gauge */}
               <div className="hidden lg:flex lg:col-span-1 items-end">
-                <div className="w-full h-[191px] border-b border-foreground bg-primary" />
+                <div
+                  className="relative w-full h-[191px] border-b border-foreground bg-secondary/60 overflow-hidden"
+                  role="meter"
+                  aria-valuemin={0}
+                  aria-valuemax={10}
+                  aria-valuenow={ratedScores.length > 0 ? Number(avgScore.toFixed(1)) : 0}
+                  aria-label="Average album score"
+                >
+                  <motion.div
+                    className="absolute inset-x-0 bottom-0 bg-primary"
+                    initial={{ height: 0 }}
+                    animate={{
+                      height: `${ratedScores.length > 0 ? Math.max(0, Math.min(10, avgScore)) * 10 : 0}%`,
+                    }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                  />
+                  <span className="absolute top-1.5 right-2 font-display text-[11px] uppercase tabular-nums text-muted-foreground">
+                    {ratedScores.length > 0 ? avgScore.toFixed(1) : '–'}/10
+                  </span>
+                </div>
               </div>
+
             </div>
           </div>
         </section>
