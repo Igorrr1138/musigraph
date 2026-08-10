@@ -667,13 +667,12 @@ const AlbumPage = () => {
         {/* ---------- Hero ---------- */}
         <section className="relative overflow-hidden bg-secondary/30 px-6 pt-6 pb-12">
           {coverUrl && !coverError && (
-            <img
+            <PixelatedCover
               src={coverUrl}
-              alt=""
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-[473px] w-full object-cover opacity-10 blur-2xl"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20 grayscale"
             />
           )}
+
 
           <div className="relative">
             {/* Back nav */}
