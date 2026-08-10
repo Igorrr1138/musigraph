@@ -28,6 +28,8 @@ import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { emitTrackRating, onTrackRating } from '@/lib/ratingEvents';
+import { PixelatedCover } from '@/components/music/PixelatedCover';
+
 
 const MOOD_TAGS = [
   'Joy / Uplift',
