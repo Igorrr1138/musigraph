@@ -674,9 +674,21 @@ const AlbumPage = () => {
           {coverUrl && !coverError && (
             <PixelatedCover
               src={coverUrl}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20 grayscale"
+              {...pixelParams}
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
             />
           )}
+
+          {coverUrl && !coverError && (
+            <PixelatedCoverControls
+              open={pixelPanelOpen}
+              onOpenChange={setPixelPanelOpen}
+              params={pixelParams}
+              onChange={setPixelParams}
+            />
+          )}
+
+
 
 
           <div className="relative">
